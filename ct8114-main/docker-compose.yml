@@ -1,0 +1,54 @@
+version: "3.9"
+
+# ==============================================================
+# 卷职责划分:
+#   uniportal_storage — UniPortal 共享卷 (只读)
+#     读取上传的 C/C++ 源码, 目录结构:
+#         {portal_proj_id}/{item_id}/{解压后源码根目录}/
+#   ct8114_local — 本工具私有读写卷
+#     存放本工具自有上传的项目 (proj_*) 以及每次分析的报告
+#         {project_id}/_ct8114/last_report.json
+#   ct8114_tasks — 本工具私有读写卷
+#     每次 clang-tidy 调用的沙盒目录 (fixes.yaml 等)
+# ==============================================================
+
+services:
+  app:
+    build: .
+    image: ct8114:v1
+    container_name: ct8114
+    ports:
+      - "8006:8000"
+    volumes:
+      # UniPortal 共享卷 (只读) — 不能写, 否则报 read-only filesystem
+      - uniportal_storage:/data/uniportal:ro
+      # 本工具私有: 自上传项目 + 分析报告 (可读写)
+      - ct8114_local:/app/local_workspaces
+      # 本工具私有: clang-tidy 沙盒 (可读写)
+      - ct8114_tasks:/app/workspaces/_tasks
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+      # 共享卷源码读取路径 (只读)
+      - UNIPORTAL_STORAGE_PATH=/data/uniportal
+      # 本工具生成物写入路径 (可读写)
+      - LOCAL_WORKSPACES_DIR=/app/local_workspaces
+      # clang-tidy 沙盒目录 (可读写)
+      - TASKS_DIR=/app/workspaces/_tasks
+      # GJB8114 检查项配置 (如需关闭部分检查, 在此调整)
+      - CLANG_TIDY_CHECKS=gjb8114-*,-gjb8114-r-1-3-8,-gjb8114-r-1-7-3,-gjb8114-r-1-7-7
+    restart: unless-stopped
+
+# ==============================================================
+# 卷声明
+# ==============================================================
+volumes:
+  # 引用 UniPortal 已创建的外部命名卷 (需先启动 UniPortal)
+  uniportal_storage:
+    external: true
+  # 本工具私有: 自上传项目 + 分析报告
+  ct8114_local:
+    driver: local
+  # 本工具私有: clang-tidy 沙盒
+  ct8114_tasks:
+    driver: local

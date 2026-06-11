@@ -1,0 +1,33 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+
+.git/
+.gitignore
+.dockerignore
+
+Frontend/
+node_modules/
+
+.idea/
+.vscode/
+.trae/
+
+# 运行/调试产物
+fixes.yaml
+*.log
+build.sh
+test.c
+
+# 本地分析卷的实际数据不进镜像 (运行时由命名卷挂载)
+local_workspaces/
+workspaces/_tasks/
+
+# 大体积归档文件不进构建上下文
+*.tar
+*.tar.gz

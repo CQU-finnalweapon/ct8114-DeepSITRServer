@@ -1,0 +1,1 @@
+docker build -t ct8114:v1 .

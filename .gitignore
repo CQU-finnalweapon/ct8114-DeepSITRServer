@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Workspace data (generated at runtime)
+workspaces/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# DeepSITRServer (not part of this repo)
+DeepSITRServer-2026-6-9/
