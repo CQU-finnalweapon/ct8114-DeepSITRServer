@@ -1,1866 +1,569 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>GJB8114 在线静态分析</title>
-    <style>
-      /* 与 Frontend(Vue3 + Tailwind 浅色蓝主题) 保持一致的色板:
-       slate-* 为中性灰阶, primary-* 为深蓝主色, 与 NavBar / UploadView
-       中使用的 hex 一一对应, 方便后续与 Tailwind 项目互通. */
-      :root {
-        --white: #ffffff;
-        --slate-50: #f8fafc;
-        --slate-100: #f1f5f9;
-        --slate-200: #e2e8f0;
-        --slate-300: #cbd5e1;
-        --slate-400: #94a3b8;
-        --slate-500: #64748b;
-        --slate-600: #475569;
-        --slate-700: #334155;
-        --slate-800: #1e293b;
-        --slate-900: #0f172a;
-
-        --primary-50: #eff6ff;
-        --primary-100: #dbeafe;
-        --primary-500: #3b82f6;
-        --primary-600: #2563eb;
-        --primary-700: #1d4ed8;
-        --primary-800: #1e40af;
-        --primary-900: #1e3a8a;
-
-        --green-50: #f0fdf4;
-        --green-100: #dcfce7;
-        --green-200: #bbf7d0;
-        --green-600: #16a34a;
-        --green-700: #15803d;
-
-        --red-50: #fef2f2;
-        --red-100: #fee2e2;
-        --red-600: #dc2626;
-        --red-700: #b91c1c;
-
-        --yellow-50: #fefce8;
-        --yellow-100: #fef9c3;
-        --yellow-200: #fef08a;
-        --yellow-600: #ca8a04;
-        --yellow-700: #a16207;
-
-        --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
-        --shadow-md:
-          0 4px 6px -1px rgba(15, 23, 42, 0.08),
-          0 2px 4px -2px rgba(15, 23, 42, 0.04);
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        margin: 0;
-        padding: 0;
-        background: var(--white);
-        color: var(--slate-900);
-        font:
-          14px/1.55 -apple-system,
-          BlinkMacSystemFont,
-          "Segoe UI",
-          Roboto,
-          "Helvetica Neue",
-          Arial,
-          "PingFang SC",
-          "Microsoft YaHei",
-          sans-serif;
-      }
-      a {
-        color: var(--primary-600);
-        text-decoration: none;
-      }
-      a:hover {
-        color: var(--primary-700);
-      }
-
-      /* 与 Frontend/style.css 一致的浅色滚动条 */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: var(--slate-50);
-      }
-      ::-webkit-scrollbar-thumb {
-        background: var(--slate-300);
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: var(--slate-400);
-      }
-
-      /* ---------- 顶部导航 (对齐 NavBar.vue 的 brand + steps + meta 布局) ---------- */
-      .nav {
-        background: var(--white);
-        border-bottom: 1px solid var(--slate-200);
-        padding: 16px 24px;
-      }
-      .nav-inner {
-        max-width: 1280px;
-        margin: 0 auto;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        flex-wrap: wrap;
-      }
-      .brand {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      .brand-badge {
-        width: 32px;
-        height: 32px;
-        border-radius: 6px;
-        background: var(--primary-900);
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-      }
-      .brand-title {
-        font-size: 18px;
-        font-weight: 700;
-        letter-spacing: -0.01em;
-        color: var(--slate-900);
-      }
-      .meta-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 12px;
-        border-radius: 999px;
-        background: var(--slate-100);
-        color: var(--slate-900);
-        font-size: 12px;
-        font-weight: 600;
-      }
-      .meta-chip .label {
-        color: var(--slate-500);
-        font-weight: 500;
-      }
-
-      /* ---------- 页面主体 ---------- */
-      main {
-        max-width: 1280px;
-        margin: 0 auto;
-        padding: 32px 24px 48px;
-        display: grid;
-        grid-template-columns: 360px 1fr;
-        gap: 28px;
-      }
-      /* grid 子项默认 min-width:auto, 长代码/长路径会撑破列宽导致右栏内容溢出视口;
-       min-width:0 允许子项收缩, 配合 .code 的 overflow:auto 让长行横向滚动而不溢出 */
-      main > aside,
-      main > section {
-        min-width: 0;
-      }
-      .diag {
-        min-width: 0;
-        overflow-wrap: anywhere;
-      }
-
-      /* ---------- 卡片 (UploadView 中的 rounded-xl + shadow-sm + slate 边框) ---------- */
-      .card {
-        background: var(--white);
-        border: 1px solid var(--slate-200);
-        border-radius: 12px;
-        padding: 20px;
-        box-shadow: var(--shadow-sm);
-      }
-      .card + .card {
-        margin-top: 16px;
-      }
-      .card h2 {
-        margin: 0 0 12px;
-        font-size: 12px;
-        font-weight: 700;
-        color: var(--slate-500);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-      }
-
-      /* ---------- 上传区 (UploadView dashed dropzone) ---------- */
-      .drop {
-        display: block;
-        border: 2px dashed var(--slate-300);
-        border-radius: 10px;
-        padding: 24px 16px;
-        text-align: center;
-        color: var(--slate-500);
-        cursor: pointer;
-        background: var(--slate-50);
-        transition:
-          border-color 0.15s,
-          background-color 0.15s,
-          color 0.15s;
-      }
-      .drop:hover,
-      .drop.dragover {
-        border-color: var(--primary-600);
-        background: var(--primary-50);
-        color: var(--slate-700);
-      }
-      .drop input {
-        display: none;
-      }
-      .drop-icon {
-        width: 48px;
-        height: 48px;
-        margin: 0 auto 10px;
-        border-radius: 999px;
-        background: var(--slate-100);
-        color: var(--slate-400);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition:
-          background-color 0.15s,
-          color 0.15s;
-      }
-      .drop:hover .drop-icon,
-      .drop.dragover .drop-icon {
-        background: var(--primary-50);
-        color: var(--primary-600);
-      }
-      .drop-title {
-        font-weight: 700;
-        color: var(--slate-700);
-        margin-bottom: 4px;
-      }
-      .drop-hint {
-        font-size: 12px;
-        color: var(--slate-500);
-      }
-
-      .file-list {
-        list-style: none;
-        margin: 12px 0 0;
-        padding: 0;
-        max-height: 200px;
-        overflow: auto;
-      }
-      .file-list li {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        margin-bottom: 6px;
-        background: var(--white);
-        border: 1px solid var(--slate-200);
-        border-radius: 8px;
-        font-size: 13px;
-      }
-      .file-list .fname {
-        color: var(--slate-700);
-        font-weight: 600;
-      }
-      .file-list .fsize {
-        color: var(--slate-400);
-        font-weight: 500;
-        margin-left: 6px;
-        font-size: 11.5px;
-      }
-      .icon-btn {
-        background: transparent;
-        border: 0;
-        padding: 4px 6px;
-        cursor: pointer;
-        color: var(--slate-400);
-        border-radius: 6px;
-        transition:
-          background-color 0.15s,
-          color 0.15s;
-      }
-      .icon-btn:hover {
-        color: var(--red-600);
-        background: var(--red-50);
-      }
-
-      /* ---------- 表单控件 ---------- */
-      .field {
-        margin-bottom: 12px;
-      }
-      .field:last-child {
-        margin-bottom: 0;
-      }
-      .field-label {
-        display: block;
-        font-size: 12px;
-        font-weight: 700;
-        color: var(--slate-700);
-        margin-bottom: 6px;
-      }
-      .input {
-        width: 100%;
-        padding: 8px 12px;
-        background: var(--white);
-        color: var(--slate-900);
-        border: 1px solid var(--slate-200);
-        border-radius: 8px;
-        font-size: 13px;
-        transition:
-          border-color 0.15s,
-          box-shadow 0.15s;
-      }
-      .input::placeholder {
-        color: var(--slate-400);
-      }
-      .input:focus {
-        outline: none;
-        border-color: var(--primary-500);
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-      }
-      .checkbox-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 13px;
-        color: var(--slate-700);
-      }
-      .checkbox-row input[type="checkbox"] {
-        width: 16px;
-        height: 16px;
-        accent-color: var(--primary-600);
-      }
-
-      /* ---------- 按钮 (UploadView 的 primary-900 主按钮) ---------- */
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 10px 16px;
-        border-radius: 8px;
-        font-size: 13px;
-        font-weight: 700;
-        cursor: pointer;
-        border: 1px solid transparent;
-        transition:
-          background-color 0.15s,
-          color 0.15s,
-          border-color 0.15s;
-      }
-      .btn-primary {
-        background: var(--primary-900);
-        color: #fff;
-        box-shadow: var(--shadow-md);
-      }
-      .btn-primary:hover:not(:disabled) {
-        background: var(--primary-800);
-      }
-      .btn-primary:disabled {
-        background: var(--slate-300);
-        cursor: not-allowed;
-        box-shadow: none;
-      }
-      .btn-block {
-        width: 100%;
-      }
-      .btn-ghost {
-        background: var(--slate-100);
-        color: var(--slate-700);
-      }
-      .btn-ghost:hover {
-        background: var(--slate-200);
-      }
-
-      /* ---------- 状态文案 ---------- */
-      .status {
-        margin-top: 10px;
-        min-height: 1.4em;
-        font-size: 12.5px;
-        font-weight: 500;
-        color: var(--slate-500);
-      }
-      .status.error {
-        color: var(--red-600);
-        font-weight: 600;
-      }
-      .status.ok {
-        color: var(--green-700);
-        font-weight: 600;
-      }
-
-      /* ---------- 汇总统计 (ResultView 的卡片格式) ---------- */
-      .stats {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 12px;
-      }
-      .stat {
-        background: var(--white);
-        border: 1px solid var(--slate-200);
-        border-radius: 10px;
-        padding: 14px 16px;
-      }
-      .stat .k {
-        font-size: 10px;
-        font-weight: 700;
-        color: var(--slate-400);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-      }
-      .stat .v {
-        font-size: 24px;
-        font-weight: 800;
-        margin-top: 6px;
-        color: var(--slate-900);
-      }
-      .stat.warn .v {
-        color: var(--yellow-700);
-      }
-      .stat.err .v {
-        color: var(--red-600);
-      }
-      .stat.ok .v {
-        color: var(--green-700);
-      }
-
-      /* ---------- 工具栏 + 搜索框 ---------- */
-      .toolbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
-        gap: 12px;
-        flex-wrap: wrap;
-      }
-      .toolbar h2 {
-        margin: 0;
-      }
-      .search input {
-        background: var(--white);
-        color: var(--slate-900);
-        border: 1px solid var(--slate-200);
-        border-radius: 8px;
-        padding: 8px 12px;
-        font-size: 13px;
-        min-width: 260px;
-      }
-      .search input:focus {
-        outline: none;
-        border-color: var(--primary-500);
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-      }
-
-      /* ---------- 过滤 chip ---------- */
-      .filters {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 12px;
-      }
-      .chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 10px;
-        border-radius: 999px;
-        background: var(--slate-100);
-        color: var(--slate-600);
-        border: 1px solid var(--slate-200);
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        transition:
-          background-color 0.15s,
-          color 0.15s,
-          border-color 0.15s;
-      }
-      .chip:hover {
-        background: var(--slate-200);
-      }
-      .chip.active {
-        background: var(--primary-900);
-        color: #fff;
-        border-color: var(--primary-900);
-      }
-      .chip .count {
-        background: rgba(15, 23, 42, 0.08);
-        color: inherit;
-        padding: 0 6px;
-        border-radius: 999px;
-        font-size: 11px;
-        font-weight: 700;
-      }
-      .chip.active .count {
-        background: rgba(255, 255, 255, 0.18);
-      }
-
-      /* ---------- 诊断卡片 ---------- */
-      .diag-list {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-      .diag {
-        background: var(--white);
-        border: 1px solid var(--slate-200);
-        border-left: 4px solid var(--yellow-600);
-        border-radius: 10px;
-        padding: 14px 16px;
-        box-shadow: var(--shadow-sm);
-      }
-      .diag.level-Error {
-        border-left-color: var(--red-600);
-      }
-      .diag.level-Note {
-        border-left-color: var(--primary-600);
-      }
-
-      .diag-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        gap: 12px;
-        flex-wrap: wrap;
-      }
-      .diag-name {
-        font-weight: 700;
-        color: var(--primary-700);
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: 13px;
-      }
-      .diag-pos {
-        color: var(--slate-500);
-        font-size: 12px;
-        font-weight: 500;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      }
-      .diag-msg {
-        margin-top: 6px;
-        color: var(--slate-800);
-      }
-
-      /* 代码片段块: 沿用 ResultView 控制台的深色 slate-900 风格,
-       与 Frontend 中的 "Console" 视觉保持一致. */
-      .code {
-        margin: 12px 0 0;
-        padding: 12px 14px;
-        background: var(--slate-900);
-        color: #e2e8f0;
-        border: 1px solid var(--slate-800);
-        border-radius: 10px;
-        overflow: auto;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: 12.5px;
-        white-space: pre;
-        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
-      }
-      .code .lineno {
-        color: var(--slate-500);
-        user-select: none;
-        display: inline-block;
-        width: 4ch;
-        margin-right: 12px;
-        text-align: right;
-      }
-      .code .caret {
-        color: #fbbf24;
-        font-weight: 700;
-      }
-
-      .notes {
-        margin-top: 12px;
-        padding: 10px 12px;
-        background: var(--slate-50);
-        border: 1px solid var(--slate-100);
-        border-radius: 8px;
-      }
-      .notes .note {
-        color: var(--slate-600);
-        font-size: 12.5px;
-        font-weight: 500;
-        margin-bottom: 4px;
-      }
-      .notes .note:before {
-        content: "note: ";
-        color: var(--primary-700);
-        font-weight: 700;
-      }
-
-      .empty {
-        color: var(--slate-400);
-        padding: 48px;
-        text-align: center;
-        font-style: italic;
-        font-weight: 500;
-        background: var(--slate-50);
-        border: 1px dashed var(--slate-200);
-        border-radius: 12px;
-      }
-
-      /* ---------- 模式切换 (项目库 / 直接上传) ---------- */
-      .mode-tabs {
-        display: flex;
-        gap: 4px;
-        padding: 4px;
-        background: var(--slate-100);
-        border-radius: 10px;
-        margin-bottom: 16px;
-      }
-      .mode-tab {
-        flex: 1;
-        padding: 8px 12px;
-        border-radius: 8px;
-        background: transparent;
-        border: 0;
-        cursor: pointer;
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--slate-600);
-        transition:
-          background-color 0.15s,
-          color 0.15s,
-          box-shadow 0.15s;
-      }
-      .mode-tab:hover {
-        color: var(--slate-900);
-      }
-      .mode-tab.active {
-        background: var(--white);
-        color: var(--primary-700);
-        box-shadow: var(--shadow-sm);
-      }
-      .mode-pane {
-        display: none;
-      }
-      .mode-pane.active {
-        display: block;
-      }
-
-      /* ---------- 项目列表 ---------- */
-      .proj-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-        max-height: 360px;
-        overflow: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-      .proj-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 12px;
-        background: var(--white);
-        border: 1px solid var(--slate-200);
-        border-radius: 8px;
-        cursor: pointer;
-        transition:
-          border-color 0.15s,
-          background-color 0.15s;
-      }
-      .proj-item:hover {
-        border-color: var(--primary-500);
-        background: var(--primary-50);
-      }
-      .proj-item.active {
-        border-color: var(--primary-700);
-        background: var(--primary-50);
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
-      }
-      .proj-meta {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        min-width: 0;
-      }
-      .proj-name {
-        font-weight: 700;
-        color: var(--slate-800);
-        font-size: 13px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .proj-id {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: 11px;
-        color: var(--slate-400);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 220px;
-      }
-      .proj-right {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 2px 8px;
-        border-radius: 999px;
-        font-size: 10.5px;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-      }
-      .badge-uni {
-        background: var(--primary-100);
-        color: var(--primary-800);
-      }
-      .badge-local {
-        background: var(--slate-200);
-        color: var(--slate-700);
-      }
-      .badge-count {
-        background: var(--slate-100);
-        color: var(--slate-600);
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      }
-      .proj-actions {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 8px;
-        margin-top: 8px;
-      }
-      .proj-refresh {
-        background: transparent;
-        border: 0;
-        padding: 4px 8px;
-        color: var(--slate-500);
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        border-radius: 6px;
-      }
-      .proj-refresh:hover {
-        background: var(--slate-100);
-        color: var(--primary-700);
-      }
-      .proj-hint {
-        font-size: 12px;
-        color: var(--slate-500);
-        font-weight: 500;
-      }
-
-      /* ---------- 原始 JSON 折叠面板 ---------- */
-      details.raw {
-        margin-top: 20px;
-      }
-      details.raw summary {
-        cursor: pointer;
-        color: var(--slate-500);
-        font-size: 12px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        padding: 6px 0;
-      }
-      details.raw summary:hover {
-        color: var(--primary-700);
-      }
-      details.raw pre {
-        margin-top: 8px;
-        padding: 12px;
-        background: var(--slate-900);
-        color: #e2e8f0;
-        border-radius: 10px;
-        max-height: 360px;
-        overflow: auto;
-        font-size: 12px;
-      }
-
-      @media (max-width: 960px) {
-        main {
-          grid-template-columns: 1fr;
-          padding: 20px 16px 32px;
-        }
-        .stats {
-          grid-template-columns: repeat(2, 1fr);
-        }
-      }
-
-      /* ---------- DSIT 报告列表 ---------- */
-      .dsit-report-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 12px;
-        background: var(--white);
-        border: 1px solid var(--slate-200);
-        border-radius: 8px;
-        cursor: pointer;
-        transition:
-          border-color 0.15s,
-          background-color 0.15s;
-      }
-      .dsit-report-item:hover {
-        border-color: var(--primary-500);
-        background: var(--primary-50);
-      }
-      .dsit-report-item.active {
-        border-color: var(--primary-700);
-        background: var(--primary-50);
-      }
-      .dsit-meta {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        min-width: 0;
-      }
-      .dsit-name {
-        font-weight: 700;
-        color: var(--slate-800);
-        font-size: 13px;
-      }
-      .dsit-info {
-        font-size: 11px;
-        color: var(--slate-400);
-      }
-    </style>
-  </head>
-  <body>
-    <nav class="nav">
-      <div class="nav-inner">
-        <div class="brand">
-          <div class="brand-badge">G</div>
-          <div>
-            <div class="brand-title">GJB8114 在线静态分析</div>
-          </div>
-        </div>
-        <div id="reqMeta" class="meta-chip" style="display: none">
-          <span class="label">Request:</span>
-          <span id="reqId"></span>
-        </div>
-      </div>
-    </nav>
-
-    <main>
-      <!-- 左栏: 模式 + 源 + 选项 + 提交 -->
-      <aside>
-        <!-- 顶部模式切换: 项目库 (UniPortal + 本地) / 直接上传 / DSIT 报告 -->
-        <div class="mode-tabs" role="tablist">
-          <button
-            class="mode-tab active"
-            id="tabProjects"
-            type="button"
-            role="tab"
-          >
-            项目库
-          </button>
-          <button class="mode-tab" id="tabUpload" type="button" role="tab">
-            直接上传
-          </button>
-          <button class="mode-tab" id="tabDsit" type="button" role="tab">
-            加载报告
-          </button>
-        </div>
-
-        <!-- ============== 模式 A: 项目库 (UniPortal 共享 + 私有卷) ============== -->
-        <div class="mode-pane active" id="paneProjects">
-          <div class="card">
-            <div class="toolbar">
-              <h2>1. 选择项目</h2>
-              <button class="proj-refresh" id="refreshProjects" type="button">
-                ↻ 刷新
-              </button>
-            </div>
-            <ul class="proj-list" id="projList">
-              <li class="proj-hint" id="projHint">正在加载项目列表...</li>
-            </ul>
-          </div>
-
-          <div class="card">
-            <h2>2. 选项</h2>
-            <div class="field">
-              <label class="field-label" for="projEntry"
-                >入口文件 (可选, 项目内相对路径)</label
-              >
-              <input
-                class="input"
-                type="text"
-                id="projEntry"
-                placeholder="例如 src/main.c (留空则分析全部源文件)"
-              />
-            </div>
-          </div>
-
-          <div class="card" style="background: var(--slate-50)">
-            <button
-              class="btn btn-primary btn-block"
-              id="projSubmitBtn"
-              disabled
-            >
-              开始分析
-            </button>
-            <div class="status" id="projStatus">请先选择项目</div>
-          </div>
-        </div>
-
-        <!-- ============== 模式 B: 直接上传 (兼容原有用法) ============== -->
-        <div class="mode-pane" id="paneUpload">
-          <div class="card">
-            <h2>1. 选择源文件</h2>
-            <label class="drop" id="drop">
-              <input
-                type="file"
-                id="filePicker"
-                multiple
-                accept=".c,.h,.cc,.cpp,.cxx,.hpp,.hxx"
-              />
-              <div class="drop-icon" aria-hidden="true">
-                <!-- 简单上传图标, 避免引入外部图标库 -->
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
-              </div>
-              <div class="drop-title">点击或拖拽文件至此处上传</div>
-              <div class="drop-hint">支持 .c .h .cc .cpp .cxx .hpp .hxx</div>
-            </label>
-            <ul class="file-list" id="fileList"></ul>
-          </div>
-
-          <div class="card">
-            <h2>2. 选项</h2>
-            <div class="field">
-              <label class="field-label" for="entry">入口文件 (可选)</label>
-              <input
-                class="input"
-                type="text"
-                id="entry"
-                placeholder="例如 test.c"
-              />
-            </div>
-            <div class="field checkbox-row">
-              <input type="checkbox" id="keep" />
-              <label for="keep">保留服务端临时目录 (调试用)</label>
-            </div>
-          </div>
-
-          <div class="card" style="background: var(--slate-50)">
-            <button class="btn btn-primary btn-block" id="submitBtn" disabled>
-              开始分析
-            </button>
-            <div class="status" id="status">请先选择待分析的源文件</div>
-          </div>
-        </div>
-
-        <!-- ============== 模式 C: 加载 DeepSITRServer 报告 ============== -->
-        <div class="mode-pane" id="paneDsit">
-          <div class="card">
-            <h2>1. 加载已有报告</h2>
-            <div class="field">
-              <label class="field-label"
-                >本地上传 DeepSITRServer 输出 .zip</label
-              >
-              <label class="drop" id="dsitDrop">
-                <input type="file" id="dsitFilePicker" accept=".zip" />
-                <div class="drop-icon" aria-hidden="true">
-                  <svg
-                    width="22"
-                    height="22"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                </div>
-                <div class="drop-title">点击上传 DSIT 输出 zip</div>
-                <div class="drop-hint">
-                  将 DeepSITRServer 输出文件夹压缩为 .zip 上传
-                </div>
-              </label>
-            </div>
-
-            <div
-              style="
-                text-align: center;
-                color: var(--slate-400);
-                font-size: 12px;
-                margin: 8px 0;
-              "
-            >
-              — 或 —
-            </div>
-
-            <div class="field">
-              <label class="field-label" for="dsitLocalPath"
-                >本地路径 (开发/测试)</label
-              >
-              <input
-                class="input"
-                type="text"
-                id="dsitLocalPath"
-                placeholder="例如 E:\北航项目\DeepSITRServer-2026-6-9\DeepSITRServer\Test2"
-              />
-            </div>
-            <div class="field">
-              <label class="field-label" for="dsitReportName"
-                >报告名称 (可选)</label
-              >
-              <input
-                class="input"
-                type="text"
-                id="dsitReportName"
-                placeholder="默认使用目录名"
-              />
-            </div>
-
-            <div style="display: flex; gap: 8px">
-              <button
-                class="btn btn-primary"
-                id="dsitUploadBtn"
-                style="flex: 1"
-              >
-                上传 ZIP 并加载
-              </button>
-              <button class="btn btn-ghost" id="dsitLocalBtn" style="flex: 1">
-                从本地路径加载
-              </button>
-            </div>
-            <div class="status" id="dsitStatus"></div>
-          </div>
-
-          <div class="card">
-            <div class="toolbar">
-              <h2>2. 已加载报告</h2>
-              <button class="proj-refresh" id="dsitRefreshBtn" type="button">
-                ↻ 刷新
-              </button>
-            </div>
-            <div id="dsitReportList">
-              <div class="proj-hint">尚未加载任何报告</div>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <!-- 右栏: 汇总 + 诊断列表 -->
-      <section>
-        <div class="card">
-          <div class="toolbar">
-            <h2>分析汇总</h2>
-            <div style="display: flex; gap: 10px; align-items: center">
-              <div class="search">
-                <input
-                  id="search"
-                  type="text"
-                  placeholder="按检查名 / 消息 / 文件名过滤..."
-                />
-              </div>
-              <button
-                class="btn btn-ghost"
-                id="exportBtn"
-                type="button"
-                disabled
-              >
-                导出 JSON
-              </button>
-            </div>
-          </div>
-          <div class="stats">
-            <div class="stat">
-              <div class="k">问题总数</div>
-              <div class="v" id="stTotal">-</div>
-            </div>
-            <div class="stat warn">
-              <div class="k">Warning</div>
-              <div class="v" id="stWarn">-</div>
-            </div>
-            <div class="stat err">
-              <div class="k">Error</div>
-              <div class="v" id="stErr">-</div>
-            </div>
-            <div class="stat ok">
-              <div class="k">检查项种类</div>
-              <div class="v" id="stKinds">-</div>
-            </div>
-          </div>
-          <div class="filters" id="filters"></div>
-        </div>
-
-        <div style="height: 16px"></div>
-
-        <div id="diagList" class="diag-list">
-          <div class="empty">上传文件并点击「开始分析」以查看结果</div>
-        </div>
-
-        <details class="raw">
-          <summary>查看服务端原始返回 (调试)</summary>
-          <pre id="raw"></pre>
-        </details>
-      </section>
-    </main>
-
-    <script>
-      // 当前选中的文件列表 (FileList 不可直接编辑, 因此用数组维护)
-      const state = {
-        files: [],
-        report: null,
-        filterCheck: null,
-        keyword: "",
-        // 导出用: 保存最近一次分析的完整返回 + 项目信息
-        lastResult: null,
-        lastProjectId: null,
-        lastProjectName: null,
-      };
-
-      const $ = (id) => document.getElementById(id);
-
-      // ---------- 文件选择 ----------
-      const drop = $("drop");
-      const picker = $("filePicker");
-      const fileList = $("fileList");
-      const submitBtn = $("submitBtn");
-      const statusEl = $("status");
-
-      function setStatus(text, kind) {
-        statusEl.className = "status" + (kind ? " " + kind : "");
-        statusEl.textContent = text || "";
-      }
-
-      function refreshFileList() {
-        fileList.innerHTML = "";
-        state.files.forEach((f, i) => {
-          const li = document.createElement("li");
-          const left = document.createElement("span");
-          left.innerHTML = `<span class="fname">${escapeHtml(f.name)}</span><span class="fsize">${formatSize(f.size)}</span>`;
-          const btn = document.createElement("button");
-          btn.className = "icon-btn";
-          btn.title = "移除";
-          btn.innerHTML = "&times;";
-          btn.onclick = () => {
-            state.files.splice(i, 1);
-            refreshFileList();
-          };
-          li.appendChild(left);
-          li.appendChild(btn);
-          fileList.appendChild(li);
-        });
-        submitBtn.disabled = state.files.length === 0;
-        if (state.files.length === 0) {
-          setStatus("请先选择待分析的源文件");
-        } else if (!state.report) {
-          setStatus(`已选择 ${state.files.length} 个文件, 准备就绪`);
-        }
-      }
-
-      function formatSize(bytes) {
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-        return (bytes / 1024 / 1024).toFixed(2) + " MB";
-      }
-
-      function addFiles(list) {
-        for (const f of list) {
-          if (
-            !state.files.some((x) => x.name === f.name && x.size === f.size)
-          ) {
-            state.files.push(f);
-          }
-        }
-        refreshFileList();
-      }
-
-      picker.addEventListener("change", (e) => addFiles(e.target.files));
-      drop.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        drop.classList.add("dragover");
-      });
-      drop.addEventListener("dragleave", () =>
-        drop.classList.remove("dragover"),
-      );
-      drop.addEventListener("drop", (e) => {
-        e.preventDefault();
-        drop.classList.remove("dragover");
-        addFiles(e.dataTransfer.files);
-      });
-
-      // ---------- 提交分析 ----------
-      submitBtn.addEventListener("click", async () => {
-        const fd = new FormData();
-        state.files.forEach((f) => fd.append("files", f));
-        const params = new URLSearchParams();
-        const entry = $("entry").value.trim();
-        if (entry) params.set("entry", entry);
-        if ($("keep").checked) params.set("keep", "true");
-
-        setStatus("分析中, 请稍候...");
-        submitBtn.disabled = true;
-        submitBtn.textContent = "正在分析...";
-
-        try {
-          const resp = await fetch("/analyze?" + params.toString(), {
-            method: "POST",
-            body: fd,
-          });
-          const text = await resp.text();
-          let data;
-          try {
-            data = JSON.parse(text);
-          } catch {
-            data = { raw: text };
-          }
-          $("raw").textContent = JSON.stringify(data, null, 2);
-
-          if (!resp.ok) {
-            throw new Error(
-              data && data.detail ? data.detail : `HTTP ${resp.status}`,
-            );
-          }
-          state.report = data.report;
-          state.lastResult = data;
-          state.lastProjectId = null;
-          state.lastProjectName = "直接上传";
-          if (data.request_id) {
-            $("reqMeta").style.display = "inline-flex";
-            $("reqId").textContent = data.request_id;
-          }
-          renderReport();
-          const total =
-            (data.report &&
-              data.report.summary &&
-              data.report.summary.total_bugs) ||
-            "?";
-          setStatus(`分析完成. 发现 ${total} 条诊断`, "ok");
-        } catch (err) {
-          setStatus(
-            "失败: " + (err && err.message ? err.message : String(err)),
-            "error",
-          );
-        } finally {
-          submitBtn.disabled = state.files.length === 0;
-          submitBtn.textContent = "开始分析";
-        }
-      });
-
-      // ---------- 渲染 ----------
-      $("search").addEventListener("input", (e) => {
-        state.keyword = e.target.value.trim().toLowerCase();
-        renderReport();
-      });
-
-      // ---------- 导出当前分析结果为 JSON ----------
-      $("exportBtn").addEventListener("click", () => {
-        if (!state.lastResult) return;
-        const data = state.lastResult;
-        const payload = {
-          project_id: state.lastProjectId,
-          project_name: state.lastProjectName,
-          exported_at: new Date().toISOString(),
-          request_id: data.request_id || null,
-          command: data.command || null, // clang-tidy 退出码 / stdout / stderr
-          report: data.report || null, // 诊断汇总 + 明细
-        };
-        const blob = new Blob([JSON.stringify(payload, null, 2)], {
-          type: "application/json",
-        });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        const safe = String(
-          state.lastProjectName || state.lastProjectId || "report",
-        ).replace(/[^\w.-]+/g, "_");
-        a.download = `ct8114_${safe}_${Date.now()}.json`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(a.href);
-      });
-
-      function renderReport() {
-        const report = state.report;
-        const listEl = $("diagList");
-        const exportBtn = $("exportBtn");
-        if (exportBtn) exportBtn.disabled = !report;
-        if (!report) {
-          listEl.innerHTML = `<div class="empty">选择项目或上传文件并点击「开始分析」以查看结果</div>`;
-          return;
-        }
-
-        // ---- 兼容 DSIT 格式 (summary.bugs) 和旧格式 (diagnostics) ----
-        let summary = report.summary || {};
-        let diagnostics = report.diagnostics || [];
-
-        // DSIT 格式: 从 summary.bugs 转换
-        if (
-          !diagnostics.length &&
-          Array.isArray(summary.bugs) &&
-          summary.bugs.length
-        ) {
-          diagnostics = summary.bugs.map(function (bug) {
-            return {
-              name: bug.rule_id || bug.checker || "",
-              level: bug.level || "Warning",
-              message: bug.message || "",
-              location: {
-                file_path: bug.file_path || "",
-                line: bug.line,
-                column: bug.column,
-              },
-            };
-          });
-          // 统一 summary 字段
-          summary = {
-            total: summary.total_bugs || 0,
-            by_check: summary.by_rule || {},
-            by_level: summary.by_level || {},
-          };
-        }
-
-        $("stTotal").textContent = summary.total ?? 0;
-        $("stWarn").textContent =
-          (summary.by_level && summary.by_level.Warning) || 0;
-        $("stErr").textContent =
-          (summary.by_level && summary.by_level.Error) || 0;
-        $("stKinds").textContent = summary.by_check
-          ? Object.keys(summary.by_check).length
-          : 0;
-
-        const filters = $("filters");
-        filters.innerHTML = "";
-        const allChip = makeChip(
-          "全部",
-          summary.total ?? 0,
-          state.filterCheck === null,
-        );
-        allChip.onclick = () => {
-          state.filterCheck = null;
-          renderReport();
-        };
-        filters.appendChild(allChip);
-        const byCheck = summary.by_check || {};
-        Object.entries(byCheck)
-          .sort((a, b) => b[1] - a[1])
-          .forEach(([name, count]) => {
-            const chip = makeChip(name, count, state.filterCheck === name);
-            chip.onclick = () => {
-              state.filterCheck = state.filterCheck === name ? null : name;
-              renderReport();
-            };
-            filters.appendChild(chip);
-          });
-
-        diagnostics = diagnostics.filter(function (d) {
-          if (state.filterCheck && d.name !== state.filterCheck) return false;
-          if (state.keyword) {
-            var hay = (
-              d.name +
-              " " +
-              d.message +
-              " " +
-              ((d.location && d.location.file_path) || "")
-            ).toLowerCase();
-            if (hay.indexOf(state.keyword) === -1) return false;
-          }
-          return true;
-        });
-
-        if (diagnostics.length === 0) {
-          listEl.innerHTML = `<div class="empty">没有匹配的诊断结果</div>`;
-          return;
-        }
-
-        listEl.innerHTML = "";
-        diagnostics.forEach(function (d) {
-          listEl.appendChild(renderDiag(d));
-        });
-      }
-
-      function makeChip(label, count, active) {
-        const el = document.createElement("span");
-        el.className = "chip" + (active ? " active" : "");
-        el.innerHTML = `${escapeHtml(label)}<span class="count">${count}</span>`;
-        return el;
-      }
-
-      function renderDiag(d) {
-        const wrap = document.createElement("div");
-        wrap.className = "diag level-" + (d.level || "Warning");
-        const loc = d.location || {};
-        const posText = loc.file_path
-          ? `${shortenPath(loc.file_path)}:${loc.line ?? "?"}:${loc.column ?? "?"}`
-          : "";
-
-        const head = document.createElement("div");
-        head.className = "diag-head";
-        head.innerHTML = `<span class="diag-name">${escapeHtml(d.name || "")}</span>
-                        <span class="diag-pos">${escapeHtml(posText)}</span>`;
-        wrap.appendChild(head);
-
-        const msg = document.createElement("div");
-        msg.className = "diag-msg";
-        msg.textContent = d.message || "";
-        wrap.appendChild(msg);
-
-        if (loc.snippet) {
-          wrap.appendChild(renderSnippet(loc));
-        }
-
-        if (Array.isArray(d.notes) && d.notes.length) {
-          const box = document.createElement("div");
-          box.className = "notes";
-          d.notes.forEach((n) => {
-            const nLoc = n.location || {};
-            const np = nLoc.file_path
-              ? ` (${shortenPath(nLoc.file_path)}:${nLoc.line ?? "?"}:${nLoc.column ?? "?"})`
-              : "";
-            const line = document.createElement("div");
-            line.className = "note";
-            line.textContent = (n.message || "") + np;
-            box.appendChild(line);
-            if (nLoc.snippet) box.appendChild(renderSnippet(nLoc));
-          });
-          wrap.appendChild(box);
-        }
-
-        return wrap;
-      }
-
-      function renderSnippet(loc) {
-        const pre = document.createElement("pre");
-        pre.className = "code";
-        const lineNo = loc.line != null ? String(loc.line).padStart(4) : "    ";
-        const codeLine = loc.snippet ?? "";
-        const col = Math.max(1, loc.column ?? 1);
-        const len = Math.max(1, loc.length ?? 1);
-        const caret =
-          " ".repeat(col - 1) + "^" + "~".repeat(Math.max(0, len - 1));
-        pre.innerHTML =
-          `<span class="lineno">${escapeHtml(lineNo)}</span>${escapeHtml(codeLine)}\n` +
-          `<span class="lineno"></span><span class="caret">${escapeHtml(caret)}</span>`;
-        return pre;
-      }
-
-      function shortenPath(p) {
-        if (!p) return "";
-        const parts = p.split(/[\\/]/);
-        return parts.slice(-2).join("/");
-      }
-
-      function escapeHtml(s) {
-        return String(s ?? "")
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#39;");
-      }
-
-      // =================================================================
-      // 模式切换 + 项目库 (UniPortal 双源接入)
-      // =================================================================
-
-      // UniPortal 跳转时在 URL query 里带 portal_project_id, 子工具按此过滤可见项目.
-      // 用 sessionStorage 兜底: 即使页面内跳转/刷新丢了 query, 同一会话仍能复用.
-      function readPortalProjectId() {
-        const fromUrl = new URLSearchParams(window.location.search).get(
-          "portal_project_id",
-        );
-        if (fromUrl) {
-          sessionStorage.setItem("ct8114.portalProjectId", fromUrl);
-          return fromUrl;
-        }
-        return sessionStorage.getItem("ct8114.portalProjectId") || null;
-      }
-
-      const projState = {
-        projects: [],
-        selectedId: null,
-        uniportalMode: false,
-        portalProjectId: readPortalProjectId(),
-      };
-
-      const projHint = $("projHint");
-      const projList = $("projList");
-      const projSubmitBtn = $("projSubmitBtn");
-      const projStatusEl = $("projStatus");
-
-      function setProjStatus(text, kind) {
-        projStatusEl.className = "status" + (kind ? " " + kind : "");
-        projStatusEl.textContent = text || "";
-      }
-
-      function setMode(mode) {
-        const isProj = mode === "projects";
-        const isUpload = mode === "upload";
-        const isDsit = mode === "dsit";
-        $("tabProjects").classList.toggle("active", isProj);
-        $("tabUpload").classList.toggle("active", isUpload);
-        $("tabDsit").classList.toggle("active", isDsit);
-        $("paneProjects").classList.toggle("active", isProj);
-        $("paneUpload").classList.toggle("active", isUpload);
-        $("paneDsit").classList.toggle("active", isDsit);
-        if (isDsit) loadDsitReports();
-      }
-
-      $("tabProjects").addEventListener("click", () => setMode("projects"));
-      $("tabUpload").addEventListener("click", () => setMode("upload"));
-      $("tabDsit").addEventListener("click", () => setMode("dsit"));
-
-      function renderProjects() {
-        projList.innerHTML = "";
-        if (projState.projects.length === 0) {
-          const li = document.createElement("li");
-          li.className = "proj-hint";
-          li.textContent = projState.uniportalMode
-            ? "尚无项目. 请先在 UniPortal 上传, 或在「直接上传」中提交文件."
-            : "尚无项目. 请切换到「直接上传」提交文件 (集成模式未启用).";
-          projList.appendChild(li);
-          projSubmitBtn.disabled = true;
-          setProjStatus("尚无可分析的项目");
-          return;
-        }
-        projState.projects.forEach((p) => {
-          const li = document.createElement("li");
-          li.className =
-            "proj-item" +
-            (p.project_id === projState.selectedId ? " active" : "");
-          const meta = document.createElement("div");
-          meta.className = "proj-meta";
-          meta.innerHTML = `<span class="proj-name">${escapeHtml(p.project_name || p.project_id)}</span>
-                          <span class="proj-id" title="${escapeHtml(p.project_id)}">${escapeHtml(p.project_id)}</span>`;
-          const right = document.createElement("div");
-          right.className = "proj-right";
-          const srcCls = p.source === "uniportal" ? "badge-uni" : "badge-local";
-          const srcLabel = p.source === "uniportal" ? "UniPortal" : "本地";
-          right.innerHTML = `<span class="badge ${srcCls}">${srcLabel}</span>
-                           <span class="badge badge-count">${p.file_count} 文件</span>`;
-          li.appendChild(meta);
-          li.appendChild(right);
-          li.addEventListener("click", () => {
-            projState.selectedId = p.project_id;
-            renderProjects();
-            setProjStatus(`已选择项目 ${p.project_name || p.project_id}`);
-          });
-          projList.appendChild(li);
-        });
-        projSubmitBtn.disabled = !projState.selectedId;
-      }
-
-      async function loadProjects(autoSelectId) {
-        try {
-          const url = projState.portalProjectId
-            ? "/projects?portal_project_id=" +
-              encodeURIComponent(projState.portalProjectId)
-            : "/projects";
-          const resp = await fetch(url);
-          const data = await resp.json();
-          projState.projects = Array.isArray(data.projects)
-            ? data.projects
-            : [];
-          projState.uniportalMode = !!data.uniportal_mode;
-          if (
-            autoSelectId &&
-            projState.projects.some((p) => p.project_id === autoSelectId)
-          ) {
-            projState.selectedId = autoSelectId;
-          } else if (
-            !projState.projects.some(
-              (p) => p.project_id === projState.selectedId,
-            )
-          ) {
-            projState.selectedId = null;
-          }
-          renderProjects();
-          if (projState.projects.length > 0 && !projState.selectedId) {
-            setProjStatus(`共 ${projState.projects.length} 个项目, 请选择`);
-          }
-        } catch (err) {
-          projHint.textContent =
-            "加载项目列表失败: " + (err && err.message ? err.message : err);
-        }
-      }
-
-      $("refreshProjects").addEventListener("click", () =>
-        loadProjects(projState.selectedId),
-      );
-
-      projSubmitBtn.addEventListener("click", async () => {
-        if (!projState.selectedId) return;
-        const params = new URLSearchParams();
-        const entry = $("projEntry").value.trim();
-        if (entry) params.set("entry", entry);
-
-        setProjStatus("分析中, 请稍候 (项目级分析可能耗时较长)...");
-        projSubmitBtn.disabled = true;
-        projSubmitBtn.textContent = "正在分析...";
-
-        try {
-          const url =
-            `/projects/${encodeURIComponent(projState.selectedId)}/analyze?` +
-            params.toString();
-          const resp = await fetch(url, { method: "POST" });
-          const text = await resp.text();
-          let data;
-          try {
-            data = JSON.parse(text);
-          } catch {
-            data = { raw: text };
-          }
-          $("raw").textContent = JSON.stringify(data, null, 2);
-          if (!resp.ok) {
-            throw new Error(
-              data && data.detail ? data.detail : `HTTP ${resp.status}`,
-            );
-          }
-          state.report = data.report;
-          state.lastResult = data;
-          state.lastProjectId = projState.selectedId;
-          const _proj = projState.projects.find(
-            (p) => p.project_id === projState.selectedId,
-          );
-          state.lastProjectName = _proj
-            ? _proj.project_name
-            : projState.selectedId;
-          if (data.request_id) {
-            $("reqMeta").style.display = "inline-flex";
-            $("reqId").textContent = data.request_id;
-          }
-          renderReport();
-          const total =
-            (data.report &&
-              data.report.summary &&
-              data.report.summary.total_bugs) ||
-            "?";
-          const saved = data.saved_report
-            ? ` · 已保存至 ${data.saved_report}`
-            : "";
-          setProjStatus(`分析完成. 发现 ${total} 条诊断${saved}`, "ok");
-        } catch (err) {
-          setProjStatus(
-            "失败: " + (err && err.message ? err.message : String(err)),
-            "error",
-          );
-        } finally {
-          projSubmitBtn.disabled = !projState.selectedId;
-          projSubmitBtn.textContent = "开始分析";
-        }
-      });
-
-      // ---------- 启动: 加载项目列表 + 解析 URL ?project=xxx 自动选中 ----------
-      // UniPortal 工具中心跳转过来时, 会在 URL 上带 ?project=<item_id>
-      (function bootstrap() {
-        const url = new URL(window.location.href);
-        const targetId = url.searchParams.get("project");
-        loadProjects(targetId);
-        if (targetId) {
-          setMode("projects");
-        }
-      })();
-
-      // =================================================================
-      // DeepSITRServer 集成 (DSIT)
-      // =================================================================
-
-      const dsitState = {
-        reports: [],
-        selectedId: null,
-      };
-
-      function setDsitStatus(text, kind) {
-        const el = $("dsitStatus");
-        el.className = "status" + (kind ? " " + kind : "");
-        el.textContent = text || "";
-      }
-
-      // ---------- DSIT: 上传 zip ----------
-      const dsitDrop = $("dsitDrop");
-      const dsitPicker = $("dsitFilePicker");
-      dsitDrop.addEventListener("click", () => dsitPicker.click());
-      dsitDrop.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        dsitDrop.classList.add("dragover");
-      });
-      dsitDrop.addEventListener("dragleave", () =>
-        dsitDrop.classList.remove("dragover"),
-      );
-      dsitDrop.addEventListener("drop", (e) => {
-        e.preventDefault();
-        dsitDrop.classList.remove("dragover");
-        if (e.dataTransfer.files.length)
-          dsitPicker.files = e.dataTransfer.files;
-      });
-
-      $("dsitUploadBtn").addEventListener("click", async () => {
-        const file = dsitPicker.files[0];
-        if (!file) {
-          setDsitStatus("请先选择 .zip 文件", "error");
-          return;
-        }
-        const fd = new FormData();
-        fd.append("file", file);
-        const name = $("dsitReportName").value.trim();
-        if (name) fd.append("report_name", name);
-
-        setDsitStatus("正在上传并解析...");
-        $("dsitUploadBtn").disabled = true;
-        try {
-          const resp = await fetch("/dsit/upload", {
-            method: "POST",
-            body: fd,
-          });
-          const data = await resp.json();
-          if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
-          setDsitStatus(
-            "加载成功! 共 " +
-              ((data.summary && data.summary.total_bugs) || 0) +
-              " 条诊断",
-            "ok",
-          );
-          loadDsitReports(data.report_id);
-        } catch (err) {
-          setDsitStatus(
-            "失败: " + (err && err.message ? err.message : String(err)),
-            "error",
-          );
-        } finally {
-          $("dsitUploadBtn").disabled = false;
-        }
-      });
-
-      // ---------- DSIT: 从本地路径加载 ----------
-      $("dsitLocalBtn").addEventListener("click", async () => {
-        const path = $("dsitLocalPath").value.trim();
-        if (!path) {
-          setDsitStatus("请输入本地路径", "error");
-          return;
-        }
-        const fd = new FormData();
-        fd.append("local_path", path);
-        const name = $("dsitReportName").value.trim();
-        if (name) fd.append("report_name", name);
-
-        setDsitStatus("正在从本地路径加载...");
-        $("dsitLocalBtn").disabled = true;
-        try {
-          const resp = await fetch("/dsit/upload-local", {
-            method: "POST",
-            body: fd,
-          });
-          const data = await resp.json();
-          if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
-          const total = (data.summary && data.summary.total_bugs) || 0;
-          const files = (data.summary && data.summary.total_files) || 0;
-          setDsitStatus(`加载成功! ${files} 个文件, ${total} 条诊断`, "ok");
-          loadDsitReports(data.report_id);
-        } catch (err) {
-          setDsitStatus(
-            "失败: " + (err && err.message ? err.message : String(err)),
-            "error",
-          );
-        } finally {
-          $("dsitLocalBtn").disabled = false;
-        }
-      });
-
-      // ---------- DSIT: 加载报告列表 ----------
-      $("dsitRefreshBtn").addEventListener("click", () =>
-        loadDsitReports(dsitState.selectedId),
-      );
-
-      async function loadDsitReports(autoSelectId) {
-        try {
-          const resp = await fetch("/dsit/reports");
-          const data = await resp.json();
-          dsitState.reports = Array.isArray(data.reports) ? data.reports : [];
-          renderDsitList();
-          if (
-            autoSelectId &&
-            dsitState.reports.some((r) => r.report_id === autoSelectId)
-          ) {
-            dsitState.selectedId = autoSelectId;
-            renderDsitList();
-            await loadDsitReport(autoSelectId);
-          }
-        } catch (err) {
-          $("dsitReportList").innerHTML =
-            '<div class="proj-hint">加载列表失败: ' +
-            escapeHtml(err && err.message ? err.message : String(err)) +
-            "</div>";
-        }
-      }
-
-      function renderDsitList() {
-        const el = $("dsitReportList");
-        if (dsitState.reports.length === 0) {
-          el.innerHTML =
-            '<div class="proj-hint">尚未加载任何报告 — 上传 DSIT 输出 .zip 或输入本地路径</div>';
-          return;
-        }
-        el.innerHTML = "";
-        dsitState.reports.forEach((r) => {
-          const div = document.createElement("div");
-          div.className =
-            "dsit-report-item" +
-            (r.report_id === dsitState.selectedId ? " active" : "");
-          div.innerHTML = `<div class="dsit-meta">
-          <span class="dsit-name">${escapeHtml(r.report_name || r.report_id)}</span>
-          <span class="dsit-info">${r.total_files || 0} 文件 · ${r.total_bugs || 0} 诊断 ·
-            <span style="color:var(--red-600)">E:${r.by_level?.Error || 0}</span>
-            <span style="color:var(--yellow-600)">W:${r.by_level?.Warning || 0}</span>
-          </span>
-        </div>`;
-          div.addEventListener("click", () => {
-            dsitState.selectedId = r.report_id;
-            renderDsitList();
-            loadDsitReport(r.report_id);
-          });
-          el.appendChild(div);
-        });
-      }
-
-      // ---------- DSIT: 加载并渲染报告 ----------
-      async function loadDsitReport(reportId) {
-        try {
-          const resp = await fetch(
-            "/dsit/report/" + encodeURIComponent(reportId),
-          );
-          const data = await resp.json();
-          $("raw").textContent = JSON.stringify(data, null, 2);
-          $("reqMeta").style.display = "inline-flex";
-          $("reqId").textContent = "DSIT-" + reportId;
-
-          // 直接使用 DSIT 格式的 report — renderReport 会自动转换
-          state.report = data;
-          state.lastResult = data;
-          state.lastProjectId = reportId;
-          state.lastProjectName = "报告: " + (data.project_name || reportId);
-          renderReport();
-          const total = (data.summary && data.summary.total_bugs) || 0;
-          setDsitStatus(`已加载: ${total} 条诊断`, "ok");
-        } catch (err) {
-          setDsitStatus(
-            "加载报告失败: " + (err && err.message ? err.message : String(err)),
-            "error",
-          );
-        }
-      }
-    </script>
-  </body>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GJB8114 代码静态分析</title>
+<style>
+:root {
+  --bg: #f0f0f0; --surface: #ffffff; --border: #d0d0d0;
+  --text: #1a1a1a; --text-secondary: #666; --text-muted: #999;
+  --primary: #0078d4; --primary-dark: #005a9e; --primary-light: #cce4f7;
+  --error: #c62828; --error-bg: #fde7e7;
+  --warning: #e65100; --warning-bg: #fff3e0;
+  --ok: #2e7d32; --ok-bg: #e8f5e9; --info: #1565c0;
+  --menubar-bg: #e8e8e8; --toolbar-bg: #f5f5f5;
+  --sidebar-bg: #fafafa; --statusbar-bg: #e8e8e8;
+  --tree-hover: #dce4f0; --tree-selected: #cce4f7;
+  --radius: 2px; font-size: 13px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Microsoft YaHei","Segoe UI",Tahoma,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;user-select:none}
+.menubar{background:var(--menubar-bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 4px;height:26px;flex-shrink:0}
+.menubar .menu-item{padding:2px 10px;font-size:12px;cursor:pointer;border-radius:var(--radius)}
+.menubar .menu-item:hover{background:var(--primary-light)}
+.menubar .brand{margin-left:auto;font-size:11px;color:var(--text-muted);padding-right:10px}
+.toolbar{background:var(--toolbar-bg);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:4px;padding:3px 8px;height:34px;flex-shrink:0}
+.toolbar button{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;font-size:12px;border:1px solid transparent;background:transparent;border-radius:var(--radius);cursor:pointer;color:var(--text)}
+.toolbar button:hover{background:#e0e0e0;border-color:#ccc}
+.toolbar button:disabled{color:#bbb;cursor:default}
+.toolbar button:disabled:hover{background:transparent;border-color:transparent}
+.toolbar .sep{width:1px;height:20px;background:var(--border);margin:0 4px}
+.toolbar .btn-primary{background:var(--primary);color:#fff;border-color:var(--primary-dark)}
+.toolbar .btn-primary:hover{background:var(--primary-dark)}
+.main-area{display:flex;flex:1;overflow:hidden}
+.sidebar{width:280px;min-width:220px;background:var(--sidebar-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-tabs{display:flex;background:var(--menubar-bg);border-bottom:1px solid var(--border);flex-shrink:0}
+.sidebar-tab{flex:1;padding:6px 8px;font-size:12px;text-align:center;cursor:pointer;border:none;background:transparent;color:var(--text-secondary);border-bottom:2px solid transparent}
+.sidebar-tab:hover{background:#e8e8e8}
+.sidebar-tab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+.sidebar-pane{display:none;flex:1;overflow:hidden;flex-direction:column}
+.sidebar-pane.active{display:flex}
+.tree-panel{flex:1;overflow:auto;padding:4px 0}
+.tree-panel::-webkit-scrollbar{width:6px}
+.tree-panel::-webkit-scrollbar-track{background:transparent}
+.tree-panel::-webkit-scrollbar-thumb{background:#c0c0c0;border-radius:3px}
+.tree-item{display:flex;align-items:center;padding:3px 8px 3px 4px;cursor:pointer;font-size:12px;gap:4px;white-space:nowrap}
+.tree-item:hover{background:var(--tree-hover)}
+.tree-item.selected{background:var(--tree-selected);color:var(--primary-dark);font-weight:600}
+.tree-item .icon{font-size:13px;flex-shrink:0}
+.sidebar-actions{border-top:1px solid var(--border);padding:8px;display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+.sidebar-actions input[type=text]{padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;background:var(--surface)}
+.sidebar-actions input:focus{outline:none;border-color:var(--primary)}
+.sidebar-actions button{padding:5px 12px;font-size:12px;border:1px solid var(--border);background:var(--surface);border-radius:var(--radius);cursor:pointer}
+.sidebar-actions button:hover{background:#e8e8e8}
+.sidebar-actions button.prim{background:var(--primary);color:#fff;border-color:var(--primary-dark)}
+.sidebar-actions button.prim:hover{background:var(--primary-dark)}
+.sidebar-actions .upload-hint{font-size:11px;color:var(--text-muted);text-align:center;padding:6px;border:1px dashed var(--border);border-radius:var(--radius);cursor:pointer}
+.sidebar-actions .upload-hint:hover{border-color:var(--primary);color:var(--primary)}
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.stats-bar{display:flex;gap:1px;background:var(--border);flex-shrink:0}
+.stat-box{flex:1;background:var(--surface);padding:8px 12px;text-align:center;display:flex;flex-direction:column}
+.stat-box .num{font-size:22px;font-weight:700;line-height:1.1}
+.stat-box .lbl{font-size:11px;color:var(--text-secondary);margin-top:2px}
+.stat-box.total .num{color:var(--info)}
+.stat-box.err .num{color:var(--error)}
+.stat-box.warn .num{color:var(--warning)}
+.stat-box.ok .num{color:var(--ok)}
+.result-area{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--surface)}
+.result-header{display:flex;align-items:center;justify-content:space-between;padding:4px 8px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--menubar-bg)}
+.filter-group{display:flex;gap:4px;flex-wrap:wrap}
+.filter-chip{padding:2px 8px;font-size:11px;border:1px solid var(--border);border-radius:10px;cursor:pointer;background:var(--surface);color:var(--text-secondary);white-space:nowrap}
+.filter-chip:hover{border-color:var(--primary)}
+.filter-chip.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.filter-chip .count{opacity:0.7;font-size:10px;margin-left:2px}
+.search-box input{padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;width:200px}
+.search-box input:focus{outline:none;border-color:var(--primary)}
+.result-table-wrap{flex:1;overflow:auto}
+.result-table-wrap::-webkit-scrollbar{width:6px;height:6px}
+.result-table-wrap::-webkit-scrollbar-track{background:transparent}
+.result-table-wrap::-webkit-scrollbar-thumb{background:#c0c0c0;border-radius:3px}
+.result-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+.result-table th{position:sticky;top:0;background:#f0f0f0;border-bottom:2px solid var(--border);padding:6px 8px;text-align:left;font-weight:600;color:var(--text-secondary);z-index:1}
+.result-table td{padding:4px 8px;border-bottom:1px solid #eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.result-table tr:hover td{background:var(--tree-hover)}
+.result-table tr.selected td{background:var(--tree-selected)}
+.result-table .col-lvl{width:56px}
+.result-table .col-rule{width:130px}
+.result-table .col-file{width:160px}
+.result-table .col-line{width:56px;text-align:center}
+.result-table .badge{display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700}
+.badge-err{background:var(--error-bg);color:var(--error)}
+.badge-warn{background:var(--warning-bg);color:var(--warning)}
+.detail-panel{border-top:2px solid var(--border);background:var(--surface);flex-shrink:0;max-height:40%;display:flex;flex-direction:column}
+.detail-header{display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:var(--menubar-bg);border-bottom:1px solid var(--border);flex-shrink:0}
+.detail-header span{font-size:12px;font-weight:600;color:var(--text-secondary)}
+.detail-close{cursor:pointer;padding:2px 6px;border:none;background:transparent;font-size:14px;color:var(--text-muted)}
+.detail-close:hover{color:var(--error)}
+.detail-body{flex:1;overflow:auto;padding:8px;font-family:Consolas,monospace;font-size:12px}
+.detail-empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:12px}
+.detail-msg{color:var(--text);margin-bottom:6px;font-weight:600}
+.detail-loc{color:var(--text-secondary);font-size:11px;margin-bottom:6px}
+.statusbar{background:var(--statusbar-bg);border-top:1px solid var(--border);padding:2px 10px;font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:16px;height:22px;flex-shrink:0}
+.statusbar .status-msg{flex:1}
+.statusbar .status-info{color:var(--text-muted)}
+.empty-state{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:13px;flex-direction:column;gap:8px}
+.empty-icon{font-size:36px;opacity:0.3}
+.hidden-input{display:none}
+@media(max-width:900px){.sidebar{width:200px;min-width:160px}}
+</style>
+</head>
+<body>
+<div class="menubar">
+<span class="menu-item" onclick="alert('ct8114 v2 - codetidy engine')">文件(F)</span>
+<span class="menu-item" onclick="document.getElementById('fileInput').click()">打开源文件(O)</span>
+<span class="menu-item" onclick="handleAnalyze()">开始分析(A)</span>
+<span class="menu-item" onclick="exportResults()">导出报告(E)</span>
+<span class="brand">GJB 8114 代码静态分析 — codetidy 引擎</span>
+</div>
+<div class="toolbar">
+<button class="btn-primary" onclick="handleAnalyze()" id="btnAnalyze" disabled>▶ 开始分析</button>
+<button onclick="document.getElementById('fileInput').click()">📂 打开文件</button>
+<span class="sep"></span>
+<button onclick="exportResults()" id="btnExport" disabled>💾 导出</button>
+<button onclick="document.getElementById('dsitFile').click()" title="加载 DeepSITRServer 输出 .zip">📦 加载报告</button>
+<span class="sep"></span>
+<span style="font-size:11px;color:var(--text-muted);margin-left:auto" id="toolbarInfo"></span>
+</div>
+<div class="main-area">
+<div class="sidebar">
+<div class="sidebar-tabs">
+<button class="sidebar-tab active" data-pane="paneFiles">项目文件</button>
+<button class="sidebar-tab" data-pane="paneRules">规则分类</button>
+<button class="sidebar-tab" data-pane="paneReports">报告列表</button>
+</div>
+<div class="sidebar-pane active" id="paneFiles">
+<div class="tree-panel" id="fileTree">
+<div style="padding:20px;color:var(--text-muted);font-size:12px;text-align:center">点击工具栏「📂 打开文件」<br>或拖拽 .c/.cpp 文件到此处</div>
+</div>
+<div class="sidebar-actions">
+<input type="text" id="localPathInput" placeholder="或输入 DeepSITRServer 输出目录路径...">
+<button onclick="loadLocalDsit()">从路径加载</button>
+<div class="upload-hint" onclick="document.getElementById('fileInput').click()">📁 点击选择源文件（支持多选）</div>
+<input type="file" id="fileInput" class="hidden-input" multiple accept=".c,.h,.cc,.cpp,.cxx,.hpp,.hxx">
+</div>
+</div>
+<div class="sidebar-pane" id="paneRules">
+<div class="tree-panel" id="ruleTree">
+<div style="padding:20px;color:var(--text-muted);font-size:12px;text-align:center">分析完成后显示<br>检测到的规则分类</div>
+</div>
+</div>
+<div class="sidebar-pane" id="paneReports">
+<div class="tree-panel" id="reportList">
+<div style="padding:20px;color:var(--text-muted);font-size:12px;text-align:center">加载 DSIT 报告后<br>在此处显示历史记录</div>
+</div>
+<div class="sidebar-actions">
+<input type="file" id="dsitFile" class="hidden-input" accept=".zip">
+<button class="prim" onclick="document.getElementById('dsitFile').click()">📦 上传 DSIT 报告 .zip</button>
+<button onclick="loadDsitReports()">🔄 刷新列表</button>
+</div>
+</div>
+</div>
+<div class="content">
+<div class="stats-bar">
+<div class="stat-box total"><div class="num" id="stTotal">-</div><div class="lbl">问题总数</div></div>
+<div class="stat-box err"><div class="num" id="stErr">-</div><div class="lbl">错误</div></div>
+<div class="stat-box warn"><div class="num" id="stWarn">-</div><div class="lbl">警告</div></div>
+<div class="stat-box ok"><div class="num" id="stKinds">-</div><div class="lbl">检查项种类</div></div>
+<div class="stat-box" style="flex:0.7"><div class="num" id="stFiles">-</div><div class="lbl">分析文件</div></div>
+</div>
+<div class="result-area">
+<div class="result-header">
+<div class="filter-group" id="filterGroup"><span class="filter-chip active" data-filter="">全部</span></div>
+<div class="search-box"><input type="text" id="searchInput" placeholder="搜索规则/文件/消息..."></div>
+</div>
+<div class="result-table-wrap">
+<div class="empty-state" id="emptyState"><span class="empty-icon">📋</span><span>打开源文件并点击「开始分析」查看诊断结果</span></div>
+<table class="result-table" id="resultTable" style="display:none">
+<thead><tr>
+<th class="col-lvl">级别</th><th class="col-rule">规则编号</th><th class="col-file">文件</th>
+<th class="col-line">行:列</th><th class="col-msg">诊断描述</th><th class="col-checker">检查器</th>
+</tr></thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+</div>
+<div class="detail-panel" id="detailPanel" style="display:none">
+<div class="detail-header">
+<span id="detailTitle">诊断详情</span>
+<button class="detail-close" onclick="closeDetail()">✕</button>
+</div>
+<div class="detail-body" id="detailBody"><div class="detail-empty">点击表格中的行查看详情</div></div>
+</div>
+</div>
+</div>
+<div class="statusbar">
+<span class="status-msg" id="statusMsg">就绪</span>
+<span class="status-info" id="statusInfo"></span>
+</div>
+<script>var state = { files: [], diagnostics: [], filterRule: '', selectedRow: -1, report: null, projectName: '' };
+var $ = function(id) { return document.getElementById(id); };
+
+// --- 文件选择 ---
+var fileInput = $('fileInput');
+fileInput.addEventListener('change', function() {
+  for (var i = 0; i < fileInput.files.length; i++) {
+    var f = fileInput.files[i];
+    var dup = false;
+    for (var j = 0; j < state.files.length; j++) {
+      if (state.files[j].name === f.name && state.files[j].size === f.size) { dup = true; break; }
+    }
+    if (!dup) state.files.push(f);
+  }
+  renderFileTree();
+});
+
+document.addEventListener('dragover', function(e) { e.preventDefault(); });
+document.addEventListener('drop', function(e) {
+  e.preventDefault();
+  if (e.dataTransfer.files.length) {
+    for (var i = 0; i < e.dataTransfer.files.length; i++) {
+      var f = e.dataTransfer.files[i];
+      var dup = false;
+      for (var j = 0; j < state.files.length; j++) {
+        if (state.files[j].name === f.name && state.files[j].size === f.size) { dup = true; break; }
+      }
+      if (!dup) state.files.push(f);
+    }
+    renderFileTree();
+  }
+});
+
+function renderFileTree() {
+  var tree = $('fileTree');
+  if (state.files.length === 0) {
+    tree.innerHTML = '<div style="padding:20px;color:var(--text-muted);font-size:12px;text-align:center">点击工具栏「📂 打开文件」<br>或拖拽 .c/.cpp 文件到此处</div>';
+    $('btnAnalyze').disabled = true;
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < state.files.length; i++) {
+    var f = state.files[i];
+    html += '<div class="tree-item"><span class="icon">📄</span><span>' + escHtml(f.name) + '</span><span style="margin-left:auto;font-size:10px;color:var(--text-muted)">' + fmtSize(f.size) + '</span><span style="cursor:pointer;color:var(--text-muted);margin-left:4px" onclick="removeFile(' + i + ');event.stopPropagation()">✕</span></div>';
+  }
+  tree.innerHTML = html;
+  $('btnAnalyze').disabled = false;
+  setStatus('已选择 ' + state.files.length + ' 个文件');
+}
+
+function removeFile(i) { state.files.splice(i, 1); renderFileTree(); }
+
+function fmtSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+// --- 分析 ---
+async function handleAnalyze() {
+  if (state.files.length === 0) { setStatus('请先选择待分析的源文件', 'err'); return; }
+  setStatus('正在分析...');
+  $('btnAnalyze').disabled = true;
+  $('btnAnalyze').textContent = '⏳ 分析中...';
+  var fd = new FormData();
+  for (var i = 0; i < state.files.length; i++) { fd.append('files', state.files[i]); }
+  try {
+    var resp = await fetch('/analyze', { method: 'POST', body: fd });
+    var data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || 'HTTP ' + resp.status);
+    var report = data.report || {};
+    var summary = report.summary || {};
+    var bugs = summary.bugs || [];
+    state.report = report;
+    state.diagnostics = bugs;
+    state.projectName = report.project_name || '直接上传';
+    state.selectedRow = -1;
+    renderResults();
+    renderRuleTree();
+    $('btnExport').disabled = false;
+    var total = summary.total_bugs != null ? summary.total_bugs : bugs.length;
+    setStatus('分析完成 — ' + state.projectName + ' — ' + total + ' 条诊断', 'ok');
+    $('toolbarInfo').textContent = state.files.length + ' 文件 · ' + total + ' 问题';
+  } catch (err) {
+    setStatus('分析失败: ' + (err.message || err), 'err');
+  } finally {
+    $('btnAnalyze').disabled = state.files.length === 0;
+    $('btnAnalyze').textContent = '▶ 开始分析';
+  }
+}
+
+// --- 结果表格 ---
+function renderResults() {
+  var bugs = state.diagnostics;
+  var table = $('resultTable');
+  var tbody = $('tableBody');
+  var empty = $('emptyState');
+  var filterGroup = $('filterGroup');
+
+  var byLevel = {}, byRule = {};
+  for (var i = 0; i < bugs.length; i++) {
+    var b = bugs[i];
+    var lvl = b.level || 'Warning';
+    byLevel[lvl] = (byLevel[lvl] || 0) + 1;
+    var rule = b.rule_id || b.checker || '(unknown)';
+    byRule[rule] = (byRule[rule] || 0) + 1;
+  }
+  $('stTotal').textContent = bugs.length;
+  $('stErr').textContent = byLevel['Error'] || 0;
+  $('stWarn').textContent = byLevel['Warning'] || 0;
+  $('stKinds').textContent = Object.keys(byRule).length;
+  $('stFiles').textContent = state.files.length || '-';
+
+  var entries = [];
+  for (var k in byRule) { if (byRule.hasOwnProperty(k)) entries.push([k, byRule[k]]); }
+  entries.sort(function(a,b) { return b[1] - a[1]; });
+
+  filterGroup.innerHTML = '<span class="filter-chip active" data-filter="">全部 <span class="count">' + bugs.length + '</span></span>';
+  for (var e = 0; e < entries.length; e++) {
+    var name = entries[e][0], cnt = entries[e][1];
+    var chip = document.createElement('span');
+    chip.className = 'filter-chip';
+    chip.setAttribute('data-filter', name);
+    chip.innerHTML = escHtml(name) + ' <span class="count">' + cnt + '</span>';
+    chip.onclick = (function(n) { return function() { state.filterRule = n; renderResults(); }; })(name);
+    filterGroup.appendChild(chip);
+  }
+
+  if (state.filterRule) {
+    var chips = filterGroup.querySelectorAll('.filter-chip');
+    for (var c = 0; c < chips.length; c++) {
+      chips[c].classList.toggle('active', chips[c].getAttribute('data-filter') === state.filterRule);
+    }
+  }
+
+  var kw = ($('searchInput').value || '').toLowerCase();
+  var filtered = bugs.slice();
+  if (state.filterRule) {
+    filtered = filtered.filter(function(b) { return (b.rule_id || b.checker) === state.filterRule; });
+  }
+  if (kw) {
+    filtered = filtered.filter(function(b) {
+      return (b.rule_id||'').toLowerCase().indexOf(kw) !== -1 ||
+             (b.checker||'').toLowerCase().indexOf(kw) !== -1 ||
+             (b.message||'').toLowerCase().indexOf(kw) !== -1 ||
+             (b.file_path||'').toLowerCase().indexOf(kw) !== -1;
+    });
+  }
+
+  if (filtered.length === 0) {
+    table.style.display = 'none';
+    empty.style.display = 'flex';
+    empty.innerHTML = '<span class="empty-icon">🔍</span><span>没有匹配的诊断结果</span>';
+  } else {
+    table.style.display = '';
+    empty.style.display = 'none';
+    var html = '';
+    for (var i = 0; i < filtered.length; i++) {
+      var b = filtered[i];
+      var lvl = b.level || 'Warning';
+      var badgeCls = lvl === 'Error' ? 'badge-err' : 'badge-warn';
+      var file = shortenPath(b.file_path || '');
+      var pos = (b.line != null ? b.line : '?') + ':' + (b.column != null ? b.column : '?');
+      var sel = i === state.selectedRow ? ' selected' : '';
+      html += '<tr class="' + sel + '" onclick="selectRow(' + i + ')" ondblclick="selectRow(' + i + ');showDetail(' + i + ')">' +
+        '<td class="col-lvl"><span class="badge ' + badgeCls + '">' + escHtml(lvl) + '</span></td>' +
+        '<td class="col-rule" title="' + escAttr(b.rule_id||'') + '">' + escHtml(b.rule_id || b.checker || '') + '</td>' +
+        '<td class="col-file" title="' + escAttr(b.file_path||'') + '">' + escHtml(file) + '</td>' +
+        '<td class="col-line">' + escHtml(pos) + '</td>' +
+        '<td class="col-msg" title="' + escAttr(b.message||'') + '">' + escHtml(b.message || '') + '</td>' +
+        '<td class="col-checker">' + escHtml((b.checker||'').split('.').pop() || '') + '</td>' +
+      '</tr>';
+    }
+    tbody.innerHTML = html;
+  }
+}
+
+function selectRow(i) { state.selectedRow = i; renderResults(); }
+$('searchInput').addEventListener('input', function() { renderResults(); });
+
+// --- 规则树 ---
+function renderRuleTree() {
+  var tree = $('ruleTree');
+  var rules = {};
+  for (var i = 0; i < state.diagnostics.length; i++) {
+    var b = state.diagnostics[i];
+    var rule = b.rule_id || b.checker || '(unknown)';
+    if (!rules[rule]) rules[rule] = { count: 0 };
+    rules[rule].count++;
+  }
+  var entries = [];
+  for (var k in rules) { if (rules.hasOwnProperty(k)) entries.push([k, rules[k].count]); }
+  entries.sort(function(a,b) { return b[1] - a[1]; });
+  var html = '';
+  for (var e = 0; e < entries.length; e++) {
+    var name = entries[e][0], cnt = entries[e][1];
+    html += '<div class="tree-item" onclick="filterByRule(\'' + escAttr(name) + '\')" title="' + escAttr(name) + '"><span class="icon">📏</span><span>' + escHtml(name) + '</span><span style="margin-left:auto;font-size:10px;color:var(--text-muted)">' + cnt + '</span></div>';
+  }
+  tree.innerHTML = html;
+}
+
+function filterByRule(rule) {
+  state.filterRule = rule;
+  var tabs = document.querySelectorAll('.sidebar-tab');
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+  var panes = document.querySelectorAll('.sidebar-pane');
+  for (var i = 0; i < panes.length; i++) panes[i].classList.remove('active');
+  document.querySelector('[data-pane="paneRules"]').classList.add('active');
+  $('paneRules').classList.add('active');
+  renderResults();
+}
+
+// --- 详情 ---
+function showDetail(i) {
+  var bugs = getFilteredBugs();
+  var bug = bugs[i];
+  if (!bug) return;
+  $('detailPanel').style.display = 'flex';
+  $('detailTitle').textContent = (bug.rule_id || bug.checker || '诊断') + ' — ' + shortenPath(bug.file_path || '');
+  $('detailBody').innerHTML =
+    '<div class="detail-msg">' + escHtml(bug.message || '无描述') + '</div>' +
+    '<div class="detail-loc">📄 ' + escHtml(bug.file_path || '') + ' : ' + (bug.line || '?') + ':' + (bug.column || '?') + '</div>' +
+    '<div class="detail-loc">🔍 检查器: ' + escHtml(bug.checker || '') + '</div>' +
+    '<div class="detail-loc" style="margin-top:4px">📏 规则: ' + escHtml(bug.rule_id || '') + ' | 级别: ' + escHtml(bug.level || '?') + '</div>';
+}
+
+function closeDetail() { $('detailPanel').style.display = 'none'; }
+
+function getFilteredBugs() {
+  var kw = ($('searchInput').value || '').toLowerCase();
+  var bugs = state.diagnostics.slice();
+  if (state.filterRule) bugs = bugs.filter(function(b) { return (b.rule_id || b.checker) === state.filterRule; });
+  if (kw) {
+    bugs = bugs.filter(function(b) {
+      return (b.rule_id||'').toLowerCase().indexOf(kw) !== -1 ||
+             (b.checker||'').toLowerCase().indexOf(kw) !== -1 ||
+             (b.message||'').toLowerCase().indexOf(kw) !== -1 ||
+             (b.file_path||'').toLowerCase().indexOf(kw) !== -1;
+    });
+  }
+  return bugs;
+}
+
+// --- DSIT ---
+async function loadLocalDsit() {
+  var path = $('localPathInput').value.trim();
+  if (!path) { setStatus('请输入路径', 'err'); return; }
+  setStatus('正在从本地路径加载...');
+  var fd = new FormData();
+  fd.append('local_path', path);
+  try {
+    var resp = await fetch('/dsit/upload-local', { method: 'POST', body: fd });
+    var data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail);
+    setStatus('加载成功: ' + (data.summary ? data.summary.total_bugs : 0) + ' 条诊断', 'ok');
+    loadDsitReports(data.report_id);
+  } catch (err) { setStatus('加载失败: ' + (err.message || err), 'err'); }
+}
+
+$('dsitFile').addEventListener('change', async function() {
+  var file = $('dsitFile').files[0];
+  if (!file) return;
+  setStatus('正在上传并解析...');
+  var fd = new FormData();
+  fd.append('file', file);
+  try {
+    var resp = await fetch('/dsit/upload', { method: 'POST', body: fd });
+    var data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail);
+    setStatus('上传成功: ' + (data.summary ? data.summary.total_bugs : 0) + ' 条诊断', 'ok');
+    loadDsitReports(data.report_id);
+  } catch (err) { setStatus('上传失败: ' + (err.message || err), 'err'); }
+});
+
+async function loadDsitReports(autoSelectId) {
+  try {
+    var resp = await fetch('/dsit/reports');
+    var data = await resp.json();
+    var reports = data.reports || [];
+    var list = $('reportList');
+    if (reports.length === 0) {
+      list.innerHTML = '<div style="padding:20px;color:var(--text-muted);font-size:12px;text-align:center">尚无报告<br>上传 DSIT 输出 .zip 或输入路径加载</div>';
+    } else {
+      var html = '';
+      for (var i = 0; i < reports.length; i++) {
+        var r = reports[i];
+        html += '<div class="tree-item" onclick="loadDsitReport(\'' + escAttr(r.report_id) + '\')"><span class="icon">📊</span><span>' + escHtml(r.report_name || r.report_id) + '</span><span style="margin-left:auto;font-size:10px;color:var(--text-muted)">' + (r.total_files||0) + 'F/' + (r.total_bugs||0) + 'B</span></div>';
+      }
+      list.innerHTML = html;
+    }
+    if (autoSelectId) await loadDsitReport(autoSelectId);
+  } catch (err) { setStatus('加载报告列表失败', 'err'); }
+}
+
+async function loadDsitReport(reportId) {
+  try {
+    var resp = await fetch('/dsit/report/' + encodeURIComponent(reportId));
+    var data = await resp.json();
+    var summary = data.summary || {};
+    state.report = data;
+    state.diagnostics = summary.bugs || [];
+    state.projectName = data.project_name || reportId;
+    state.selectedRow = -1;
+    state.filterRule = '';
+    renderResults();
+    renderRuleTree();
+    $('btnExport').disabled = false;
+    $('toolbarInfo').textContent = (data.total_files||0) + ' 文件 · ' + (summary.total_bugs||0) + ' 问题';
+    setStatus('已加载报告: ' + (data.project_name || reportId), 'ok');
+    var tabs = document.querySelectorAll('.sidebar-tab');
+    for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+    var panes = document.querySelectorAll('.sidebar-pane');
+    for (var i = 0; i < panes.length; i++) panes[i].classList.remove('active');
+    document.querySelector('[data-pane="paneReports"]').classList.add('active');
+    $('paneReports').classList.add('active');
+  } catch (err) { setStatus('加载报告失败: ' + (err.message || err), 'err'); }
+}
+
+// --- 导出 ---
+function exportResults() {
+  if (!state.report) return;
+  var blob = new Blob([JSON.stringify(state.report, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ct8114_report_' + Date.now() + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setStatus('报告已导出');
+}
+
+// --- 工具 ---
+function setStatus(msg, kind) {
+  var el = $('statusMsg');
+  el.textContent = msg || '';
+  el.style.color = kind === 'err' ? 'var(--error)' : kind === 'ok' ? 'var(--ok)' : '';
+}
+
+function shortenPath(p) {
+  if (!p) return '';
+  var parts = p.split(/[\\/]/);
+  return parts.slice(-2).join('/');
+}
+
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+// --- 侧边栏 ---
+var sideTabs = document.querySelectorAll('.sidebar-tab');
+for (var i = 0; i < sideTabs.length; i++) {
+  sideTabs[i].addEventListener('click', function() {
+    for (var j = 0; j < sideTabs.length; j++) sideTabs[j].classList.remove('active');
+    var panes = document.querySelectorAll('.sidebar-pane');
+    for (var j = 0; j < panes.length; j++) panes[j].classList.remove('active');
+    this.classList.add('active');
+    var paneId = this.getAttribute('data-pane');
+    $(paneId).classList.add('active');
+    if (paneId === 'paneReports') loadDsitReports();
+  });
+}
+
+// --- 快捷键 ---
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey && e.key === 'o') { e.preventDefault(); fileInput.click(); }
+  if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); handleAnalyze(); }
+  if (e.ctrlKey && e.key === 's') { e.preventDefault(); exportResults(); }
+});
+
+setStatus('就绪 — 按 Ctrl+O 打开文件，Ctrl+Enter 开始分析');
+</script>
+</body>
 </html>
