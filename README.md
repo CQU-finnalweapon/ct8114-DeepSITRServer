@@ -1,29 +1,34 @@
-# ct8114 — GJB 8114 Clang-Tidy 分析服务
+# ct8114 — GJB 8114 代码分析服务 (codetidy 引擎)
 
-> 基于 **FastAPI** 的 **Clang-Tidy (GJB 8114)** 在线静态代码分析服务  
-> 支持即时上传分析和 UniPortal 双源项目分析
+> 基于 **FastAPI** 的 **codetidy.exe (DeepSITRServer)** 在线静态代码分析服务  
+> 支持即时上传分析、UniPortal 项目分析和预生成报告加载
 
 ---
 
 ## 项目概述
 
-`ct8114` 是一个基于 Python **FastAPI** 构建的 Web 服务，它封装了 **clang-tidy** 并加载 **GJB 8114** 自定义检查插件，对 C/C++ 代码进行**军用编码规范**合规检测。它提供两种工作模式：
+`ct8114` 是一个基于 Python **FastAPI** 构建的 Web 服务，使用 DeepSITRServer 内置的 **codetidy.exe** 作为唯一分析引擎，对 C/C++ 代码进行**军用编码规范 (GJB 8114)** 合规检测。
 
-1. **即时上传分析** — 通过浏览器上传文件，立即返回诊断结果
+> **v2 架构变更**: 本版本已完全移除 clang-tidy + 插件方案，统一使用 DeepSITRServer 的 codetidy.exe 引擎，分析结果以 DSIT 兼容格式（`.xplusx.err` JSON）输出。
+
+提供三种工作模式：
+
+1. **即时上传分析** — 通过浏览器上传文件，codetidy 实时分析，返回 DSIT 格式诊断
 2. **UniPortal 项目分析** — 接入 UniPortal 平台，对共享卷中的项目进行批量分析
+3. **加载已有报告** — 加载 DeepSITRServer 预生成的输出目录（`.xplusx.err` / `.sta` / `.rst`）
 
 ---
 
 ## 技术栈
 
-| 组件         | 技术                                                        |
-| ------------ | ----------------------------------------------------------- |
-| Web 框架     | **FastAPI** (Python)                                        |
-| 静态分析引擎 | **Clang-Tidy** + `libclang-tidy-gjb8114.so` 插件            |
-| 前端界面     | 纯 **HTML/CSS** 静态页面（浅色蓝主题）                      |
-| 依赖解析     | `fixes_parser.py` 解析 clang-tidy 的 YAML 输出              |
-| 容器化       | **Docker** (基于 `ghcr.io/gjb8114/clang-tidy-gjb8114` 镜像) |
-| 运行环境     | Python 3 + Uvicorn ASGI 服务器                              |
+| 组件         | 技术                                                          |
+| ------------ | ------------------------------------------------------------- |
+| Web 框架     | **FastAPI** (Python)                                          |
+| 静态分析引擎 | **codetidy.exe** (DeepSITRServer 内置, clang-tidy + GJB 8114) |
+| 前端界面     | 纯 **HTML/CSS** 静态页面（浅色蓝主题）                        |
+| 报告解析     | `dsit_parser.py` 解析 `.xplusx.err` JSON + codetidy 实时分析  |
+| 容器化       | **Docker** (基于 `ghcr.io/gjb8114/clang-tidy-gjb8114` 镜像)   |
+| 运行环境     | Python 3 + Uvicorn ASGI 服务器                                |
 
 ### Python 依赖
 
@@ -38,7 +43,7 @@ pyyaml
 
 ## 工作模式
 
-### A. 即时上传分析（保留单机兼容性）
+### A. 即时上传分析
 
 ```
 POST /analyze
@@ -51,18 +56,29 @@ POST /analyze
 **流程**：
 
 1. 生成 UUID，在系统临时目录下建立工作目录
-2. 上传文件落盘，调用 `clang-tidy -export-fixes=fixes.yaml`
-3. 解析 YAML 中的诊断结果，以 JSON 返回前端
+2. 上传文件落盘，调用 `codetidy.exe` 进行分析
+3. 解析输出，以 **DSIT 兼容 JSON** 格式返回前端
 4. 默认清理临时目录（可通过 `?keep=true` 保留）
 
 ### B. UniPortal 项目分析（双源接入）
 
-| API                      | 方法     | 说明                           |
-| ------------------------ | -------- | ------------------------------ |
-| `/projects`              | `GET`    | 列出两个数据源的项目列表       |
-| `/projects/{id}/files`   | `GET`    | 列出项目内可分析的源文件       |
-| `/projects/{id}/analyze` | `POST`   | 对项目执行一次 clang-tidy 分析 |
-| `/projects/{id}`         | `DELETE` | 删除私有卷中的项目             |
+| API                      | 方法     | 说明                     |
+| ------------------------ | -------- | ------------------------ |
+| `/projects`              | `GET`    | 列出两个数据源的项目列表 |
+| `/projects/{id}/files`   | `GET`    | 列出项目内可分析的源文件 |
+| `/projects/{id}/analyze` | `POST`   | 对项目执行 codetidy 分析 |
+| `/projects/{id}`         | `DELETE` | 删除私有卷中的项目       |
+
+### C. 加载已有报告 (DSIT)
+
+| API                         | 方法     | 说明                    |
+| --------------------------- | -------- | ----------------------- |
+| `/dsit/upload`              | `POST`   | 上传 DSIT 输出目录 .zip |
+| `/dsit/upload-local`        | `POST`   | 从本地路径加载输出目录  |
+| `/dsit/reports`             | `GET`    | 列出已加载报告          |
+| `/dsit/report/{id}`         | `GET`    | 获取完整报告            |
+| `/dsit/report/{id}/summary` | `GET`    | 获取报告摘要            |
+| `/dsit/report/{id}`         | `DELETE` | 删除报告                |
 
 **双源数据约定**：
 
@@ -76,12 +92,13 @@ POST /analyze
 | 端点                     | 方法     | 说明                     |
 | ------------------------ | -------- | ------------------------ |
 | `/`                      | `GET`    | 根路径重定向到静态首页   |
-| `/analyze`               | `POST`   | 即时上传分析（多文件）   |
+| `/analyze`               | `POST`   | 即时上传分析（codetidy） |
 | `/projects`              | `GET`    | 获取项目列表（双源合并） |
 | `/projects/{id}/files`   | `GET`    | 获取项目内源文件列表     |
-| `/projects/{id}/analyze` | `POST`   | 对项目执行分析           |
+| `/projects/{id}/analyze` | `POST`   | 对项目执行 codetidy 分析 |
 | `/projects/{id}`         | `DELETE` | 删除私有项目             |
-| `/healthz`               | `GET`    | 健康检查端点             |
+| `/dsit/*`                | 多种     | 加载/查看/删除 DSIT 报告 |
+| `/healthz`               | `GET`    | 健康检查（含引擎信息）   |
 
 ---
 
@@ -92,9 +109,8 @@ POST /analyze
 FastAPI 应用入口，包含全部 REST API 端点。核心逻辑：
 
 - **环境变量配置**：
-  - `CLANG_TIDY_BIN` — clang-tidy 可执行文件路径（默认 `clang-tidy`）
-  - `GJB_PLUGIN_PATH` — GJB 8114 插件路径（默认 `/usr/local/lib/libclang-tidy-gjb8114.so`）
-  - `CLANG_TIDY_CHECKS` — 启用的检查规则（默认 `-*,gjb8114-*`）
+  - `CODETIDY_BIN` — codetidy.exe 路径（默认 DeepSITRServer 内置路径）
+  - `CODETIDY_CHECKS` — 启用的检查规则（默认 `clang-analyzer-gjb*`）
   - `UNIPORTAL_STORAGE_PATH` — UniPortal 共享卷路径
   - `LOCAL_WORKSPACES_DIR` — 本地工作区目录
   - `MAX_TOTAL_BYTES` — 上传文件大小上限（默认 5MB）
@@ -102,31 +118,45 @@ FastAPI 应用入口，包含全部 REST API 端点。核心逻辑：
 - **文件过滤**：仅允许 `.c/.h/.cc/.cpp/.cxx/.hpp/.hxx` 后缀
 - **安全机制**：文件名防路径穿越、文件大小限制、超时控制
 
-### `fixes_parser.py` — 诊断结果解析器
+### `dsit_parser.py` — 核心分析层
 
-解析 clang-tidy `-export-fixes` 输出的 YAML 文件，转换为结构化数据。
+提供两大功能：
 
-**核心能力**：
+**A. codetidy 实时分析引擎**（替代 clang-tidy）：
 
-- 加载 YAML 文件并标准化为 Python dataclass（`Diagnostic`、`Replacement`、`Note`、`FixesReport`）
-- 将 `FileOffset`（字节偏移）转换为人类可读的 `line:column`
-- 附带源文件中的代码片段（snippet），方便前端展示
-- 提供诊断汇总统计（按检查项和严重级别分组）
+- `analyze_with_codetidy()` — 对源文件运行 codetidy.exe 并返回 DSITReport
+- `run_codetidy()` — 底层 codetidy.exe 调用
+- 自动收集 include 目录、处理编码、解析诊断输出
 
-**`_SourceIndex` 类** — 按字节偏移 -> 行号的 O(log n) 映射，支持中文等多字节字符
+**B. DeepSITRServer 输出解析**：
+
+- `parse_xplusx_err()` — 解析 `.xplusx.err` JSON 诊断文件
+- `parse_sta()` / `parse_rst()` — 解析统计/元数据文件
+- `parse_output_dir()` — 递归扫描整个输出目录
+
+**数据模型**：
+
+- `DSITReport` — 完整分析报告
+- `DSITBug` — 单条诊断（checker/rule_id/line/column/level/message）
+- `DSITFileStats` — 单文件统计
+
+### `routers_dsit.py` — DSIT 报告管理路由
+
+独立的 FastAPI Router，提供 6 个端点管理预生成的 DeepSITRServer 报告。
+
+### `fixes_parser.py` — 旧版 YAML 解析器（保留兼容）
+
+解析 clang-tidy `-export-fixes` 输出的 YAML 文件。v2 中不再作为主要解析路径，保留用于可能的兼容需求。
 
 ### `static/index.html` — 前端页面
 
-纯静态 HTML 页面，提供完整的 Web 交互界面，功能包括：
+纯静态 HTML 页面，提供三个模式标签：
 
-- 文件拖拽/选择上传
-- 项目列表浏览（双源数据展示）
-- 分析结果展示（诊断卡片列表）
-- 按严重级别（Error/Warning/Note）过滤
-- 搜索诊断信息
-- 汇总统计展示
+- **「直接上传」** — 拖拽/选择文件 → codetidy 实时分析 → DSIT 格式诊断卡片
+- **「项目库」** — UniPortal + 本地项目浏览 → codetidy 批量分析
+- **「加载报告」** — 上传/加载预生成的 DeepSITRServer 输出
 
-采用浅色蓝主题 UI，与 Vue3 + Tailwind 前端色板保持一致。
+功能包括：统计面板、规则筛选 chip、搜索过滤、诊断卡片（规则编号 + 文件路径 + 行列号 + 错误描述）
 
 ### `test.c` — 测试用例
 
@@ -160,11 +190,11 @@ docker build -t ct8114:v1 .
 
 ### DSIT 集成文件（新增）
 
-| 文件 | 说明 |
-| :--- | :--- |
-| `dsit_parser.py` | DeepSITRServer 输出解析器，支持 `.xplusx.err` JSON / `.sta` / `.rst` |
-| `routers_dsit.py` | DSIT API 路由（6 个端点：上传/列表/报告/摘要/删除） |
-| `test_dsit_integration.py` | 自测脚本（全自动启动→加载→验证→输出） |
+| 文件                       | 说明                                                                 |
+| :------------------------- | :------------------------------------------------------------------- |
+| `dsit_parser.py`           | DeepSITRServer 输出解析器，支持 `.xplusx.err` JSON / `.sta` / `.rst` |
+| `routers_dsit.py`          | DSIT API 路由（6 个端点：上传/列表/报告/摘要/删除）                  |
+| `test_dsit_integration.py` | 自测脚本（全自动启动→加载→验证→输出）                                |
 
 ---
 
@@ -205,10 +235,10 @@ uvicorn server:app --host 0.0.0.0 --port 8000 --reload
 
 ## 与其他项目的关系
 
-| 项目               | 关系                                                                                       |
-| ------------------ | ------------------------------------------------------------------------------------------ |
-| **DeepSITRServer** | 同为 GJB 8114 静态分析工具。本服务现已集成 DeepSITRServer 输出解析能力（见下方 DSIT 集成） |
-| **UniPortal**      | ct8114 以子工具形式接入 UniPortal 平台，作为其代码分析流水线的一环                         |
+| 项目               | 关系                                                                            |
+| ------------------ | ------------------------------------------------------------------------------- |
+| **DeepSITRServer** | ct8114 使用其内置的 codetidy.exe 作为唯一分析引擎，同时支持加载 DSIT 预生成报告 |
+| **UniPortal**      | ct8114 以子工具形式接入 UniPortal 平台，作为其代码分析流水线的一环              |
 
 ---
 
@@ -348,4 +378,4 @@ E:\北航项目\DeepSITRServer-2026-6-9\DeepSITRServer\Test2
 
 ---
 
-> **总结**: `ct8114` 是一个轻量级、容器化的 GJB 8114 代码合规性 Web 分析服务，通过 clang-tidy 插件实现军用编码标准的自动化检测，支持单次上传和平台化项目分析两种方式。现已集成 DeepSITRServer 桌面工具的分析结果在线展示能力。
+> **总结**: `ct8114` 是一个使用 DeepSITRServer 内置 codetidy.exe 引擎的 GJB 8114 代码合规性 Web 分析服务。v2 版本已完全移除 clang-tidy 依赖，统一使用 codetidy + DSIT 格式，支持即时上传分析、UniPortal 项目分析和预生成报告加载三种工作模式。

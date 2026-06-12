@@ -1,18 +1,20 @@
-"""解析 DeepSITRServer 输出文件的模块。
+"""DeepSITRServer 输出解析 + codetidy.exe 分析引擎模块。
 
-DeepSITRServer 每分析一个 .c/.cpp 文件，会在输出目录中生成以下后缀文件：
-    .xplusx.err  ─ JSON 格式的诊断结果（核心输出）
-    .err         ─ 文本格式的 clang-tidy 风格警告
-    .sta         ─ 文件统计信息（行数、函数数、复杂度等）
-    .rst         ─ 项目级 XML 元数据
-    .cgp         ─ 调用图转储
-    .cgf         ─ 检查器配置
+本模块是 ct8114 的核心分析层，提供两大功能：
 
-本模块提供：
+A. DeepSITRServer 输出解析（兼容已有 DSIT 输出目录）：
     parse_xplusx_err(filepath) -> List[Dict]     解析 .xplusx.err JSON
     parse_sta(filepath)        -> Dict           解析 .sta 文件统计
     parse_output_dir(dirpath)  -> DSITReport    递归扫描整个输出目录
-    DSITReport.dataclass       -> 统一数据模型（兼容前端展示）
+
+B. codetidy.exe 实时分析（替代 clang-tidy，作为唯一分析引擎）：
+    analyze_with_codetidy()    -> DSITReport    运行 codetidy.exe 分析源码并返回报告
+    run_codetidy()             -> CompletedProcess  底层 codetidy.exe 调用
+
+数据模型：
+    DSITReport  ─ 一次分析的完整报告（统计 + 文件明细 + 诊断汇总）
+    DSITBug     ─ 单条诊断结果
+    DSITFileStats ─ 单文件统计信息
 """
 
 from __future__ import annotations
@@ -20,6 +22,10 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
+import subprocess
+import tempfile
+import uuid
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
@@ -380,6 +386,294 @@ def parse_output_dir(
 
 
 # ============================================================================
+# codetidy.exe 实时分析引擎（替代 clang-tidy，作为唯一分析引擎）
+# ============================================================================
+
+# codetidy.exe 路径 — 默认为 DeepSITRServer 自带的引擎
+_CODETIDY_BIN = os.environ.get(
+    "CODETIDY_BIN",
+    r"E:\北航项目\DeepSITRServer-2026-6-9\DeepSITRServer\core\codetidy.exe",
+)
+
+# 默认启用的 GJB 检查规则
+_CODETIDY_CHECKS = os.environ.get("CODETIDY_CHECKS", "clang-analyzer-gjb*")
+
+# 分析超时（秒）
+_CODETIDY_TIMEOUT = int(os.environ.get("CODETIDY_TIMEOUT", "300"))
+
+
+def _find_codetidy() -> Path:
+    """查找 codetidy.exe 可执行文件路径."""
+    bin_path = Path(_CODETIDY_BIN)
+    if bin_path.is_file():
+        return bin_path
+
+    # 尝试在 PATH 中查找
+    which = shutil.which("codetidy.exe") or shutil.which("codetidy")
+    if which:
+        return Path(which)
+
+    raise FileNotFoundError(
+        f"未找到 codetidy.exe，请设置 CODETIDY_BIN 环境变量。"
+        f" 当前值: {_CODETIDY_BIN}"
+    )
+
+
+def run_codetidy(
+    source_files: List[Path],
+    workdir: Path,
+    *,
+    checks: str = "",
+    extra_args: Optional[List[str]] = None,
+    timeout: int = 0,
+) -> subprocess.CompletedProcess:
+    """对一组源文件运行 codetidy.exe。
+
+    Args:
+        source_files: 待分析的源文件路径列表
+        workdir: 工作目录（codetidy 在此目录下运行）
+        checks: 启用的检查规则（为空则使用默认 GJB 规则）
+        extra_args: 额外的编译器参数（如 -std=c++11 -I./include）
+        timeout: 超时秒数（0 使用默认值）
+
+    Returns:
+        subprocess.CompletedProcess 对象
+    """
+    codetidy = _find_codetidy()
+    timeout = timeout or _CODETIDY_TIMEOUT
+    effective_checks = checks or _CODETIDY_CHECKS
+
+    # 构建命令: codetidy.exe <files> -checks=<...> -- <compiler-flags>
+    cmd = [
+        str(codetidy),
+        *[str(f) for f in source_files],
+        f"-checks={effective_checks}",
+        "--",
+    ]
+    if extra_args:
+        cmd.extend(extra_args)
+    else:
+        cmd.append("-std=c++11")
+
+    return subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        cwd=str(workdir),
+        timeout=timeout,
+    )
+
+
+# 正则：解析 clang-tidy 风格的标准输出诊断行
+# 格式: <file>:<line>:<col>: <level>: <message> [checker-name]
+_DIAG_LINE_RE = re.compile(
+    r"^(.+?):(\d+):(\d+):\s+(warning|error|note):\s+(.+?)(?:\s+\[(.+?)\])?\s*$"
+)
+
+
+def _parse_codetidy_output(
+    stdout: str,
+    stderr: str,
+    source_files: List[Path],
+) -> List[DSITBug]:
+    """解析 codetidy.exe 的 stdout/stderr 输出，提取诊断列表。
+
+    兼容 clang-tidy 标准输出格式，将每条诊断映射为 DSITBug。
+    """
+    bugs: List[DSITBug] = []
+    # 合并 stdout 和 stderr 进行解析
+    combined = (stdout + "\n" + stderr).splitlines()
+
+    # 建立文件名 → 完整路径的快速映射
+    file_map: Dict[str, str] = {}
+    for sf in source_files:
+        file_map[sf.name] = str(sf)
+        file_map[str(sf)] = str(sf)
+
+    for line in combined:
+        line = line.strip()
+        if not line:
+            continue
+
+        m = _DIAG_LINE_RE.match(line)
+        if not m:
+            continue
+
+        file_ref = m.group(1)
+        try:
+            line_num = int(m.group(2))
+        except (ValueError, TypeError):
+            line_num = -1
+        try:
+            col_num = int(m.group(3))
+        except (ValueError, TypeError):
+            col_num = -1
+        level_str = m.group(4)      # warning / error / note
+        message = m.group(5).strip()
+        checker = (m.group(6) or "").strip()
+
+        # 解析文件路径：优先用完整路径匹配
+        file_path = file_ref
+        if file_ref in file_map:
+            file_path = file_map[file_ref]
+        else:
+            # 尝试按文件名匹配
+            for sf in source_files:
+                if sf.name == file_ref or str(sf).endswith(file_ref):
+                    file_path = str(sf)
+                    break
+
+        # 映射级别
+        if level_str == "error":
+            force = "1"
+        elif level_str == "warning":
+            force = "1"  # GJB 中 warning 也算强制
+        else:
+            force = "0"
+
+        rule_id = _extract_rule_id_from_checker(checker) or _extract_rule_id_from_message(message)
+
+        bugs.append(DSITBug(
+            checker=checker,
+            file_path=file_path,
+            line=line_num,
+            column=col_num,
+            message=message,
+            rule_id=rule_id,
+            force=force,
+            type_code="2" if level_str == "warning" else "1",
+            status="0",
+        ))
+
+    return bugs
+
+
+def _extract_rule_id_from_checker(checker: str) -> str:
+    """从 checker 名称中推导 GJB 规则编号.
+
+    例如: clang-analyzer-gjb.statement.CodeUnreachableBranch → GJB-statement-CodeUnreachableBranch
+    """
+    if not checker:
+        return ""
+    # 提取 gjb 或 gjb05 后面的部分
+    m = re.search(r'gjb\d*\.(.+)$', checker, re.IGNORECASE)
+    if m:
+        return f"GJB-{m.group(1)}"
+    return checker
+
+
+def _extract_rule_id_from_message(message: str) -> str:
+    """从诊断消息中提取 GJB/MISRA 规则编号."""
+    if not message:
+        return ""
+    m = re.search(r'(GJB-[AR]-\d+-\d+-\d+|MISRA[^:\s]*[A-Z]?-\d+[^:\s]*)', message)
+    if m:
+        return m.group(1)
+    return ""
+
+
+def analyze_with_codetidy(
+    source_files: List[Path],
+    *,
+    project_name: str = "",
+    checks: str = "",
+    extra_args: Optional[List[str]] = None,
+    timeout: int = 0,
+    report_id: str = "",
+) -> DSITReport:
+    """使用 codetidy.exe 分析源文件并返回 DSITReport。
+
+    这是 ct8114 的核心分析入口，替代了原来的 clang-tidy + fixes_parser 流程。
+
+    Args:
+        source_files: 待分析的 C/C++ 源文件路径列表
+        project_name: 项目名称（用于报告展示）
+        checks: 启用的检查规则（默认使用 GJB 规则）
+        extra_args: 编译器额外参数
+        timeout: 超时秒数
+        report_id: 报告 ID（自动生成）
+
+    Returns:
+        DSITReport 完整报告对象
+    """
+    if not source_files:
+        return DSITReport(
+            report_id=report_id or str(uuid.uuid4()),
+            project_name=project_name or "empty",
+            project_path="",
+        )
+
+    # 确定工作目录：使用第一个源文件的父目录
+    workdir = source_files[0].parent.resolve()
+
+    # 收集 include 目录
+    include_dirs = sorted({
+        str(p.parent.resolve())
+        for p in source_files
+        if p.parent.resolve() != workdir
+    })
+    if not extra_args:
+        extra_args = ["-std=c++11"]
+    for inc in include_dirs:
+        extra_args.append(f"-I{inc}")
+
+    try:
+        proc = run_codetidy(
+            source_files,
+            workdir,
+            checks=checks,
+            extra_args=extra_args,
+            timeout=timeout,
+        )
+    except FileNotFoundError as e:
+        raise FileNotFoundError(
+            f"未找到 codetidy.exe。请确认 DeepSITRServer 已部署，"
+            f"或设置 CODETIDY_BIN 环境变量。\n{ e}"
+        ) from e
+    except subprocess.TimeoutExpired as e:
+        raise subprocess.TimeoutExpired(
+            cmd=e.cmd, timeout=e.timeout,
+            output=e.output, stderr=e.stderr,
+        ) from e
+
+    # 解析输出
+    bugs = _parse_codetidy_output(proc.stdout, proc.stderr, source_files)
+
+    # 按文件分组
+    file_bugs: Dict[str, List[DSITBug]] = {}
+    for bug in bugs:
+        file_bugs.setdefault(bug.file_path, []).append(bug)
+
+    # 构建报告
+    report = DSITReport(
+        report_id=report_id or f"codetidy_{uuid.uuid4().hex[:12]}",
+        project_name=project_name or workdir.name,
+        project_path=str(workdir),
+    )
+
+    for file_path, file_bug_list in sorted(file_bugs.items()):
+        short_path = Path(file_path).name
+        report.files_stats.append(DSITFileStats(
+            file_path=short_path,
+            bugs=file_bug_list,
+        ))
+
+    # 如果某些源文件没有诊断，也加入（无 bug）
+    analyzed_names = {Path(b.file_path).name for b in bugs}
+    for sf in source_files:
+        if sf.name not in analyzed_names:
+            report.files_stats.append(DSITFileStats(
+                file_path=sf.name,
+                bugs=[],
+            ))
+
+    return report
+
+
+# ============================================================================
 # CLI 测试入口
 # ============================================================================
 
@@ -387,12 +681,18 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python dsit_parser.py <output_dir>")
-        print("Example: python dsit_parser.py ../DeepSITRServer-2026-6-9/DeepSITRServer/Test2")
+        print("Usage: python dsit_parser.py <output_dir_or_source_file>")
+        print("  DeepSITRServer output dir: python dsit_parser.py ../DeepSITRServer/Test2")
+        print("  Source file analysis:      python dsit_parser.py --analyze file1.cpp file2.cpp")
         sys.exit(1)
 
-    target = sys.argv[1]
-    report = parse_output_dir(target, report_id="cli_test")
+    if sys.argv[1] == "--analyze":
+        source_paths = [Path(p) for p in sys.argv[2:]]
+        report = analyze_with_codetidy(source_paths)
+    else:
+        target = sys.argv[1]
+        report = parse_output_dir(target, report_id="cli_test")
+
     print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
     print(f"\n=== 摘要 ===")
     s = report.summary()

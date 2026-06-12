@@ -861,7 +861,7 @@
             直接上传
           </button>
           <button class="mode-tab" id="tabDsit" type="button" role="tab">
-            DSIT 报告
+            加载报告
           </button>
         </div>
 
@@ -965,10 +965,10 @@
           </div>
         </div>
 
-        <!-- ============== 模式 C: DeepSITRServer 报告 ============== -->
+        <!-- ============== 模式 C: 加载 DeepSITRServer 报告 ============== -->
         <div class="mode-pane" id="paneDsit">
           <div class="card">
-            <h2>1. 加载报告</h2>
+            <h2>1. 加载已有报告</h2>
             <div class="field">
               <label class="field-label"
                 >本地上传 DeepSITRServer 输出 .zip</label
@@ -1243,8 +1243,12 @@
             $("reqId").textContent = data.request_id;
           }
           renderReport();
-          const rc = data.command ? data.command.returncode : "?";
-          setStatus(`完成. clang-tidy 退出码: ${rc}`, "ok");
+          const total =
+            (data.report &&
+              data.report.summary &&
+              data.report.summary.total_bugs) ||
+            "?";
+          setStatus(`分析完成. 发现 ${total} 条诊断`, "ok");
         } catch (err) {
           setStatus(
             "失败: " + (err && err.message ? err.message : String(err)),
@@ -1295,10 +1299,40 @@
         const exportBtn = $("exportBtn");
         if (exportBtn) exportBtn.disabled = !report;
         if (!report) {
-          listEl.innerHTML = `<div class="empty">上传文件并点击「开始分析」以查看结果</div>`;
+          listEl.innerHTML = `<div class="empty">选择项目或上传文件并点击「开始分析」以查看结果</div>`;
           return;
         }
-        const summary = report.summary || {};
+
+        // ---- 兼容 DSIT 格式 (summary.bugs) 和旧格式 (diagnostics) ----
+        let summary = report.summary || {};
+        let diagnostics = report.diagnostics || [];
+
+        // DSIT 格式: 从 summary.bugs 转换
+        if (
+          !diagnostics.length &&
+          Array.isArray(summary.bugs) &&
+          summary.bugs.length
+        ) {
+          diagnostics = summary.bugs.map(function (bug) {
+            return {
+              name: bug.rule_id || bug.checker || "",
+              level: bug.level || "Warning",
+              message: bug.message || "",
+              location: {
+                file_path: bug.file_path || "",
+                line: bug.line,
+                column: bug.column,
+              },
+            };
+          });
+          // 统一 summary 字段
+          summary = {
+            total: summary.total_bugs || 0,
+            by_check: summary.by_rule || {},
+            by_level: summary.by_level || {},
+          };
+        }
+
         $("stTotal").textContent = summary.total ?? 0;
         $("stWarn").textContent =
           (summary.by_level && summary.by_level.Warning) || 0;
@@ -1332,17 +1366,17 @@
             filters.appendChild(chip);
           });
 
-        const diagnostics = (report.diagnostics || []).filter((d) => {
+        diagnostics = diagnostics.filter(function (d) {
           if (state.filterCheck && d.name !== state.filterCheck) return false;
           if (state.keyword) {
-            const hay = (
+            var hay = (
               d.name +
               " " +
               d.message +
               " " +
               ((d.location && d.location.file_path) || "")
             ).toLowerCase();
-            if (!hay.includes(state.keyword)) return false;
+            if (hay.indexOf(state.keyword) === -1) return false;
           }
           return true;
         });
@@ -1353,7 +1387,9 @@
         }
 
         listEl.innerHTML = "";
-        diagnostics.forEach((d) => listEl.appendChild(renderDiag(d)));
+        diagnostics.forEach(function (d) {
+          listEl.appendChild(renderDiag(d));
+        });
       }
 
       function makeChip(label, count, active) {
@@ -1570,7 +1606,6 @@
         const params = new URLSearchParams();
         const entry = $("projEntry").value.trim();
         if (entry) params.set("entry", entry);
-        // save_report / keep 选项已从 UI 移除, 用后端默认值 (落盘报告=true, 保留沙盒=false)
 
         setProjStatus("分析中, 请稍候 (项目级分析可能耗时较长)...");
         projSubmitBtn.disabled = true;
@@ -1608,11 +1643,15 @@
             $("reqId").textContent = data.request_id;
           }
           renderReport();
-          const rc = data.command ? data.command.returncode : "?";
+          const total =
+            (data.report &&
+              data.report.summary &&
+              data.report.summary.total_bugs) ||
+            "?";
           const saved = data.saved_report
             ? ` · 已保存至 ${data.saved_report}`
             : "";
-          setProjStatus(`完成. clang-tidy 退出码: ${rc}${saved}`, "ok");
+          setProjStatus(`分析完成. 发现 ${total} 条诊断${saved}`, "ok");
         } catch (err) {
           setProjStatus(
             "失败: " + (err && err.message ? err.message : String(err)),
@@ -1807,33 +1846,14 @@
           $("reqMeta").style.display = "inline-flex";
           $("reqId").textContent = "DSIT-" + reportId;
 
-          // 转换为 renderReport 兼容的格式
-          const summary = data.summary || {};
-          const diagnostics = (summary.bugs || []).map((bug) => ({
-            name: bug.rule_id || bug.checker || "",
-            level: bug.level || "Warning",
-            message: bug.message || "",
-            location: {
-              file_path: bug.file_path || "",
-              line: bug.line,
-              column: bug.column,
-            },
-          }));
-
-          state.report = {
-            main_source_file: data.project_name || "",
-            diagnostics: diagnostics,
-            summary: {
-              total: summary.total_bugs || 0,
-              by_check: summary.by_rule || {},
-              by_level: summary.by_level || {},
-            },
-          };
+          // 直接使用 DSIT 格式的 report — renderReport 会自动转换
+          state.report = data;
           state.lastResult = data;
           state.lastProjectId = reportId;
-          state.lastProjectName = "DSIT: " + (data.project_name || reportId);
+          state.lastProjectName = "报告: " + (data.project_name || reportId);
           renderReport();
-          setDsitStatus(`已加载: ${summary.total_bugs || 0} 条诊断`, "ok");
+          const total = (data.summary && data.summary.total_bugs) || 0;
+          setDsitStatus(`已加载: ${total} 条诊断`, "ok");
         } catch (err) {
           setDsitStatus(
             "加载报告失败: " + (err && err.message ? err.message : String(err)),

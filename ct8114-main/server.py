@@ -1,30 +1,34 @@
-"""基于 FastAPI 的 clang-tidy (gjb8114) 分析服务 (UniPortal 双源接入版).
+"""基于 FastAPI 的 GJB 8114 代码分析服务 (DeepSITRServer/codetidy 引擎).
+
+本服务使用 DeepSITRServer 内置的 codetidy.exe 作为唯一分析引擎，
+完全替代了原有的 clang-tidy + 插件方案。
 
 工作流程概览
 ------------
 
-A. 即时上传分析 (与单机版完全一致, 保留兼容)::
+A. 即时上传分析::
 
     POST /analyze
         multipart files=<file1>&files=<file2>...
         ?entry=test.c&keep=false
 
    1. 为本次请求生成 UUID, 在系统临时目录下建立专用工作目录;
-   2. 把上传的文件落盘到该目录, 调用 ``clang-tidy -export-fixes=fixes.yaml``;
-   3. 解析生成的 YAML, 把诊断结果以 JSON 返回前端;
-   4. 清理临时目录 (可通过 ``?keep=true`` 关闭, 便于调试).
+   2. 把上传的文件落盘到该目录, 调用 codetidy.exe 进行分析;
+   3. 解析输出，以 DSIT 兼容格式 (JSON) 返回前端;
+   4. 清理临时目录 (可通过 ``?keep=true`` 关闭).
 
 B. UniPortal / 本工具私有项目分析::
 
     GET    /projects                         # 列出两个数据源的项目
     GET    /projects/{project_id}/files      # 列出项目内可分析的源文件
-    POST   /projects/{project_id}/analyze    # 对项目跑一次 clang-tidy
+    POST   /projects/{project_id}/analyze    # 对项目运行 codetidy.exe
     DELETE /projects/{project_id}            # 只能删私有卷里的项目
 
-   读路径遵循 SUBTOOL_INTEGRATION_GUIDE 的双源约定:
-       1. 先查 LOCAL_WORKSPACES_DIR/{project_id}/   (子工具自上传)
-       2. 再查 UNIPORTAL_STORAGE_PATH/*/{project_id}/  (UniPortal 共享卷, 只读)
-   写路径全部落在 LOCAL_WORKSPACES_DIR / TASKS_DIR, 不会触碰只读共享卷.
+C. DeepSITRServer 报告加载::
+
+    POST   /dsit/upload-local               # 加载预生成的 DSIT 输出目录
+    GET    /dsit/reports                     # 列出已加载报告
+    GET    /dsit/report/{id}                 # 获取报告详情
 
 启动方式::
 
@@ -47,49 +51,38 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from fixes_parser import parse_fixes_file
+from dsit_parser import analyze_with_codetidy, parse_output_dir, DSITReport
 from routers_dsit import router as dsit_router
 
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
+# ============================================================================
+# 配置
+# ============================================================================
 
-CLANG_TIDY_BIN = os.environ.get("CLANG_TIDY_BIN", "clang-tidy")
-GJB_PLUGIN_PATH = os.environ.get(
-    "GJB_PLUGIN_PATH",
-    "/usr/local/lib/libclang-tidy-gjb8114.so",
-)
-CHECKS = os.environ.get("CLANG_TIDY_CHECKS", "-*,gjb8114-*")
-
-# 限制即时上传分析的文件总大小, 防止滥用 (默认 5MB)
+# 限制即时上传分析的文件总大小 (默认 5MB)
 MAX_TOTAL_BYTES = int(os.environ.get("MAX_TOTAL_BYTES", str(5 * 1024 * 1024)))
 ALLOWED_SUFFIXES = {".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hxx"}
 
 # ---- UniPortal 双源接入相关配置 ----------------------------------------
-# 共享卷 (只读): UniPortal 上传的项目, 目录结构 {portal_proj_id}/{item_id}/...
 UNIPORTAL_STORAGE_PATH = os.environ.get("UNIPORTAL_STORAGE_PATH")
 UNIPORTAL_MODE = bool(UNIPORTAL_STORAGE_PATH)
-# 本工具私有读写卷: 自上传项目 + 分析报告
 LOCAL_WORKSPACES_DIR = Path(
-    os.environ.get("LOCAL_WORKSPACES_DIR", "/app/local_workspaces")
+    os.environ.get("LOCAL_WORKSPACES_DIR", "workspaces")
 )
-# 本工具私有读写卷: clang-tidy 沙盒 (写 fixes.yaml 用)
-TASKS_DIR = Path(os.environ.get("TASKS_DIR", "/app/workspaces/_tasks"))
-
-# 项目分析超时 (UniPortal 项目通常比单文件大, 给得宽一些)
-PROJECT_ANALYZE_TIMEOUT = int(os.environ.get("PROJECT_ANALYZE_TIMEOUT", "300"))
+# 报告存储目录
+REPORTS_DIR = Path(os.environ.get("REPORTS_DIR", "workspaces/_reports"))
 
 SOURCE_SUFFIXES = {".c", ".cc", ".cpp", ".cxx"}
 HEADER_SUFFIXES = {".h", ".hpp", ".hxx"}
 CODE_SUFFIXES = SOURCE_SUFFIXES | HEADER_SUFFIXES
 
-# 子工具自己生成的目录, 在收集源文件 / 列项目时跳过
-_TOOL_INTERNAL_DIRS = {"_ct8114", "__pycache__", ".git", ".idea", ".vscode"}
+_TOOL_INTERNAL_DIRS = {"_ct8114", "_reports", "_dsit_reports", "__pycache__", ".git", ".idea", ".vscode"}
 
 
-app = FastAPI(title="GJB8114 clang-tidy Service")
+app = FastAPI(title="GJB8114 Code Analysis Service (codetidy)")
 
-# 允许跨域, 方便前端独立部署调试
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -220,37 +213,36 @@ def _local_project_display_name(project_dir: Path) -> str:
 
 
 # =====================================================================
-# 即时上传分析 (与单机版兼容, 保留原有行为)
+# 即时上传分析
 # =====================================================================
 
-def _run_clang_tidy(workdir: Path, target_files: List[Path]) -> subprocess.CompletedProcess:
-    fixes_path = workdir / "fixes.yaml"
-    cmd = [
-        CLANG_TIDY_BIN,
-        *[str(p.relative_to(workdir)) for p in target_files],
-        f"-checks={CHECKS}",
-        f"-load={GJB_PLUGIN_PATH}",
-        f"-export-fixes={fixes_path.name}",
-    ]
+def _run_analysis(
+    workdir: Path,
+    target_files: List[Path],
+    project_name: str = "",
+    timeout: int = 300,
+) -> DSITReport:
+    """调用 codetidy.exe 分析源文件，返回 DSITReport。
+
+    这是统一的内部分析入口，供 /analyze 和 /projects/{id}/analyze 共用。
+    """
     try:
-        result = subprocess.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            cwd=str(workdir),
-            timeout=120,
+        return analyze_with_codetidy(
+            source_files=target_files,
+            project_name=project_name,
+            timeout=timeout,
         )
     except FileNotFoundError as exc:
         raise HTTPException(
             status_code=500,
-            detail=f"未找到 clang-tidy 可执行文件: {CLANG_TIDY_BIN}",
+            detail=f"未找到 codetidy.exe。请确认 DeepSITRServer 已部署，"
+                   f"或设置 CODETIDY_BIN 环境变量。\n{exc}",
         ) from exc
     except subprocess.TimeoutExpired as exc:
-        raise HTTPException(status_code=504, detail="clang-tidy 执行超时") from exc
-    return result
+        raise HTTPException(
+            status_code=504,
+            detail=f"codetidy 执行超时 ({exc.timeout}s)",
+        ) from exc
 
 
 # 挂载静态站点 (HTML/CSS/JS), 与后端 API 共享同源, 避免 CORS 与额外部署
@@ -277,10 +269,11 @@ async def analyze(
         description="指定主分析入口文件名 (默认: 上传的所有 .c/.cc/.cpp/.cxx)",
     ),
 ) -> JSONResponse:
+    """上传源文件，使用 codetidy.exe 实时分析，返回 DSIT 格式报告."""
     if not files:
         raise HTTPException(status_code=400, detail="未收到任何文件")
 
-    request_id = str(uuid.uuid4())
+    request_id = f"codetidy_{uuid.uuid4().hex[:12]}"
     base_tmp = Path(tempfile.gettempdir()) / "ct8114"
     base_tmp.mkdir(parents=True, exist_ok=True)
     workdir = base_tmp / request_id
@@ -289,6 +282,7 @@ async def analyze(
     saved_paths: List[Path] = []
     total_bytes = 0
     try:
+        # 1. 落盘上传文件
         for uf in files:
             name = _safe_filename(uf.filename or "")
             _validate_suffix(name)
@@ -303,6 +297,7 @@ async def analyze(
             dest.write_bytes(content)
             saved_paths.append(dest)
 
+        # 2. 确定分析目标
         if entry is not None:
             entry_name = _safe_filename(entry)
             target_files = [workdir / entry_name]
@@ -312,7 +307,6 @@ async def analyze(
                     detail=f"指定的 entry 文件 {entry_name!r} 未在上传列表中",
                 )
         else:
-            # 默认分析所有源文件 (.c / .cc / .cpp / .cxx), 头文件作为依赖落盘
             target_files = [
                 p for p in saved_paths if p.suffix.lower() in SOURCE_SUFFIXES
             ]
@@ -322,34 +316,16 @@ async def analyze(
                     detail="上传的文件中没有可分析的源文件 (.c/.cc/.cpp/.cxx)",
                 )
 
-        proc = _run_clang_tidy(workdir, target_files)
-        fixes_path = workdir / "fixes.yaml"
+        # 3. 使用 codetidy.exe 分析
+        report = _run_analysis(workdir, target_files, timeout=120)
+        report.report_id = request_id
 
-        # clang-tidy 的 YAML 中记录的是工作目录内的绝对路径,
-        # 把它映射回临时目录, 解析器才能读取源文件以补全行列号.
-        path_remap = {
-            str(workdir): str(workdir),
-            f"/{workdir.name}": str(workdir),
-        }
-
-        if fixes_path.exists() and fixes_path.stat().st_size > 0:
-            report = parse_fixes_file(fixes_path, path_remap=path_remap).to_dict()
-        else:
-            report = {
-                "main_source_file": "",
-                "diagnostics": [],
-                "summary": {"total": 0, "by_check": {}, "by_level": {}},
-            }
-
+        # 4. 构建响应
+        report_dict = report.to_dict()
         payload = {
             "request_id": request_id,
             "workdir": str(workdir) if keep else None,
-            "command": {
-                "returncode": proc.returncode,
-                "stdout": proc.stdout,
-                "stderr": proc.stderr,
-            },
-            "report": report,
+            "report": report_dict,
         }
         return JSONResponse(payload)
     finally:
@@ -447,12 +423,13 @@ def analyze_project(
         None,
         description="入口源文件相对路径, 缺省时分析所有 .c/.cc/.cpp/.cxx",
     ),
-    keep: bool = Query(False, description="保留沙盒目录, 便于调试"),
+    keep: bool = Query(False, description="保留工作目录, 便于调试"),
     save_report: bool = Query(
         True,
-        description="把诊断 JSON 落盘到 LOCAL_WORKSPACES_DIR/{project_id}/_ct8114/",
+        description="把诊断报告落盘到 workspaces/_reports/{project_id}/",
     ),
 ) -> JSONResponse:
+    """对项目运行 codetidy.exe 分析，返回 DSIT 格式报告."""
     root = _resolve_project_path(project_id)
 
     code_files = _collect_code_files(root)
@@ -479,86 +456,37 @@ def analyze_project(
                 detail="项目内没有 .c/.cc/.cpp/.cxx 源文件, 请指定 entry 或上传含源文件的项目",
             )
 
-    request_id = str(uuid.uuid4())
-    TASKS_DIR.mkdir(parents=True, exist_ok=True)
-    workdir = TASKS_DIR / f"ct8114_{request_id}"
-    workdir.mkdir(parents=True, exist_ok=False)
+    request_id = f"proj_{uuid.uuid4().hex[:12]}"
 
-    try:
-        fixes_path = workdir / "fixes.yaml"
-        # 收集所有含头文件的目录作为 -I, 让 clang-tidy 能跨子目录解析 #include
-        include_dirs = sorted({str(p.parent) for p in code_files})
+    # 使用 codetidy.exe 分析
+    report = _run_analysis(
+        root,
+        target_files,
+        project_name=root.name,
+        timeout=300,
+    )
+    report.report_id = request_id
 
-        cmd = [
-            CLANG_TIDY_BIN,
-            *[str(p) for p in target_files],
-            f"-checks={CHECKS}",
-            f"-load={GJB_PLUGIN_PATH}",
-            f"-export-fixes={fixes_path}",
-            "--",
-        ] + [f"-I{inc}" for inc in include_dirs]
+    report_dict = report.to_dict()
+    payload = {
+        "request_id": request_id,
+        "project_id": project_id,
+        "report": report_dict,
+    }
 
+    if save_report:
         try:
-            proc = subprocess.run(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
+            out_dir = REPORTS_DIR / project_id
+            out_dir.mkdir(parents=True, exist_ok=True)
+            (out_dir / "last_report.json").write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2),
                 encoding="utf-8",
-                errors="replace",
-                cwd=str(root),
-                timeout=PROJECT_ANALYZE_TIMEOUT,
             )
-        except FileNotFoundError as exc:
-            raise HTTPException(
-                status_code=500,
-                detail=f"未找到 clang-tidy 可执行文件: {CLANG_TIDY_BIN}",
-            ) from exc
-        except subprocess.TimeoutExpired as exc:
-            raise HTTPException(status_code=504, detail="clang-tidy 执行超时") from exc
+            payload["saved_report"] = str(out_dir / "last_report.json")
+        except OSError as e:
+            payload["save_report_error"] = str(e)
 
-        if fixes_path.exists() and fixes_path.stat().st_size > 0:
-            report = parse_fixes_file(fixes_path).to_dict()
-        else:
-            report = {
-                "main_source_file": "",
-                "diagnostics": [],
-                "summary": {"total": 0, "by_check": {}, "by_level": {}},
-            }
-
-        payload = {
-            "request_id": request_id,
-            "project_id": project_id,
-            "workdir": str(workdir) if keep else None,
-            "command": {
-                "returncode": proc.returncode,
-                "stdout": proc.stdout,
-                "stderr": proc.stderr,
-            },
-            "report": report,
-        }
-
-        if save_report:
-            try:
-                # 写到 LOCAL_WORKSPACES_DIR/_reports/{project_id}/ 而不是顶层
-                # {project_id}/_ct8114/. 顶层 _reports/ 以 _ 开头, 被 list_projects
-                # 的扫描逻辑跳过, 不会再被错误识别为 "项目"; 也不会形成空壳目录
-                # 遮挡 _resolve_project_path 对共享卷的查找.
-                out_dir = LOCAL_WORKSPACES_DIR / "_reports" / project_id
-                out_dir.mkdir(parents=True, exist_ok=True)
-                (out_dir / "last_report.json").write_text(
-                    json.dumps(payload, ensure_ascii=False, indent=2),
-                    encoding="utf-8",
-                )
-                payload["saved_report"] = str(out_dir / "last_report.json")
-            except OSError as e:
-                # 落盘失败不影响主流程 (例如只读卷被错挂)
-                payload["save_report_error"] = str(e)
-
-        return JSONResponse(payload)
-    finally:
-        if not keep:
-            shutil.rmtree(workdir, ignore_errors=True)
+    return JSONResponse(payload)
 
 
 @app.delete("/projects/{project_id}")
@@ -582,8 +510,8 @@ def delete_project(project_id: str) -> JSONResponse:
 def healthz() -> dict:
     return {
         "status": "ok",
+        "engine": "codetidy (DeepSITRServer)",
         "uniportal_mode": UNIPORTAL_MODE,
         "uniportal_storage_path": UNIPORTAL_STORAGE_PATH or None,
         "local_workspaces_dir": str(LOCAL_WORKSPACES_DIR),
-        "tasks_dir": str(TASKS_DIR),
     }
