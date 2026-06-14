@@ -311,6 +311,36 @@ def _local_project_display_name(project_dir: Path) -> str:
     return project_dir.name
 
 
+def _check_analysis_status(project_path: Path) -> dict:
+    """检查项目是否已被 ct8114 分析过，返回分析状态信息.
+
+    返回字段:
+        analyzed: bool — 是否有分析报告
+        last_analysis: str | None — 最近分析时间 (ISO 格式)
+        report_bugs: int | None — 最近分析的问题总数
+    """
+    report_file = project_path / "_ct8114" / "last_report.json"
+    if not report_file.exists():
+        return {"analyzed": False, "last_analysis": None, "report_bugs": None}
+
+    try:
+        data = json.loads(report_file.read_text(encoding="utf-8"))
+        summary = data.get("report", {}).get("summary", {})
+        # last_analysis 优先从 meta.json 获取
+        meta_file = project_path / "meta.json"
+        last_analysis = None
+        if meta_file.exists():
+            meta = json.loads(meta_file.read_text(encoding="utf-8"))
+            last_analysis = meta.get("ct8114_last_analysis")
+        return {
+            "analyzed": True,
+            "last_analysis": last_analysis,
+            "report_bugs": summary.get("total_bugs"),
+        }
+    except Exception:
+        return {"analyzed": True, "last_analysis": None, "report_bugs": None}
+
+
 # =====================================================================
 # 即时上传分析
 # =====================================================================
@@ -593,13 +623,15 @@ def list_projects(
             # 模拟模式: 列出所有模拟共享卷项目
             index = _build_item_index()
             for item_id, item_path in sorted(index.items()):
+                analysis_info = _check_analysis_status(item_path)
                 items.append({
                     "project_id": item_id,
                     "project_name": _project_display_name(item_path, item_id),
                     "file_count": _count_code_files(item_path),
                     "status": "available",
                     "source": "uniportal",
-                    "writable": UNIPORTAL_WRITABLE or bool(MOCK_UNIPORTAL_DIR),
+                    "writable": True,
+                    **analysis_info,
                 })
         elif portal_project_id:
             pid = _safe_project_id(portal_project_id)  # 非法直接 400
@@ -608,6 +640,7 @@ def list_projects(
                 for item in sorted(proj_path.iterdir()):
                     if not item.is_dir() or item.name.startswith((".", "_")):
                         continue
+                    analysis_info = _check_analysis_status(item)
                     items.append({
                         "project_id": item.name,
                         "project_name": _project_display_name(item, item.name),
@@ -615,6 +648,7 @@ def list_projects(
                         "status": "available",
                         "source": "uniportal",
                         "writable": UNIPORTAL_WRITABLE,
+                        **analysis_info,
                     })
 
     # 2. 本工具私有卷 (读写) — 跳过本工具内部目录 (_ct8114 等)
@@ -660,7 +694,7 @@ def list_project_files(project_id: str) -> JSONResponse:
     return JSONResponse({"project_id": project_id, "files": sorted(files)})
 
 
-def _write_back_to_uniportal(root: Path, project_id: str, payload: dict) -> None:
+def _write_back_to_uniportal(root: Path, project_id: str, payload: dict) -> dict:
     """将分析报告写回 UniPortal 共享卷项目目录.
 
     写入路径: {root}/_ct8114/last_report.json
@@ -668,12 +702,16 @@ def _write_back_to_uniportal(root: Path, project_id: str, payload: dict) -> None
 
     这是 ct8114 子工具与 UniPortal 一体化平台双向通信的关键:
     分析结果写回共享卷后, UniPortal 可在项目详情页直接展示.
+
+    Returns:
+        dict with write-back info for API response
     """
     ct8114_dir = root / "_ct8114"
     ct8114_dir.mkdir(parents=True, exist_ok=True)
 
+    report_path = ct8114_dir / "last_report.json"
     # 保存完整报告
-    (ct8114_dir / "last_report.json").write_text(
+    report_path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
@@ -688,8 +726,9 @@ def _write_back_to_uniportal(root: Path, project_id: str, payload: dict) -> None
         except Exception:
             pass
 
-    meta["ct8114_last_analysis"] = datetime.now().isoformat()
-    meta["ct8114_report_path"] = str(ct8114_dir / "last_report.json")
+    now = datetime.now().isoformat()
+    meta["ct8114_last_analysis"] = now
+    meta["ct8114_report_path"] = str(report_path)
     summary = payload.get("report", {}).get("summary", {})
     if summary:
         meta["ct8114_summary"] = summary
@@ -698,6 +737,12 @@ def _write_back_to_uniportal(root: Path, project_id: str, payload: dict) -> None
         json.dumps(meta, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+
+    return {
+        "report_path": str(report_path),
+        "meta_path": str(meta_path),
+        "last_analysis": now,
+    }
 
 
 @app.post("/projects/{project_id}/analyze")
@@ -782,8 +827,10 @@ def analyze_project(
     # ---- 共享卷写回: 当项目来自 UniPortal 共享卷且可写时 ----
     if is_uniportal and (UNIPORTAL_WRITABLE or bool(MOCK_UNIPORTAL_DIR)):
         try:
-            _write_back_to_uniportal(root, project_id, payload)
+            wb_info = _write_back_to_uniportal(root, project_id, payload)
             payload["uniportal_writeback"] = "ok"
+            payload["uniportal_writeback_path"] = wb_info["report_path"]
+            payload["uniportal_writeback_time"] = wb_info["last_analysis"]
         except OSError as e:
             payload["uniportal_writeback_error"] = str(e)
 

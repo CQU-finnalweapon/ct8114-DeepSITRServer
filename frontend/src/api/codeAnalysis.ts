@@ -4,6 +4,10 @@ export interface ProjectItem {
   file_count?: number;
   status?: string;
   source?: string;
+  writable?: boolean;
+  analyzed?: boolean;
+  last_analysis?: string | null;
+  report_bugs?: number | null;
 }
 
 export interface DsitReportItem {
