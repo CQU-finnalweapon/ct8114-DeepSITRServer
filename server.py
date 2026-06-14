@@ -582,6 +582,50 @@ async def analyze(
             "workdir": str(workdir) if keep else None,
             "report": report_dict,
         }
+
+        # 5. 模拟共享卷 — 上传项目自动保存到共享卷
+        if MOCK_UNIPORTAL_DIR:
+            try:
+                mock_root = Path(MOCK_UNIPORTAL_DIR).resolve()
+                mock_root.mkdir(parents=True, exist_ok=True)
+
+                # 在模拟共享卷中为上传项目创建目录
+                portal_dir = mock_root / "_upload"
+                portal_dir.mkdir(parents=True, exist_ok=True)
+
+                # 生成项目名和 ID
+                if zip_uploads:
+                    project_name = Path(zip_uploads[0].filename or "project").stem
+                else:
+                    project_name = target_files[0].stem if target_files else "project"
+                project_id = f"upload_{uuid.uuid4().hex[:8]}"
+                project_dir = portal_dir / project_id
+                project_dir.mkdir(parents=True, exist_ok=True)
+
+                # 复制所有源码到共享卷
+                if zip_uploads:
+                    proj_root = _find_project_root(extract_dir, all_code_files)
+                    for f in proj_root.rglob("*"):
+                        if f.is_file() and f.suffix.lower() in CODE_SUFFIXES:
+                            rel = f.relative_to(proj_root)
+                            dest = project_dir / rel
+                            dest.parent.mkdir(parents=True, exist_ok=True)
+                            shutil.copy2(f, dest)
+                else:
+                    for f in saved_paths:
+                        shutil.copy2(f, project_dir / f.name)
+
+                # 写回分析报告
+                wb_info = _write_back_to_uniportal(project_dir, project_id, payload)
+
+                payload["uniportal_writeback"] = "ok"
+                payload["uniportal_writeback_path"] = wb_info["report_path"]
+                payload["uniportal_writeback_time"] = wb_info["last_analysis"]
+                payload["saved_project_id"] = project_id
+                payload["saved_project_path"] = str(project_dir)
+            except OSError as e:
+                payload["uniportal_writeback_error"] = str(e)
+
         return JSONResponse(payload)
     finally:
         if not keep:

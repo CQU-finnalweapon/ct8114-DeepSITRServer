@@ -66,6 +66,12 @@
             >📁
             {{ shortWritebackPath(report.raw.uniportal_writeback_path) }}</span
           >
+          <span
+            v-if="report?.raw?.saved_project_id"
+            class="badge badge-blue"
+            title="上传项目已持久化到模拟共享卷，刷新项目库可见"
+            >💾 已保存: {{ report.raw.saved_project_id }}</span
+          >
         </div>
 
         <div class="filters">
