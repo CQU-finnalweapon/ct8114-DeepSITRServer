@@ -388,63 +388,97 @@ def parse_output_dir(
 # ============================================================================
 # codetidy.exe 瀹炴椂鍒嗘瀽寮曟搸锛堟浛浠?clang-tidy锛屼綔涓哄敮涓€鍒嗘瀽寮曟搸锛?
 # ============================================================================
+# ╔════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+# ║  DeepSITRServer / codetidy.exe 路径配置                                  ║
+# ║                                                                          ║
+# ║  🎯 推荐方式: 设置 DEEPSITR_ROOT 环境变量                                  ║
+# ║      指向 DeepSITRServer 安装目录即可，程序会自动搜索 core/codetidy.exe     ║
+# ║      PowerShell: $env:DEEPSITR_ROOT="E:\path\to\DeepSITRServer"          ║
+# ║      Linux:      export DEEPSITR_ROOT=/opt/DeepSITRServer                 ║
+# ║                                                                          ║
+# ║  🔧 高级覆盖: 设置 CODETIDY_BIN 环境变量直接指定 codetidy.exe 的完整路径    ║
+# ║                                                                          ║
+# ║  📌 搜索优先级: DEEPSITR_ROOT → CODETIDY_BIN → 自动递归搜索                ║
+# ╚═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+# ============================================================================
 
-# codetidy.exe 璺緞 鈥?榛樿涓?DeepSITRServer 鑷甫鐨勫紩鎿?
-# codetidy.exe path is resolved at runtime; do not keep a machine-specific default here.
+# DeepSITRServer 安装根目录（推荐设置）
+# 程序会在此目录下自动查找 core/codetidy.exe
+_DEEPSITR_ROOT = os.environ.get("DEEPSITR_ROOT", "")
+
+# codetidy.exe 完整路径（高级覆盖选项）
 _CODETIDY_BIN = os.environ.get("CODETIDY_BIN", "")
 
-# 榛樿鍚敤鐨?GJB 妫€鏌ヨ鍒?
+# 默认启用的 GJB 检查规则
 _CODETIDY_CHECKS = os.environ.get("CODETIDY_CHECKS", "clang-analyzer-gjb*")
 
-# 鍒嗘瀽瓒呮椂锛堢锛?
+# 分析超时（秒）
 _CODETIDY_TIMEOUT = int(os.environ.get("CODETIDY_TIMEOUT", "300"))
 
 
 CODETIDY_NOT_FOUND_MESSAGE = (
     "\u540e\u7aef\u5206\u6790\u7a0b\u5e8f\u8def\u5f84\u672a\u914d\u7f6e\u6216\u4e0d\u5b58\u5728\uff0c"
-    "\u8bf7\u8bbe\u7f6e CODETIDY_BIN \u6216\u5c06 codetidy.exe \u653e\u5230 DeepSITRServer/core \u76ee\u5f55\u4e0b"
+    "\u8bf7\u8bbe\u7f6e DEEPSITR_ROOT \u6216 CODETIDY_BIN \u73af\u5883\u53d8\u91cf\uff0c"
+    "\u6216\u5c06 codetidy.exe \u653e\u5230\u9879\u76ee\u76ee\u5f55\u4e0b\u7684 DeepSITRServer/core/ \u4e2d"
 )
 
 
 def _candidate_codetidy_paths() -> List[Path]:
+    """Return candidate paths for codetidy.exe in priority order.
+
+    Priority:
+      1. DEEPSITR_ROOT env var (recommended) -> core/codetidy.exe
+      2. CODETIDY_BIN env var (direct exe path override)
+      3. Standard location: ./DeepSITRServer/core/codetidy.exe
+      4. Parent/grandparent DeepSITRServer/core/codetidy.exe
+      5. Recursive search in project_root, parent, grandparent
+      6. PATH environment (shutil.which)
+    """
     project_root = Path(__file__).resolve().parent
     parent = project_root.parent
     grandparent = parent.parent
     paths: List[Path] = []
 
+    # Priority 1: DEEPSITR_ROOT (recommended - just point to DeepSITRServer dir)
+    depsitr_root = os.environ.get("DEEPSITR_ROOT", "")
+    if depsitr_root:
+        paths.append(Path(depsitr_root) / "core" / "codetidy.exe")
+
+    # Priority 2: CODETIDY_BIN (full path to codetidy.exe)
     env_path = os.environ.get("CODETIDY_BIN")
     if env_path:
         paths.append(Path(env_path))
 
+    # Priority 3-4: Standard relative locations
     paths.extend([
         project_root / "DeepSITRServer" / "core" / "codetidy.exe",
-        parent / "DeepSITRServer-2026-6-9" / "DeepSITRServer" / "core" / "codetidy.exe",
         parent / "DeepSITRServer" / "core" / "codetidy.exe",
-        grandparent / "DeepSITRServer-2026-6-9" / "DeepSITRServer" / "core" / "codetidy.exe",
         grandparent / "DeepSITRServer" / "core" / "codetidy.exe",
     ])
 
-    # 向上递归搜索 codetidy.exe（覆盖各种目录布局）
+    # Priority 5: Recursive search (catch-all for various layouts)
     for search_root in (project_root, parent, grandparent):
         try:
-            paths.extend(search_root.rglob("codetidy.exe"))
+            for p in search_root.rglob("codetidy.exe"):
+                if p.is_file():
+                    paths.append(p)
         except OSError:
             pass
 
+    # Priority 6: PATH lookup
     which = shutil.which("codetidy.exe") or shutil.which("codetidy")
     if which:
         paths.append(Path(which))
 
+    # Deduplicate while preserving order
     unique: List[Path] = []
     seen = set()
     for path in paths:
-        key = str(path)
+        key = str(path.resolve()) if path.exists() else str(path)
         if key not in seen:
             unique.append(path)
             seen.add(key)
     return unique
-
-
 def get_codetidy_search_paths() -> List[str]:
     """Return the candidate paths checked when resolving codetidy.exe."""
 

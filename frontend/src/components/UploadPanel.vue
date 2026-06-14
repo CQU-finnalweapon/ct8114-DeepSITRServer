@@ -8,29 +8,57 @@
     </div>
 
     <div class="card-body stack">
-      <label class="dropzone" :class="{ dragover }" @dragover.prevent="dragover = true" @dragleave="dragover = false" @drop.prevent="onDrop">
-        <input type="file" multiple accept=".c,.h,.cc,.cpp,.cxx,.hpp,.hxx,.zip" @change="onPick" />
+      <label
+        class="dropzone"
+        :class="{ dragover }"
+        @dragover.prevent="dragover = true"
+        @dragleave="dragover = false"
+        @drop.prevent="onDrop"
+      >
+        <input
+          type="file"
+          multiple
+          accept=".c,.h,.cc,.cpp,.cxx,.hpp,.hxx,.zip"
+          @change="onPick"
+        />
         <strong>选择或拖入源码文件 / 工程压缩包</strong>
         <span>.c / .h / .cpp / .hpp / .cc / .cxx / .hxx / .zip</span>
       </label>
 
       <div v-if="hasZip" class="notice">
-        工程压缩包将由后端解压后按工程目录分析。zip 上传时请只选择一个 zip 文件。
+        工程压缩包将由后端解压后按工程目录分析。zip 上传时请只选择一个 zip
+        文件。
       </div>
 
       <div v-if="files.length" class="file-list">
-        <div v-for="(file, index) in files" :key="file.name + file.size" class="file-row">
+        <div
+          v-for="(file, index) in files"
+          :key="file.name + file.size"
+          class="file-row"
+        >
           <span>
             <strong>{{ file.name }}</strong>
             <small>{{ formatSize(file.size) }}</small>
           </span>
-          <button class="btn btn-danger" type="button" @click="removeFile(index)">移除</button>
+          <button
+            class="btn btn-danger"
+            type="button"
+            @click="removeFile(index)"
+          >
+            移除
+          </button>
         </div>
       </div>
 
       <label class="field">
         <span>入口文件（可选）</span>
-        <input v-model.trim="entry" class="input" :placeholder="hasZip ? '例如 src/main.c，留空则递归分析工程源文件' : '例如 main.c'" />
+        <input
+          v-model.trim="entry"
+          class="input"
+          :placeholder="
+            hasZip ? '例如 src/main.c，留空则递归分析工程源文件' : '例如 main.c'
+          "
+        />
       </label>
 
       <label class="check-row">
@@ -38,13 +66,32 @@
         <span>保留服务端临时目录（调试）</span>
       </label>
 
-      <button class="btn btn-primary btn-block" type="button" :disabled="files.length === 0 || analyzing" @click="runAnalyze">
+      <button
+        class="btn btn-primary btn-block"
+        type="button"
+        :disabled="files.length === 0 || analyzing"
+        @click="runAnalyze"
+      >
         {{ analyzing ? pollLabel : "开始分析" }}
       </button>
 
       <div class="debug-actions">
-        <button class="btn btn-secondary" type="button" :disabled="debugging" @click="runDebugStart">DCAB 启动调试</button>
-        <button class="btn btn-secondary" type="button" :disabled="debugging" @click="runDebugCheck">DCAB 检查调试</button>
+        <button
+          class="btn btn-secondary"
+          type="button"
+          :disabled="debugging"
+          @click="runDebugStart"
+        >
+          DCAB 启动调试
+        </button>
+        <button
+          class="btn btn-secondary"
+          type="button"
+          :disabled="debugging"
+          @click="runDebugCheck"
+        >
+          DCAB 检查调试
+        </button>
       </div>
 
       <p class="status" :class="statusKind">{{ statusText }}</p>
@@ -54,7 +101,12 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { analyzeUploadWithPolling, debugDcabCheck, debugDcabStart, toFriendlyError } from "../api/codeAnalysis";
+import {
+  analyzeUploadWithPolling,
+  debugDcabCheck,
+  debugDcabStart,
+  toFriendlyError,
+} from "../api/codeAnalysis";
 
 const emit = defineEmits<{
   result: [raw: any, source: string];
@@ -69,11 +121,15 @@ const debugging = ref(false);
 const statusText = ref("请选择待分析源码文件或工程 zip");
 const statusKind = ref("");
 
-const hasZip = computed(() => files.value.some((file) => file.name.toLowerCase().endsWith(".zip")));
+const hasZip = computed(() =>
+  files.value.some((file) => file.name.toLowerCase().endsWith(".zip")),
+);
 
 function addFiles(list: FileList | null) {
   const incoming = Array.from(list || []);
-  const zipFiles = incoming.filter((file) => file.name.toLowerCase().endsWith(".zip"));
+  const zipFiles = incoming.filter((file) =>
+    file.name.toLowerCase().endsWith(".zip"),
+  );
   if (zipFiles.length > 0) {
     files.value = [zipFiles[0]];
     statusKind.value = "warn";
@@ -83,18 +139,26 @@ function addFiles(list: FileList | null) {
 
   if (hasZip.value) files.value = [];
   incoming.forEach((file) => {
-    if (!files.value.some((item) => item.name === file.name && item.size === file.size)) {
+    if (
+      !files.value.some(
+        (item) => item.name === file.name && item.size === file.size,
+      )
+    ) {
       files.value.push(file);
     }
   });
   statusKind.value = "";
-  statusText.value = files.value.length ? `已选择 ${files.value.length} 个文件` : "请选择待分析源码文件或工程 zip";
+  statusText.value = files.value.length
+    ? `已选择 ${files.value.length} 个文件`
+    : "请选择待分析源码文件或工程 zip";
 }
 
 function removeFile(index: number) {
   files.value.splice(index, 1);
   statusKind.value = "";
-  statusText.value = files.value.length ? `已选择 ${files.value.length} 个文件` : "请选择待分析源码文件或工程 zip";
+  statusText.value = files.value.length
+    ? `已选择 ${files.value.length} 个文件`
+    : "请选择待分析源码文件或工程 zip";
 }
 
 function onPick(event: Event) {
@@ -128,7 +192,7 @@ async function runAnalyze() {
       files.value,
       entry.value,
       keep.value,
-      1500,  // poll interval
+      1500, // poll interval
       300_000, // timeout
       (count) => {
         pollCount.value = count;

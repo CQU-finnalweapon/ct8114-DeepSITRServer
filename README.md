@@ -124,13 +124,46 @@ ct8114-DeepSITRServer/
 
 ## 快速开始
 
+### 前置条件：配置 codetidy 引擎路径
+
+本服务依赖 DeepSITRServer 的 `codetidy.exe` 进行 GJB 8114 分析。请通过以下任一方式配置：
+
+**方式一（推荐）：设置 `DEEPSITR_ROOT` 环境变量**
+
+```powershell
+# Windows PowerShell
+$env:DEEPSITR_ROOT="E:\path\to\DeepSITRServer"
+```
+
+```bash
+# Linux / macOS
+export DEEPSITR_ROOT=/opt/DeepSITRServer
+```
+
+**方式二：设置 `CODETIDY_BIN` 环境变量（直接指定 exe 路径）**
+
+```powershell
+$env:CODETIDY_BIN="E:\path\to\DeepSITRServer\core\codetidy.exe"
+```
+
+**方式三：将 `codetidy.exe` 放在项目目录下的 `DeepSITRServer/core/` 中**
+
+```
+ct8114-DeepSITRServer/
+└── DeepSITRServer/
+    └── core/
+        └── codetidy.exe
+```
+
+> 搜索优先级: `DEEPSITR_ROOT` → `CODETIDY_BIN` → `./DeepSITRServer/core/codetidy.exe` → 递归搜索 → PATH
+
 ### 本地运行
 
 ```bash
 # 安装 Python 依赖
 pip install -r requirements.txt
 
-# 启动服务
+# 启动服务（确保已设置 DEEPSITR_ROOT 或 CODETIDY_BIN）
 uvicorn server:app --host 0.0.0.0 --port 8000 --reload
 ```
 
@@ -265,19 +298,23 @@ UniPortal 共享卷目录结构:
 
 ## 环境变量
 
-| 变量                     | 默认值                     | 说明                                                         |
-| ------------------------ | -------------------------- | ------------------------------------------------------------ |
-| `MAX_TOTAL_BYTES`        | `5242880` (5MB)            | 即时上传文件总大小限制                                       |
-| `MAX_ZIP_BYTES`          | `52428800` (50MB)          | ZIP 上传大小限制                                             |
-| `MAX_ZIP_EXTRACT_BYTES`  | `209715200` (200MB)        | ZIP 解压后大小限制                                           |
-| `UNIPORTAL_STORAGE_PATH` | —                          | UniPortal 共享卷路径（Docker: `/data/uniportal`）            |
-| `UNIPORTAL_WRITABLE`     | `true`                     | 共享卷是否可写（`true`=可读写, `false`=只读）                |
-| `MOCK_UNIPORTAL_DIR`     | —                          | 本地模拟共享卷路径（设置后启用模拟模式，无需真实 UniPortal） |
-| `LOCAL_WORKSPACES_DIR`   | `workspaces`               | 本地项目存储目录                                             |
-| `REPORTS_DIR`            | `workspaces/_reports`      | 分析报告存储目录                                             |
-| `DSIT_REPORTS_DIR`       | `workspaces/_dsit_reports` | DSIT 报告存储目录                                            |
-| `MOCK_ANALYSIS`          | —                          | 设为 `true` 时跳过 codetidy，使用模拟数据（测试用）          |
-| `TASK_TTL_SECONDS`       | `3600`                     | 异步任务过期时间（秒），超时自动清理                         |
+| 变量                     | 默认值                     | 说明                                                                |
+| ------------------------ | -------------------------- | ------------------------------------------------------------------- |
+| `DEEPSITR_ROOT`          | —                          | **DeepSITRServer 安装根目录（推荐）**，自动查找 `core/codetidy.exe` |
+| `CODETIDY_BIN`           | —                          | codetidy.exe 完整路径（覆盖 `DEEPSITR_ROOT`）                       |
+| `CODETIDY_CHECKS`        | `clang-analyzer-gjb*`      | codetidy 启用的检查规则                                             |
+| `CODETIDY_TIMEOUT`       | `300`                      | codetidy 分析超时（秒）                                             |
+| `MAX_TOTAL_BYTES`        | `5242880` (5MB)            | 即时上传文件总大小限制                                              |
+| `MAX_ZIP_BYTES`          | `52428800` (50MB)          | ZIP 上传大小限制                                                    |
+| `MAX_ZIP_EXTRACT_BYTES`  | `209715200` (200MB)        | ZIP 解压后大小限制                                                  |
+| `UNIPORTAL_STORAGE_PATH` | —                          | UniPortal 共享卷路径（Docker: `/data/uniportal`）                   |
+| `UNIPORTAL_WRITABLE`     | `true`                     | 共享卷是否可写（`true`=可读写, `false`=只读）                       |
+| `MOCK_UNIPORTAL_DIR`     | —                          | 本地模拟共享卷路径（设置后启用模拟模式，无需真实 UniPortal）        |
+| `LOCAL_WORKSPACES_DIR`   | `workspaces`               | 本地项目存储目录                                                    |
+| `REPORTS_DIR`            | `workspaces/_reports`      | 分析报告存储目录                                                    |
+| `DSIT_REPORTS_DIR`       | `workspaces/_dsit_reports` | DSIT 报告存储目录                                                   |
+| `MOCK_ANALYSIS`          | —                          | 设为 `true` 时跳过 codetidy，使用模拟数据（测试用）                 |
+| `TASK_TTL_SECONDS`       | `3600`                     | 异步任务过期时间（秒），超时自动清理                                |
 
 ---
 
@@ -344,7 +381,8 @@ Internal use — GJB 8114 Military Software Coding Standards Compliance Tool.
 FastAPI 应用入口，包含全部 REST API 端点。核心逻辑：
 
 - **环境变量配置**：
-  - `CODETIDY_BIN` — codetidy.exe 路径（默认 DeepSITRServer 内置路径）
+  - `DEEPSITR_ROOT` — **DeepSITRServer 安装根目录（推荐）**，自动查找 `core/codetidy.exe`
+  - `CODETIDY_BIN` — codetidy.exe 完整路径（覆盖 `DEEPSITR_ROOT`）
   - `CODETIDY_CHECKS` — 启用的检查规则（默认 `clang-analyzer-gjb*`）
   - `UNIPORTAL_STORAGE_PATH` — UniPortal 共享卷路径
   - `LOCAL_WORKSPACES_DIR` — 本地工作区目录
@@ -562,6 +600,7 @@ python test_async_polling.py
 ```
 
 该脚本自动完成：
+
 1. 上传 C 源码 → 验证立即返回 `{request_id, status:"pending"}`
 2. 轮询 `GET /status/{request_id}` → 验证 `completed` 状态及完整报告
 3. 项目分析 → 同上流程

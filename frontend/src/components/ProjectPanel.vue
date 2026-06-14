@@ -154,7 +154,10 @@ async function runAnalyze() {
       entry.value,
       1500,
       300_000,
-      (count) => { pollCount.value = count; statusText.value = `分析任务已提交，正在轮询 (第 ${count} 次)...`; },
+      (count) => {
+        pollCount.value = count;
+        statusText.value = `分析任务已提交，正在轮询 (第 ${count} 次)...`;
+      },
     );
     const project = projects.value.find(
       (item) => item.project_id === selectedId.value,

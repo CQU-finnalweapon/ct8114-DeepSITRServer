@@ -1,704 +1,1117 @@
 <!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GJB8114 在线静态分析</title>
-  <style>
-    :root {
-      --bg: #f5f7fb;
-      --surface: #ffffff;
-      --surface-soft: #f8fafc;
-      --border: #e2e8f0;
-      --border-strong: #cbd5e1;
-      --text: #0f172a;
-      --muted: #64748b;
-      --subtle: #94a3b8;
-      --primary: #123a7a;
-      --primary-hover: #0f2f63;
-      --primary-soft: #eef4ff;
-      --danger: #c2410c;
-      --danger-soft: #fff7ed;
-      --error: #dc2626;
-      --error-soft: #fef2f2;
-      --warning: #b7791f;
-      --warning-soft: #fffbeb;
-      --success: #15803d;
-      --success-soft: #f0fdf4;
-      --shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
-      --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.07);
-      font-size: 14px;
-    }
-
-    * { box-sizing: border-box; }
-    html, body { margin: 0; min-height: 100%; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Arial, sans-serif;
-      line-height: 1.55;
-    }
-    button, input { font: inherit; }
-    button { cursor: pointer; }
-    .hidden { display: none !important; }
-
-    .topbar {
-      height: 64px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      box-shadow: var(--shadow-sm);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 28px;
-      position: sticky;
-      top: 0;
-      z-index: 5;
-    }
-    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-    .brand-mark {
-      width: 34px; height: 34px; border-radius: 8px;
-      background: var(--primary); color: #fff;
-      display: grid; place-items: center;
-      font-weight: 800;
-    }
-    .brand-title { font-size: 18px; font-weight: 800; color: var(--text); }
-    .brand-subtitle { font-size: 12px; color: var(--muted); margin-top: 1px; }
-    .top-meta { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
-    .pill {
-      display: inline-flex; align-items: center; gap: 6px;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 5px 10px;
-      background: var(--surface-soft);
-      color: var(--muted);
-      white-space: nowrap;
-    }
-
-    .page {
-      max-width: 1440px;
-      margin: 0 auto;
-      padding: 24px 28px 40px;
-      display: grid;
-      grid-template-columns: 380px minmax(0, 1fr);
-      gap: 20px;
-    }
-    .panel, .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      box-shadow: var(--shadow-sm);
-    }
-    .panel { overflow: hidden; }
-    .panel-head, .card-head {
-      padding: 16px 18px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .panel-title, .card-title { margin: 0; font-size: 15px; font-weight: 800; }
-    .panel-desc { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
-    .panel-body, .card-body { padding: 18px; }
-    .stack { display: grid; gap: 14px; }
-    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .muted { color: var(--muted); }
-    .small { font-size: 12px; }
-
-    .tabs {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 4px;
-      padding: 6px;
-      background: var(--surface-soft);
-      border-bottom: 1px solid var(--border);
-    }
-    .tab {
-      border: 0;
-      border-radius: 6px;
-      background: transparent;
-      color: var(--muted);
-      font-weight: 700;
-      padding: 10px 8px;
-      min-height: 40px;
-    }
-    .tab:hover { color: var(--text); background: #eef2f7; }
-    .tab.active {
-      color: var(--primary);
-      background: var(--surface);
-      box-shadow: var(--shadow-sm);
-    }
-    .pane { display: none; }
-    .pane.active { display: block; }
-
-    .field { display: grid; gap: 6px; }
-    .field label { font-weight: 700; color: #334155; font-size: 12px; }
-    .input {
-      width: 100%;
-      min-height: 38px;
-      padding: 8px 11px;
-      border: 1px solid var(--border-strong);
-      border-radius: 6px;
-      color: var(--text);
-      background: #fff;
-      outline: none;
-    }
-    .input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(18, 58, 122, 0.12); }
-    .checkbox { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 12px; }
-    .checkbox input { width: 15px; height: 15px; accent-color: var(--primary); }
-
-    .btn {
-      min-height: 38px;
-      border-radius: 6px;
-      border: 1px solid transparent;
-      padding: 8px 14px;
-      font-weight: 800;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      white-space: nowrap;
-    }
-    .btn-primary { background: var(--primary); color: #fff; box-shadow: var(--shadow-sm); }
-    .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
-    .btn-secondary { background: #fff; color: #334155; border-color: var(--border-strong); }
-    .btn-secondary:hover:not(:disabled) { background: var(--surface-soft); }
-    .btn-ghost { background: var(--surface-soft); color: #334155; border-color: var(--border); }
-    .btn-danger { background: var(--danger-soft); color: var(--danger); border-color: #fed7aa; }
-    .btn-block { width: 100%; }
-    .btn:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
-
-    .status {
-      min-height: 22px;
-      color: var(--muted);
-      font-size: 12px;
-    }
-    .status.ok { color: var(--success); font-weight: 700; }
-    .status.error { color: var(--error); font-weight: 700; }
-    .status.warn { color: var(--warning); font-weight: 700; }
-
-    .dropzone {
-      display: grid;
-      place-items: center;
-      min-height: 132px;
-      padding: 18px;
-      border: 1px dashed var(--border-strong);
-      border-radius: 8px;
-      background: var(--surface-soft);
-      text-align: center;
-      color: var(--muted);
-    }
-    .dropzone.dragover { border-color: var(--primary); background: var(--primary-soft); }
-    .drop-title { color: var(--text); font-weight: 800; margin-bottom: 4px; }
-    .file-list, .project-list, .report-list {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: grid;
-      gap: 8px;
-      max-height: 300px;
-      overflow: auto;
-    }
-    .file-item, .project-item, .report-item {
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 12px;
-      background: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      min-width: 0;
-    }
-    .project-item, .report-item { cursor: pointer; }
-    .project-item:hover, .report-item:hover { border-color: var(--primary); background: var(--primary-soft); }
-    .project-item.active, .report-item.active { border-color: var(--primary); background: var(--primary-soft); box-shadow: 0 0 0 2px rgba(18, 58, 122, 0.12); }
-    .item-main { min-width: 0; }
-    .item-title { font-weight: 800; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-    .item-meta { color: var(--muted); font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-    .badge {
-      display: inline-flex;
-      border-radius: 999px;
-      padding: 2px 8px;
-      font-size: 11px;
-      font-weight: 800;
-      background: var(--surface-soft);
-      border: 1px solid var(--border);
-      color: var(--muted);
-    }
-    .badge.uni { background: var(--primary-soft); color: var(--primary); border-color: #c7d7fe; }
-    .badge.local { background: #f1f5f9; color: #475569; }
-    .badge.error { background: var(--error-soft); color: var(--error); border-color: #fecaca; }
-    .badge.warning { background: var(--warning-soft); color: var(--warning); border-color: #fde68a; }
-    .badge.note { background: var(--primary-soft); color: var(--primary); border-color: #c7d7fe; }
-
-    .results { display: grid; gap: 16px; min-width: 0; }
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 12px;
-    }
-    .stat {
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 14px;
-      background: #fff;
-    }
-    .stat-label { color: var(--muted); font-size: 12px; font-weight: 700; }
-    .stat-value { font-size: 26px; line-height: 1.1; font-weight: 900; margin-top: 8px; }
-    .stat.error .stat-value { color: var(--error); }
-    .stat.warning .stat-value { color: var(--warning); }
-    .stat.ok .stat-value { color: var(--success); }
-
-    .filterbar {
-      display: grid;
-      grid-template-columns: minmax(240px, 1fr) auto;
-      gap: 12px;
-      align-items: start;
-    }
-    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-    .chip {
-      border: 1px solid var(--border);
-      background: var(--surface-soft);
-      color: #334155;
-      border-radius: 999px;
-      padding: 5px 10px;
-      font-size: 12px;
-      font-weight: 800;
-    }
-    .chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
-
-    .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
-    table { width: 100%; border-collapse: collapse; min-width: 840px; }
-    th, td {
-      padding: 11px 12px;
-      border-bottom: 1px solid var(--border);
-      text-align: left;
-      vertical-align: top;
-    }
-    th {
-      background: var(--surface-soft);
-      color: #475569;
-      font-size: 12px;
-      font-weight: 900;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
-    tbody tr:hover td { background: #fbfdff; }
-    tbody tr:last-child td { border-bottom: 0; }
-    .mono { font-family: Consolas, "SFMono-Regular", Menlo, monospace; }
-    .path { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .message { min-width: 260px; }
-
-    .empty {
-      border: 1px dashed var(--border-strong);
-      border-radius: 8px;
-      padding: 34px 20px;
-      background: var(--surface-soft);
-      color: var(--muted);
-      text-align: center;
-    }
-    .empty strong { display: block; color: var(--text); margin-bottom: 5px; font-size: 15px; }
-
-    details.raw { border: 1px solid var(--border); border-radius: 8px; background: #fff; overflow: hidden; }
-    details.raw summary {
-      padding: 13px 16px;
-      cursor: pointer;
-      color: #334155;
-      font-weight: 900;
-      background: var(--surface-soft);
-      border-bottom: 1px solid var(--border);
-    }
-    details.raw:not([open]) summary { border-bottom: 0; }
-    .raw pre {
-      margin: 0;
-      padding: 14px;
-      max-height: 380px;
-      overflow: auto;
-      background: #0f172a;
-      color: #e2e8f0;
-      font-size: 12px;
-      line-height: 1.5;
-    }
-
-    @media (max-width: 1100px) {
-      .page { grid-template-columns: 1fr; padding: 18px; }
-      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .filterbar { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 680px) {
-      .topbar { height: auto; padding: 14px 16px; align-items: flex-start; flex-direction: column; }
-      .tabs { grid-template-columns: 1fr; }
-      .stats { grid-template-columns: 1fr; }
-    }
-  </style>
-</head>
-<body>
-  <header class="topbar">
-    <div class="brand">
-      <div class="brand-mark">G</div>
-      <div>
-        <div class="brand-title">GJB8114 在线静态分析</div>
-        <div class="brand-subtitle">代码安全分析工具 · UniPortal 子工具</div>
-      </div>
-    </div>
-    <div class="top-meta">
-      <span class="pill" id="portalMeta">平台模式：检测中</span>
-      <span class="pill" id="resultMeta">尚未分析</span>
-    </div>
-  </header>
-
-  <main class="page">
-    <aside class="panel">
-      <div class="tabs" role="tablist">
-        <button class="tab active" type="button" data-tab="projects">项目库</button>
-        <button class="tab" type="button" data-tab="upload">直接上传</button>
-        <button class="tab" type="button" data-tab="dsit">DSIT 报告</button>
-      </div>
-
-      <section class="pane active" id="pane-projects">
-        <div class="panel-head">
-          <div>
-            <h2 class="panel-title">选择项目</h2>
-            <p class="panel-desc">读取 UniPortal 共享项目和本工具私有项目</p>
-          </div>
-          <button class="btn btn-secondary" id="refreshProjects" type="button">刷新</button>
-        </div>
-        <div class="panel-body stack">
-          <ul class="project-list" id="projectList">
-            <li class="empty">正在加载项目库...</li>
-          </ul>
-          <div class="field">
-            <label for="projectEntry">入口文件（可选）</label>
-            <input class="input" id="projectEntry" placeholder="例如 src/main.c，留空则分析全部源文件" />
-          </div>
-          <button class="btn btn-primary btn-block" id="analyzeProject" disabled>开始分析项目</button>
-          <div class="status" id="projectStatus">请选择项目</div>
-        </div>
-      </section>
-
-      <section class="pane" id="pane-upload">
-        <div class="panel-head">
-          <div>
-            <h2 class="panel-title">直接上传</h2>
-            <p class="panel-desc">上传 C/C++ 源文件，调用现有 /analyze 接口</p>
-          </div>
-        </div>
-        <div class="panel-body stack">
-          <div class="dropzone" id="dropzone" role="button" tabindex="0">
-            <input class="hidden" type="file" id="filePicker" multiple accept=".c,.h,.cc,.cpp,.cxx,.hpp,.hxx" />
-            <span>
-              <span class="drop-title">选择或拖入源文件</span><br />
-              <span class="small">支持 .c / .h / .cc / .cpp / .cxx / .hpp / .hxx</span>
-            </span>
-          </div>
-          <ul class="file-list" id="fileList"></ul>
-          <div class="field">
-            <label for="uploadEntry">入口文件（可选）</label>
-            <input class="input" id="uploadEntry" placeholder="例如 main.c" />
-          </div>
-          <label class="checkbox"><input type="checkbox" id="keepWorkdir" />保留服务端临时目录（调试）</label>
-          <button class="btn btn-primary btn-block" id="analyzeUpload" disabled>开始分析</button>
-          <div class="status" id="uploadStatus">请选择待分析文件</div>
-        </div>
-      </section>
-
-      <section class="pane" id="pane-dsit">
-        <div class="panel-head">
-          <div>
-            <h2 class="panel-title">DSIT 报告</h2>
-            <p class="panel-desc">加载 DeepSITRServer 输出目录或 zip 报告</p>
-          </div>
-          <button class="btn btn-secondary" id="refreshReports" type="button">刷新</button>
-        </div>
-        <div class="panel-body stack">
-          <div class="field">
-            <label for="localDsitPath">服务器本地输出目录</label>
-            <input class="input" id="localDsitPath" placeholder="例如 D:\DeepSITRServer\Test2" />
-          </div>
-          <button class="btn btn-secondary btn-block" id="loadLocalDsit" type="button">从本地路径加载</button>
-          <div class="dropzone" id="dsitDropzone" role="button" tabindex="0">
-            <input class="hidden" type="file" id="dsitFile" accept=".zip" />
-            <span>
-              <span class="drop-title">上传 DSIT 输出 zip</span><br />
-              <span class="small">解析后可在报告列表中打开</span>
-            </span>
-          </div>
-          <ul class="report-list" id="reportList">
-            <li class="empty">正在加载报告列表...</li>
-          </ul>
-          <div class="status" id="dsitStatus">可上传 zip 或输入本地输出目录</div>
-        </div>
-      </section>
-    </aside>
-
-    <section class="results">
-      <div class="card">
-        <div class="card-head">
-          <div>
-            <h2 class="card-title">分析汇总</h2>
-            <div class="panel-desc" id="summaryText">等待分析结果</div>
-          </div>
-          <button class="btn btn-primary" id="exportJson" type="button" disabled>导出 JSON</button>
-        </div>
-        <div class="card-body stack">
-          <div class="stats">
-            <div class="stat"><div class="stat-label">问题总数</div><div class="stat-value" id="stTotal">-</div></div>
-            <div class="stat warning"><div class="stat-label">WARNING</div><div class="stat-value" id="stWarning">-</div></div>
-            <div class="stat error"><div class="stat-label">ERROR</div><div class="stat-value" id="stError">-</div></div>
-            <div class="stat ok"><div class="stat-label">检查项种类</div><div class="stat-value" id="stKinds">-</div></div>
-            <div class="stat"><div class="stat-label">文件数量</div><div class="stat-value" id="stFiles">-</div></div>
-          </div>
-          <div class="filterbar">
-            <div class="field">
-              <label for="searchInput">搜索</label>
-              <input class="input" id="searchInput" placeholder="搜索规则、文件、消息、检查器" />
-            </div>
-            <div class="field">
-              <label>规则筛选</label>
-              <div class="chips" id="ruleFilters"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-head">
-          <h2 class="card-title">缺陷列表</h2>
-          <span class="pill" id="visibleCount">0 条</span>
-        </div>
-        <div class="card-body" id="defectArea">
-          <div class="empty">
-            <strong>暂无结果</strong>
-            从项目库、直接上传或 DSIT 报告任一入口开始。
-          </div>
-        </div>
-      </div>
-
-      <details class="raw" id="rawDetails">
-        <summary>原始 JSON</summary>
-        <pre id="rawJson">{}</pre>
-      </details>
-    </section>
-  </main>
-
-  <script>
-    const $ = (id) => document.getElementById(id);
-
-    const state = {
-      files: [],
-      projects: [],
-      reports: [],
-      selectedProjectId: null,
-      selectedReportId: null,
-      portalProjectId: readPortalProjectId(),
-      current: null,
-      filterRule: "",
-      keyword: ""
-    };
-
-    function readPortalProjectId() {
-      const params = new URLSearchParams(window.location.search);
-      const fromUrl = params.get("portal_project_id");
-      if (fromUrl) {
-        sessionStorage.setItem("ct8114.portalProjectId", fromUrl);
-        return fromUrl;
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GJB8114 在线静态分析</title>
+    <style>
+      :root {
+        --bg: #f5f7fb;
+        --surface: #ffffff;
+        --surface-soft: #f8fafc;
+        --border: #e2e8f0;
+        --border-strong: #cbd5e1;
+        --text: #0f172a;
+        --muted: #64748b;
+        --subtle: #94a3b8;
+        --primary: #123a7a;
+        --primary-hover: #0f2f63;
+        --primary-soft: #eef4ff;
+        --danger: #c2410c;
+        --danger-soft: #fff7ed;
+        --error: #dc2626;
+        --error-soft: #fef2f2;
+        --warning: #b7791f;
+        --warning-soft: #fffbeb;
+        --success: #15803d;
+        --success-soft: #f0fdf4;
+        --shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+        --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.07);
+        font-size: 14px;
       }
-      return sessionStorage.getItem("ct8114.portalProjectId") || "";
-    }
 
-    function setStatus(id, text, kind) {
-      const el = $(id);
-      el.className = "status" + (kind ? " " + kind : "");
-      el.textContent = text || "";
-    }
-
-    function setActiveTab(name) {
-      document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === name));
-      document.querySelectorAll(".pane").forEach((pane) => pane.classList.remove("active"));
-      $("pane-" + name).classList.add("active");
-      if (name === "projects") loadProjects(state.selectedProjectId);
-      if (name === "dsit") loadReports();
-    }
-
-    document.querySelectorAll(".tab").forEach((tab) => {
-      tab.addEventListener("click", () => setActiveTab(tab.dataset.tab));
-    });
-
-    function fmtSize(bytes) {
-      if (bytes < 1024) return bytes + " B";
-      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-      return (bytes / 1024 / 1024).toFixed(2) + " MB";
-    }
-
-    function escapeHtml(value) {
-      return String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-    }
-
-    function shortenPath(path) {
-      if (!path) return "";
-      const parts = String(path).split(/[\\/]/).filter(Boolean);
-      return parts.slice(-2).join("/");
-    }
-
-    async function readJsonResponse(resp) {
-      const text = await resp.text();
-      try {
-        return text ? JSON.parse(text) : {};
-      } catch {
-        return { raw: text };
+      * {
+        box-sizing: border-box;
       }
-    }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          "Microsoft YaHei", "PingFang SC", "Segoe UI", Arial, sans-serif;
+        line-height: 1.55;
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      .hidden {
+        display: none !important;
+      }
 
-    function buildQuery(params) {
-      const q = new URLSearchParams();
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && String(value) !== "") q.set(key, value);
+      .topbar {
+        height: 64px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 28px;
+        position: sticky;
+        top: 0;
+        z-index: 5;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+      .brand-mark {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        background: var(--primary);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+      }
+      .brand-title {
+        font-size: 18px;
+        font-weight: 800;
+        color: var(--text);
+      }
+      .brand-subtitle {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 1px;
+      }
+      .top-meta {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 5px 10px;
+        background: var(--surface-soft);
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
+      .page {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 24px 28px 40px;
+        display: grid;
+        grid-template-columns: 380px minmax(0, 1fr);
+        gap: 20px;
+      }
+      .panel,
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: var(--shadow-sm);
+      }
+      .panel {
+        overflow: hidden;
+      }
+      .panel-head,
+      .card-head {
+        padding: 16px 18px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .panel-title,
+      .card-title {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 800;
+      }
+      .panel-desc {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .panel-body,
+      .card-body {
+        padding: 18px;
+      }
+      .stack {
+        display: grid;
+        gap: 14px;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .small {
+        font-size: 12px;
+      }
+
+      .tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 4px;
+        padding: 6px;
+        background: var(--surface-soft);
+        border-bottom: 1px solid var(--border);
+      }
+      .tab {
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        font-weight: 700;
+        padding: 10px 8px;
+        min-height: 40px;
+      }
+      .tab:hover {
+        color: var(--text);
+        background: #eef2f7;
+      }
+      .tab.active {
+        color: var(--primary);
+        background: var(--surface);
+        box-shadow: var(--shadow-sm);
+      }
+      .pane {
+        display: none;
+      }
+      .pane.active {
+        display: block;
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+      .field label {
+        font-weight: 700;
+        color: #334155;
+        font-size: 12px;
+      }
+      .input {
+        width: 100%;
+        min-height: 38px;
+        padding: 8px 11px;
+        border: 1px solid var(--border-strong);
+        border-radius: 6px;
+        color: var(--text);
+        background: #fff;
+        outline: none;
+      }
+      .input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(18, 58, 122, 0.12);
+      }
+      .checkbox {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .checkbox input {
+        width: 15px;
+        height: 15px;
+        accent-color: var(--primary);
+      }
+
+      .btn {
+        min-height: 38px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        padding: 8px 14px;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        white-space: nowrap;
+      }
+      .btn-primary {
+        background: var(--primary);
+        color: #fff;
+        box-shadow: var(--shadow-sm);
+      }
+      .btn-primary:hover:not(:disabled) {
+        background: var(--primary-hover);
+      }
+      .btn-secondary {
+        background: #fff;
+        color: #334155;
+        border-color: var(--border-strong);
+      }
+      .btn-secondary:hover:not(:disabled) {
+        background: var(--surface-soft);
+      }
+      .btn-ghost {
+        background: var(--surface-soft);
+        color: #334155;
+        border-color: var(--border);
+      }
+      .btn-danger {
+        background: var(--danger-soft);
+        color: var(--danger);
+        border-color: #fed7aa;
+      }
+      .btn-block {
+        width: 100%;
+      }
+      .btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+
+      .status {
+        min-height: 22px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .status.ok {
+        color: var(--success);
+        font-weight: 700;
+      }
+      .status.error {
+        color: var(--error);
+        font-weight: 700;
+      }
+      .status.warn {
+        color: var(--warning);
+        font-weight: 700;
+      }
+
+      .dropzone {
+        display: grid;
+        place-items: center;
+        min-height: 132px;
+        padding: 18px;
+        border: 1px dashed var(--border-strong);
+        border-radius: 8px;
+        background: var(--surface-soft);
+        text-align: center;
+        color: var(--muted);
+      }
+      .dropzone.dragover {
+        border-color: var(--primary);
+        background: var(--primary-soft);
+      }
+      .drop-title {
+        color: var(--text);
+        font-weight: 800;
+        margin-bottom: 4px;
+      }
+      .file-list,
+      .project-list,
+      .report-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+        max-height: 300px;
+        overflow: auto;
+      }
+      .file-item,
+      .project-item,
+      .report-item {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        min-width: 0;
+      }
+      .project-item,
+      .report-item {
+        cursor: pointer;
+      }
+      .project-item:hover,
+      .report-item:hover {
+        border-color: var(--primary);
+        background: var(--primary-soft);
+      }
+      .project-item.active,
+      .report-item.active {
+        border-color: var(--primary);
+        background: var(--primary-soft);
+        box-shadow: 0 0 0 2px rgba(18, 58, 122, 0.12);
+      }
+      .item-main {
+        min-width: 0;
+      }
+      .item-title {
+        font-weight: 800;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .item-meta {
+        color: var(--muted);
+        font-size: 12px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .badge {
+        display: inline-flex;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 800;
+        background: var(--surface-soft);
+        border: 1px solid var(--border);
+        color: var(--muted);
+      }
+      .badge.uni {
+        background: var(--primary-soft);
+        color: var(--primary);
+        border-color: #c7d7fe;
+      }
+      .badge.local {
+        background: #f1f5f9;
+        color: #475569;
+      }
+      .badge.error {
+        background: var(--error-soft);
+        color: var(--error);
+        border-color: #fecaca;
+      }
+      .badge.warning {
+        background: var(--warning-soft);
+        color: var(--warning);
+        border-color: #fde68a;
+      }
+      .badge.note {
+        background: var(--primary-soft);
+        color: var(--primary);
+        border-color: #c7d7fe;
+      }
+
+      .results {
+        display: grid;
+        gap: 16px;
+        min-width: 0;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .stat {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 14px;
+        background: #fff;
+      }
+      .stat-label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .stat-value {
+        font-size: 26px;
+        line-height: 1.1;
+        font-weight: 900;
+        margin-top: 8px;
+      }
+      .stat.error .stat-value {
+        color: var(--error);
+      }
+      .stat.warning .stat-value {
+        color: var(--warning);
+      }
+      .stat.ok .stat-value {
+        color: var(--success);
+      }
+
+      .filterbar {
+        display: grid;
+        grid-template-columns: minmax(240px, 1fr) auto;
+        gap: 12px;
+        align-items: start;
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .chip {
+        border: 1px solid var(--border);
+        background: var(--surface-soft);
+        color: #334155;
+        border-radius: 999px;
+        padding: 5px 10px;
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .chip.active {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #fff;
+      }
+
+      .table-wrap {
+        overflow: auto;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 840px;
+      }
+      th,
+      td {
+        padding: 11px 12px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: var(--surface-soft);
+        color: #475569;
+        font-size: 12px;
+        font-weight: 900;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      tbody tr:hover td {
+        background: #fbfdff;
+      }
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      .mono {
+        font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+      }
+      .path {
+        max-width: 280px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .message {
+        min-width: 260px;
+      }
+
+      .empty {
+        border: 1px dashed var(--border-strong);
+        border-radius: 8px;
+        padding: 34px 20px;
+        background: var(--surface-soft);
+        color: var(--muted);
+        text-align: center;
+      }
+      .empty strong {
+        display: block;
+        color: var(--text);
+        margin-bottom: 5px;
+        font-size: 15px;
+      }
+
+      details.raw {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fff;
+        overflow: hidden;
+      }
+      details.raw summary {
+        padding: 13px 16px;
+        cursor: pointer;
+        color: #334155;
+        font-weight: 900;
+        background: var(--surface-soft);
+        border-bottom: 1px solid var(--border);
+      }
+      details.raw:not([open]) summary {
+        border-bottom: 0;
+      }
+      .raw pre {
+        margin: 0;
+        padding: 14px;
+        max-height: 380px;
+        overflow: auto;
+        background: #0f172a;
+        color: #e2e8f0;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 1100px) {
+        .page {
+          grid-template-columns: 1fr;
+          padding: 18px;
+        }
+        .stats {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .filterbar {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 680px) {
+        .topbar {
+          height: auto;
+          padding: 14px 16px;
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        .tabs {
+          grid-template-columns: 1fr;
+        }
+        .stats {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">G</div>
+        <div>
+          <div class="brand-title">GJB8114 在线静态分析</div>
+          <div class="brand-subtitle">代码安全分析工具 · UniPortal 子工具</div>
+        </div>
+      </div>
+      <div class="top-meta">
+        <span class="pill" id="portalMeta">平台模式：检测中</span>
+        <span class="pill" id="resultMeta">尚未分析</span>
+      </div>
+    </header>
+
+    <main class="page">
+      <aside class="panel">
+        <div class="tabs" role="tablist">
+          <button class="tab active" type="button" data-tab="projects">
+            项目库
+          </button>
+          <button class="tab" type="button" data-tab="upload">直接上传</button>
+          <button class="tab" type="button" data-tab="dsit">DSIT 报告</button>
+        </div>
+
+        <section class="pane active" id="pane-projects">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">选择项目</h2>
+              <p class="panel-desc">读取 UniPortal 共享项目和本工具私有项目</p>
+            </div>
+            <button
+              class="btn btn-secondary"
+              id="refreshProjects"
+              type="button"
+            >
+              刷新
+            </button>
+          </div>
+          <div class="panel-body stack">
+            <ul class="project-list" id="projectList">
+              <li class="empty">正在加载项目库...</li>
+            </ul>
+            <div class="field">
+              <label for="projectEntry">入口文件（可选）</label>
+              <input
+                class="input"
+                id="projectEntry"
+                placeholder="例如 src/main.c，留空则分析全部源文件"
+              />
+            </div>
+            <button
+              class="btn btn-primary btn-block"
+              id="analyzeProject"
+              disabled
+            >
+              开始分析项目
+            </button>
+            <div class="status" id="projectStatus">请选择项目</div>
+          </div>
+        </section>
+
+        <section class="pane" id="pane-upload">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">直接上传</h2>
+              <p class="panel-desc">
+                上传 C/C++ 源文件，调用现有 /analyze 接口
+              </p>
+            </div>
+          </div>
+          <div class="panel-body stack">
+            <div class="dropzone" id="dropzone" role="button" tabindex="0">
+              <input
+                class="hidden"
+                type="file"
+                id="filePicker"
+                multiple
+                accept=".c,.h,.cc,.cpp,.cxx,.hpp,.hxx"
+              />
+              <span>
+                <span class="drop-title">选择或拖入源文件</span><br />
+                <span class="small"
+                  >支持 .c / .h / .cc / .cpp / .cxx / .hpp / .hxx</span
+                >
+              </span>
+            </div>
+            <ul class="file-list" id="fileList"></ul>
+            <div class="field">
+              <label for="uploadEntry">入口文件（可选）</label>
+              <input class="input" id="uploadEntry" placeholder="例如 main.c" />
+            </div>
+            <label class="checkbox"
+              ><input
+                type="checkbox"
+                id="keepWorkdir"
+              />保留服务端临时目录（调试）</label
+            >
+            <button
+              class="btn btn-primary btn-block"
+              id="analyzeUpload"
+              disabled
+            >
+              开始分析
+            </button>
+            <div class="status" id="uploadStatus">请选择待分析文件</div>
+          </div>
+        </section>
+
+        <section class="pane" id="pane-dsit">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">DSIT 报告</h2>
+              <p class="panel-desc">加载 DeepSITRServer 输出目录或 zip 报告</p>
+            </div>
+            <button class="btn btn-secondary" id="refreshReports" type="button">
+              刷新
+            </button>
+          </div>
+          <div class="panel-body stack">
+            <div class="field">
+              <label for="localDsitPath">服务器本地输出目录</label>
+              <input
+                class="input"
+                id="localDsitPath"
+                placeholder="例如 D:\DeepSITRServer\Test2"
+              />
+            </div>
+            <button
+              class="btn btn-secondary btn-block"
+              id="loadLocalDsit"
+              type="button"
+            >
+              从本地路径加载
+            </button>
+            <div class="dropzone" id="dsitDropzone" role="button" tabindex="0">
+              <input class="hidden" type="file" id="dsitFile" accept=".zip" />
+              <span>
+                <span class="drop-title">上传 DSIT 输出 zip</span><br />
+                <span class="small">解析后可在报告列表中打开</span>
+              </span>
+            </div>
+            <ul class="report-list" id="reportList">
+              <li class="empty">正在加载报告列表...</li>
+            </ul>
+            <div class="status" id="dsitStatus">
+              可上传 zip 或输入本地输出目录
+            </div>
+          </div>
+        </section>
+      </aside>
+
+      <section class="results">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h2 class="card-title">分析汇总</h2>
+              <div class="panel-desc" id="summaryText">等待分析结果</div>
+            </div>
+            <button
+              class="btn btn-primary"
+              id="exportJson"
+              type="button"
+              disabled
+            >
+              导出 JSON
+            </button>
+          </div>
+          <div class="card-body stack">
+            <div class="stats">
+              <div class="stat">
+                <div class="stat-label">问题总数</div>
+                <div class="stat-value" id="stTotal">-</div>
+              </div>
+              <div class="stat warning">
+                <div class="stat-label">WARNING</div>
+                <div class="stat-value" id="stWarning">-</div>
+              </div>
+              <div class="stat error">
+                <div class="stat-label">ERROR</div>
+                <div class="stat-value" id="stError">-</div>
+              </div>
+              <div class="stat ok">
+                <div class="stat-label">检查项种类</div>
+                <div class="stat-value" id="stKinds">-</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">文件数量</div>
+                <div class="stat-value" id="stFiles">-</div>
+              </div>
+            </div>
+            <div class="filterbar">
+              <div class="field">
+                <label for="searchInput">搜索</label>
+                <input
+                  class="input"
+                  id="searchInput"
+                  placeholder="搜索规则、文件、消息、检查器"
+                />
+              </div>
+              <div class="field">
+                <label>规则筛选</label>
+                <div class="chips" id="ruleFilters"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2 class="card-title">缺陷列表</h2>
+            <span class="pill" id="visibleCount">0 条</span>
+          </div>
+          <div class="card-body" id="defectArea">
+            <div class="empty">
+              <strong>暂无结果</strong>
+              从项目库、直接上传或 DSIT 报告任一入口开始。
+            </div>
+          </div>
+        </div>
+
+        <details class="raw" id="rawDetails">
+          <summary>原始 JSON</summary>
+          <pre id="rawJson">{}</pre>
+        </details>
+      </section>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      const state = {
+        files: [],
+        projects: [],
+        reports: [],
+        selectedProjectId: null,
+        selectedReportId: null,
+        portalProjectId: readPortalProjectId(),
+        current: null,
+        filterRule: "",
+        keyword: "",
+      };
+
+      function readPortalProjectId() {
+        const params = new URLSearchParams(window.location.search);
+        const fromUrl = params.get("portal_project_id");
+        if (fromUrl) {
+          sessionStorage.setItem("ct8114.portalProjectId", fromUrl);
+          return fromUrl;
+        }
+        return sessionStorage.getItem("ct8114.portalProjectId") || "";
+      }
+
+      function setStatus(id, text, kind) {
+        const el = $(id);
+        el.className = "status" + (kind ? " " + kind : "");
+        el.textContent = text || "";
+      }
+
+      function setActiveTab(name) {
+        document
+          .querySelectorAll(".tab")
+          .forEach((tab) =>
+            tab.classList.toggle("active", tab.dataset.tab === name),
+          );
+        document
+          .querySelectorAll(".pane")
+          .forEach((pane) => pane.classList.remove("active"));
+        $("pane-" + name).classList.add("active");
+        if (name === "projects") loadProjects(state.selectedProjectId);
+        if (name === "dsit") loadReports();
+      }
+
+      document.querySelectorAll(".tab").forEach((tab) => {
+        tab.addEventListener("click", () => setActiveTab(tab.dataset.tab));
       });
-      const text = q.toString();
-      return text ? "?" + text : "";
-    }
 
-    function normalizeBug(raw, index) {
-      const loc = raw.location || raw.location_start || raw.locationStart || {};
-      const checker = raw.checker || raw.name || raw.check_name || raw.rule || raw.type || "";
-      const rule = raw.rule_id || raw.ruleId || raw.rule || raw.standard || raw.id || checker || "(unknown)";
-      const file = raw.file_path || raw.path || raw.file || loc.file_path || loc.path || loc.file || "";
-      const levelRaw = raw.level || raw.severity || raw.force || raw.type || "Warning";
-      const level = String(levelRaw).toLowerCase() === "error" || String(levelRaw) === "1" ? "Error"
-        : String(levelRaw).toLowerCase() === "note" ? "Note"
-        : "Warning";
-      return {
-        index,
-        level,
-        rule,
-        checker,
-        file,
-        line: raw.line ?? loc.line ?? raw.row ?? raw.lineno ?? "",
-        column: raw.column ?? loc.column ?? raw.col ?? "",
-        message: raw.message || raw.msg || raw.description || raw.desc || "",
-        raw
-      };
-    }
+      function fmtSize(bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+        return (bytes / 1024 / 1024).toFixed(2) + " MB";
+      }
 
-    function collectDiagnostics(payload) {
-      const report = payload && payload.report ? payload.report : payload || {};
-      const candidates = [
-        report.diagnostics,
-        report.defect_list,
-        report.summary && report.summary.bugs,
-        report.dcab_raw && report.dcab_raw.check_progress && report.dcab_raw.check_progress.defect_list,
-        payload && payload.defect_list,
-        payload && payload.summary && payload.summary.bugs,
-        payload && payload.dcab_raw && payload.dcab_raw.check_progress && payload.dcab_raw.check_progress.defect_list
-      ];
-      const list = candidates.find(Array.isArray) || [];
-      return list.map(normalizeBug);
-    }
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
 
-    function inferFileCount(payload, diagnostics) {
-      const report = payload && payload.report ? payload.report : payload || {};
-      const summary = report.summary || payload.summary || {};
-      if (summary.total_files != null) return summary.total_files;
-      if (report.total_files != null) return report.total_files;
-      if (Array.isArray(report.files_stats)) return report.files_stats.length;
-      const unique = new Set(diagnostics.map((d) => d.file).filter(Boolean));
-      return unique.size || state.files.length || "-";
-    }
+      function shortenPath(path) {
+        if (!path) return "";
+        const parts = String(path).split(/[\\/]/).filter(Boolean);
+        return parts.slice(-2).join("/");
+      }
 
-    function statusMessage(payload, diagnostics) {
-      const status = payload.status || (payload.report && payload.report.status) || "";
-      if (payload.detection_id) return "已启动分析，等待结果查询。detection_id: " + payload.detection_id;
-      if (status === "dcab_started") return "DCAB 分析已启动，等待后续检查结果。";
-      if (status === "check_progress_empty") return "调试提示：check_progress 暂无缺陷数据，页面已保留原始返回用于排查。";
-      if (status === "completed" && diagnostics.length === 0) return "分析完成，未发现缺陷。";
-      if (diagnostics.length === 0) return "当前结果中未发现可展示的缺陷。";
-      return "已解析 " + diagnostics.length + " 条缺陷。";
-    }
+      async function readJsonResponse(resp) {
+        const text = await resp.text();
+        try {
+          return text ? JSON.parse(text) : {};
+        } catch {
+          return { raw: text };
+        }
+      }
 
-    function normalizeResult(payload, sourceLabel, projectName) {
-      const diagnostics = collectDiagnostics(payload);
-      const byLevel = diagnostics.reduce((acc, d) => {
-        acc[d.level] = (acc[d.level] || 0) + 1;
-        return acc;
-      }, {});
-      const byRule = diagnostics.reduce((acc, d) => {
-        acc[d.rule] = (acc[d.rule] || 0) + 1;
-        return acc;
-      }, {});
-      return {
-        payload,
-        sourceLabel,
-        projectName: projectName || payload.project_name || (payload.report && payload.report.project_name) || "",
-        diagnostics,
-        byLevel,
-        byRule,
-        fileCount: inferFileCount(payload, diagnostics),
-        message: statusMessage(payload, diagnostics)
-      };
-    }
+      function buildQuery(params) {
+        const q = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && String(value) !== "")
+            q.set(key, value);
+        });
+        const text = q.toString();
+        return text ? "?" + text : "";
+      }
 
-    function showResult(payload, sourceLabel, projectName) {
-      state.current = normalizeResult(payload, sourceLabel, projectName);
-      state.filterRule = "";
-      $("rawJson").textContent = JSON.stringify(payload, null, 2);
-      $("exportJson").disabled = false;
-      renderResult();
-    }
+      function normalizeBug(raw, index) {
+        const loc =
+          raw.location || raw.location_start || raw.locationStart || {};
+        const checker =
+          raw.checker ||
+          raw.name ||
+          raw.check_name ||
+          raw.rule ||
+          raw.type ||
+          "";
+        const rule =
+          raw.rule_id ||
+          raw.ruleId ||
+          raw.rule ||
+          raw.standard ||
+          raw.id ||
+          checker ||
+          "(unknown)";
+        const file =
+          raw.file_path ||
+          raw.path ||
+          raw.file ||
+          loc.file_path ||
+          loc.path ||
+          loc.file ||
+          "";
+        const levelRaw =
+          raw.level || raw.severity || raw.force || raw.type || "Warning";
+        const level =
+          String(levelRaw).toLowerCase() === "error" || String(levelRaw) === "1"
+            ? "Error"
+            : String(levelRaw).toLowerCase() === "note"
+              ? "Note"
+              : "Warning";
+        return {
+          index,
+          level,
+          rule,
+          checker,
+          file,
+          line: raw.line ?? loc.line ?? raw.row ?? raw.lineno ?? "",
+          column: raw.column ?? loc.column ?? raw.col ?? "",
+          message: raw.message || raw.msg || raw.description || raw.desc || "",
+          raw,
+        };
+      }
 
-    function renderResult() {
-      const current = state.current;
-      if (!current) return;
-      const diagnostics = current.diagnostics;
-      $("stTotal").textContent = diagnostics.length;
-      $("stWarning").textContent = current.byLevel.Warning || 0;
-      $("stError").textContent = current.byLevel.Error || 0;
-      $("stKinds").textContent = Object.keys(current.byRule).length;
-      $("stFiles").textContent = current.fileCount;
-      $("summaryText").textContent = [current.sourceLabel, current.projectName, current.message].filter(Boolean).join(" · ");
-      $("resultMeta").textContent = diagnostics.length + " 条问题";
+      function collectDiagnostics(payload) {
+        const report =
+          payload && payload.report ? payload.report : payload || {};
+        const candidates = [
+          report.diagnostics,
+          report.defect_list,
+          report.summary && report.summary.bugs,
+          report.dcab_raw &&
+            report.dcab_raw.check_progress &&
+            report.dcab_raw.check_progress.defect_list,
+          payload && payload.defect_list,
+          payload && payload.summary && payload.summary.bugs,
+          payload &&
+            payload.dcab_raw &&
+            payload.dcab_raw.check_progress &&
+            payload.dcab_raw.check_progress.defect_list,
+        ];
+        const list = candidates.find(Array.isArray) || [];
+        return list.map(normalizeBug);
+      }
 
-      const filters = $("ruleFilters");
-      filters.innerHTML = "";
-      filters.appendChild(makeChip("全部", diagnostics.length, state.filterRule === "", () => {
+      function inferFileCount(payload, diagnostics) {
+        const report =
+          payload && payload.report ? payload.report : payload || {};
+        const summary = report.summary || payload.summary || {};
+        if (summary.total_files != null) return summary.total_files;
+        if (report.total_files != null) return report.total_files;
+        if (Array.isArray(report.files_stats)) return report.files_stats.length;
+        const unique = new Set(diagnostics.map((d) => d.file).filter(Boolean));
+        return unique.size || state.files.length || "-";
+      }
+
+      function statusMessage(payload, diagnostics) {
+        const status =
+          payload.status || (payload.report && payload.report.status) || "";
+        if (payload.detection_id)
+          return (
+            "已启动分析，等待结果查询。detection_id: " + payload.detection_id
+          );
+        if (status === "dcab_started")
+          return "DCAB 分析已启动，等待后续检查结果。";
+        if (status === "check_progress_empty")
+          return "调试提示：check_progress 暂无缺陷数据，页面已保留原始返回用于排查。";
+        if (status === "completed" && diagnostics.length === 0)
+          return "分析完成，未发现缺陷。";
+        if (diagnostics.length === 0) return "当前结果中未发现可展示的缺陷。";
+        return "已解析 " + diagnostics.length + " 条缺陷。";
+      }
+
+      function normalizeResult(payload, sourceLabel, projectName) {
+        const diagnostics = collectDiagnostics(payload);
+        const byLevel = diagnostics.reduce((acc, d) => {
+          acc[d.level] = (acc[d.level] || 0) + 1;
+          return acc;
+        }, {});
+        const byRule = diagnostics.reduce((acc, d) => {
+          acc[d.rule] = (acc[d.rule] || 0) + 1;
+          return acc;
+        }, {});
+        return {
+          payload,
+          sourceLabel,
+          projectName:
+            projectName ||
+            payload.project_name ||
+            (payload.report && payload.report.project_name) ||
+            "",
+          diagnostics,
+          byLevel,
+          byRule,
+          fileCount: inferFileCount(payload, diagnostics),
+          message: statusMessage(payload, diagnostics),
+        };
+      }
+
+      function showResult(payload, sourceLabel, projectName) {
+        state.current = normalizeResult(payload, sourceLabel, projectName);
         state.filterRule = "";
+        $("rawJson").textContent = JSON.stringify(payload, null, 2);
+        $("exportJson").disabled = false;
         renderResult();
-      }));
-      Object.entries(current.byRule).sort((a, b) => b[1] - a[1]).forEach(([rule, count]) => {
-        filters.appendChild(makeChip(rule, count, state.filterRule === rule, () => {
-          state.filterRule = state.filterRule === rule ? "" : rule;
-          renderResult();
-        }));
-      });
-
-      const keyword = state.keyword.toLowerCase();
-      const visible = diagnostics.filter((d) => {
-        if (state.filterRule && d.rule !== state.filterRule) return false;
-        if (!keyword) return true;
-        return [d.rule, d.checker, d.file, d.message, d.level].join(" ").toLowerCase().includes(keyword);
-      });
-      $("visibleCount").textContent = visible.length + " 条";
-
-      if (diagnostics.length === 0) {
-        $("defectArea").innerHTML = `<div class="empty"><strong>${escapeHtml(current.message)}</strong>可展开下方原始 JSON 查看服务端完整返回。</div>`;
-        return;
-      }
-      if (visible.length === 0) {
-        $("defectArea").innerHTML = `<div class="empty"><strong>没有匹配的缺陷</strong>请调整搜索内容或规则筛选。</div>`;
-        return;
       }
 
-      const rows = visible.map((d) => {
-        const badgeClass = d.level === "Error" ? "error" : d.level === "Note" ? "note" : "warning";
-        const pos = [d.line || "?", d.column || "?"].join(":");
-        return `<tr>
+      function renderResult() {
+        const current = state.current;
+        if (!current) return;
+        const diagnostics = current.diagnostics;
+        $("stTotal").textContent = diagnostics.length;
+        $("stWarning").textContent = current.byLevel.Warning || 0;
+        $("stError").textContent = current.byLevel.Error || 0;
+        $("stKinds").textContent = Object.keys(current.byRule).length;
+        $("stFiles").textContent = current.fileCount;
+        $("summaryText").textContent = [
+          current.sourceLabel,
+          current.projectName,
+          current.message,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        $("resultMeta").textContent = diagnostics.length + " 条问题";
+
+        const filters = $("ruleFilters");
+        filters.innerHTML = "";
+        filters.appendChild(
+          makeChip("全部", diagnostics.length, state.filterRule === "", () => {
+            state.filterRule = "";
+            renderResult();
+          }),
+        );
+        Object.entries(current.byRule)
+          .sort((a, b) => b[1] - a[1])
+          .forEach(([rule, count]) => {
+            filters.appendChild(
+              makeChip(rule, count, state.filterRule === rule, () => {
+                state.filterRule = state.filterRule === rule ? "" : rule;
+                renderResult();
+              }),
+            );
+          });
+
+        const keyword = state.keyword.toLowerCase();
+        const visible = diagnostics.filter((d) => {
+          if (state.filterRule && d.rule !== state.filterRule) return false;
+          if (!keyword) return true;
+          return [d.rule, d.checker, d.file, d.message, d.level]
+            .join(" ")
+            .toLowerCase()
+            .includes(keyword);
+        });
+        $("visibleCount").textContent = visible.length + " 条";
+
+        if (diagnostics.length === 0) {
+          $("defectArea").innerHTML =
+            `<div class="empty"><strong>${escapeHtml(current.message)}</strong>可展开下方原始 JSON 查看服务端完整返回。</div>`;
+          return;
+        }
+        if (visible.length === 0) {
+          $("defectArea").innerHTML =
+            `<div class="empty"><strong>没有匹配的缺陷</strong>请调整搜索内容或规则筛选。</div>`;
+          return;
+        }
+
+        const rows = visible
+          .map((d) => {
+            const badgeClass =
+              d.level === "Error"
+                ? "error"
+                : d.level === "Note"
+                  ? "note"
+                  : "warning";
+            const pos = [d.line || "?", d.column || "?"].join(":");
+            return `<tr>
           <td><span class="badge ${badgeClass}">${escapeHtml(d.level)}</span></td>
           <td class="mono">${escapeHtml(d.rule)}</td>
           <td><div class="path" title="${escapeHtml(d.file)}">${escapeHtml(shortenPath(d.file) || d.file || "-")}</div></td>
@@ -706,9 +1119,10 @@
           <td class="message">${escapeHtml(d.message || "-")}</td>
           <td class="mono">${escapeHtml(d.checker || "-")}</td>
         </tr>`;
-      }).join("");
+          })
+          .join("");
 
-      $("defectArea").innerHTML = `<div class="table-wrap">
+        $("defectArea").innerHTML = `<div class="table-wrap">
         <table>
           <thead>
             <tr>
@@ -723,65 +1137,93 @@
           <tbody>${rows}</tbody>
         </table>
       </div>`;
-    }
-
-    function makeChip(label, count, active, onClick) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "chip" + (active ? " active" : "");
-      btn.textContent = label + " " + count;
-      btn.addEventListener("click", onClick);
-      return btn;
-    }
-
-    $("searchInput").addEventListener("input", (event) => {
-      state.keyword = event.target.value.trim();
-      renderResult();
-    });
-
-    $("exportJson").addEventListener("click", () => {
-      if (!state.current) return;
-      const name = (state.current.projectName || state.current.sourceLabel || "report").replace(/[^\w.-]+/g, "_");
-      const blob = new Blob([JSON.stringify(state.current.payload, null, 2)], { type: "application/json" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "ct8114_" + name + "_" + Date.now() + ".json";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(link.href);
-    });
-
-    async function loadProjects(autoSelectId) {
-      const url = "/projects" + buildQuery({ portal_project_id: state.portalProjectId });
-      try {
-        const resp = await fetch(url);
-        const data = await readJsonResponse(resp);
-        if (!resp.ok) throw new Error(data.detail || "HTTP " + resp.status);
-        state.projects = Array.isArray(data.projects) ? data.projects : [];
-        $("portalMeta").textContent = data.uniportal_mode ? "平台模式：UniPortal" : "平台模式：本地";
-        if (autoSelectId && state.projects.some((p) => p.project_id === autoSelectId)) state.selectedProjectId = autoSelectId;
-        if (!state.projects.some((p) => p.project_id === state.selectedProjectId)) state.selectedProjectId = null;
-        renderProjects();
-        setStatus("projectStatus", state.projects.length ? "共 " + state.projects.length + " 个项目，请选择后分析" : "项目库为空");
-      } catch (err) {
-        $("projectList").innerHTML = `<li class="empty">项目库加载失败：${escapeHtml(err.message || err)}</li>`;
-        setStatus("projectStatus", "项目库加载失败", "error");
       }
-    }
 
-    function renderProjects() {
-      const list = $("projectList");
-      if (!state.projects.length) {
-        list.innerHTML = `<li class="empty">暂无项目。可切换到“直接上传”提交文件。</li>`;
-        $("analyzeProject").disabled = true;
-        return;
+      function makeChip(label, count, active, onClick) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "chip" + (active ? " active" : "");
+        btn.textContent = label + " " + count;
+        btn.addEventListener("click", onClick);
+        return btn;
       }
-      list.innerHTML = state.projects.map((p) => {
-        const active = p.project_id === state.selectedProjectId ? " active" : "";
-        const sourceClass = p.source === "uniportal" ? "uni" : "local";
-        const sourceLabel = p.source === "uniportal" ? "UniPortal" : "本地";
-        return `<li class="project-item${active}" data-id="${escapeHtml(p.project_id)}">
+
+      $("searchInput").addEventListener("input", (event) => {
+        state.keyword = event.target.value.trim();
+        renderResult();
+      });
+
+      $("exportJson").addEventListener("click", () => {
+        if (!state.current) return;
+        const name = (
+          state.current.projectName ||
+          state.current.sourceLabel ||
+          "report"
+        ).replace(/[^\w.-]+/g, "_");
+        const blob = new Blob(
+          [JSON.stringify(state.current.payload, null, 2)],
+          { type: "application/json" },
+        );
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "ct8114_" + name + "_" + Date.now() + ".json";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(link.href);
+      });
+
+      async function loadProjects(autoSelectId) {
+        const url =
+          "/projects" +
+          buildQuery({ portal_project_id: state.portalProjectId });
+        try {
+          const resp = await fetch(url);
+          const data = await readJsonResponse(resp);
+          if (!resp.ok) throw new Error(data.detail || "HTTP " + resp.status);
+          state.projects = Array.isArray(data.projects) ? data.projects : [];
+          $("portalMeta").textContent = data.uniportal_mode
+            ? "平台模式：UniPortal"
+            : "平台模式：本地";
+          if (
+            autoSelectId &&
+            state.projects.some((p) => p.project_id === autoSelectId)
+          )
+            state.selectedProjectId = autoSelectId;
+          if (
+            !state.projects.some(
+              (p) => p.project_id === state.selectedProjectId,
+            )
+          )
+            state.selectedProjectId = null;
+          renderProjects();
+          setStatus(
+            "projectStatus",
+            state.projects.length
+              ? "共 " + state.projects.length + " 个项目，请选择后分析"
+              : "项目库为空",
+          );
+        } catch (err) {
+          $("projectList").innerHTML =
+            `<li class="empty">项目库加载失败：${escapeHtml(err.message || err)}</li>`;
+          setStatus("projectStatus", "项目库加载失败", "error");
+        }
+      }
+
+      function renderProjects() {
+        const list = $("projectList");
+        if (!state.projects.length) {
+          list.innerHTML = `<li class="empty">暂无项目。可切换到“直接上传”提交文件。</li>`;
+          $("analyzeProject").disabled = true;
+          return;
+        }
+        list.innerHTML = state.projects
+          .map((p) => {
+            const active =
+              p.project_id === state.selectedProjectId ? " active" : "";
+            const sourceClass = p.source === "uniportal" ? "uni" : "local";
+            const sourceLabel = p.source === "uniportal" ? "UniPortal" : "本地";
+            return `<li class="project-item${active}" data-id="${escapeHtml(p.project_id)}">
           <div class="item-main">
             <div class="item-title">${escapeHtml(p.project_name || p.project_id)}</div>
             <div class="item-meta">${escapeHtml(p.project_id)}</div>
@@ -791,220 +1233,331 @@
             <span class="badge">${escapeHtml(p.file_count ?? 0)} 文件</span>
           </div>
         </li>`;
-      }).join("");
-      list.querySelectorAll(".project-item").forEach((item) => {
-        item.addEventListener("click", () => {
-          state.selectedProjectId = item.dataset.id;
-          renderProjects();
-          const p = state.projects.find((x) => x.project_id === state.selectedProjectId);
-          setStatus("projectStatus", "已选择 " + ((p && p.project_name) || state.selectedProjectId));
+          })
+          .join("");
+        list.querySelectorAll(".project-item").forEach((item) => {
+          item.addEventListener("click", () => {
+            state.selectedProjectId = item.dataset.id;
+            renderProjects();
+            const p = state.projects.find(
+              (x) => x.project_id === state.selectedProjectId,
+            );
+            setStatus(
+              "projectStatus",
+              "已选择 " + ((p && p.project_name) || state.selectedProjectId),
+            );
+          });
         });
-      });
-      $("analyzeProject").disabled = !state.selectedProjectId;
-    }
-
-    $("refreshProjects").addEventListener("click", () => loadProjects(state.selectedProjectId));
-
-    $("analyzeProject").addEventListener("click", async () => {
-      if (!state.selectedProjectId) return;
-      const project = state.projects.find((p) => p.project_id === state.selectedProjectId);
-      const url = "/projects/" + encodeURIComponent(state.selectedProjectId) + "/analyze" + buildQuery({ entry: $("projectEntry").value.trim() });
-      setStatus("projectStatus", "项目分析中，请稍候...");
-      $("analyzeProject").disabled = true;
-      try {
-        const resp = await fetch(url, { method: "POST" });
-        const data = await readJsonResponse(resp);
-        if (!resp.ok) throw new Error(data.detail || "HTTP " + resp.status);
-        showResult(data, "项目库", project && project.project_name);
-        setStatus("projectStatus", "分析完成", "ok");
-      } catch (err) {
-        setStatus("projectStatus", "分析失败：" + (err.message || err), "error");
-      } finally {
         $("analyzeProject").disabled = !state.selectedProjectId;
       }
-    });
 
-    const dropzone = $("dropzone");
-    const filePicker = $("filePicker");
-    dropzone.addEventListener("click", () => filePicker.click());
-    dropzone.addEventListener("dragover", (event) => { event.preventDefault(); dropzone.classList.add("dragover"); });
-    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
-    dropzone.addEventListener("drop", (event) => {
-      event.preventDefault();
-      dropzone.classList.remove("dragover");
-      addFiles(event.dataTransfer.files);
-    });
-    filePicker.addEventListener("change", (event) => addFiles(event.target.files));
+      $("refreshProjects").addEventListener("click", () =>
+        loadProjects(state.selectedProjectId),
+      );
 
-    function addFiles(files) {
-      Array.from(files || []).forEach((file) => {
-        const exists = state.files.some((x) => x.name === file.name && x.size === file.size);
-        if (!exists) state.files.push(file);
-      });
-      renderFiles();
-    }
-
-    function renderFiles() {
-      const list = $("fileList");
-      if (!state.files.length) {
-        list.innerHTML = "";
-        $("analyzeUpload").disabled = true;
-        setStatus("uploadStatus", "请选择待分析文件");
-        return;
+      // ---- 异步轮询工具函数 ----
+      async function pollTask(requestId, statusEl, onProgress) {
+        let attempt = 0;
+        const maxAttempts = 180; // 最多轮询 6 分钟 (2秒间隔)
+        while (attempt < maxAttempts) {
+          attempt++;
+          onProgress(`轮询中 (第 ${attempt} 次)...`);
+          const resp = await fetch("/status/" + encodeURIComponent(requestId));
+          const task = await readJsonResponse(resp);
+          if (task.status === "completed") {
+            onProgress("分析完成", "ok");
+            return task.payload;
+          }
+          if (task.status === "failed") {
+            const errMsg =
+              (task.error &&
+                (task.error.detail ||
+                  task.error.message ||
+                  JSON.stringify(task.error))) ||
+              "未知错误";
+            throw new Error(errMsg);
+          }
+          if (task.status === "running" || task.status === "pending") {
+            await new Promise((r) => setTimeout(r, 2000));
+            continue;
+          }
+          throw new Error("未知任务状态: " + task.status);
+        }
+        throw new Error("轮询超时，请稍后查看结果");
       }
-      list.innerHTML = state.files.map((f, index) => `<li class="file-item">
+
+      $("analyzeProject").addEventListener("click", async () => {
+        if (!state.selectedProjectId) return;
+        const project = state.projects.find(
+          (p) => p.project_id === state.selectedProjectId,
+        );
+        const url =
+          "/projects/" +
+          encodeURIComponent(state.selectedProjectId) +
+          "/analyze" +
+          buildQuery({ entry: $("projectEntry").value.trim() });
+        setStatus("projectStatus", "正在启动分析...");
+        $("analyzeProject").disabled = true;
+        try {
+          const resp = await fetch(url, { method: "POST" });
+          const data = await readJsonResponse(resp);
+          if (!resp.ok) throw new Error(data.detail || "HTTP " + resp.status);
+          // 异步轮询
+          const payload = await pollTask(
+            data.request_id,
+            "projectStatus",
+            (msg, kind) => {
+              setStatus("projectStatus", msg, kind);
+            },
+          );
+          showResult(payload, "项目库", project && project.project_name);
+          setStatus("projectStatus", "分析完成", "ok");
+        } catch (err) {
+          setStatus(
+            "projectStatus",
+            "分析失败：" + (err.message || err),
+            "error",
+          );
+        } finally {
+          $("analyzeProject").disabled = !state.selectedProjectId;
+        }
+      });
+
+      const dropzone = $("dropzone");
+      const filePicker = $("filePicker");
+      dropzone.addEventListener("click", () => filePicker.click());
+      dropzone.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        dropzone.classList.add("dragover");
+      });
+      dropzone.addEventListener("dragleave", () =>
+        dropzone.classList.remove("dragover"),
+      );
+      dropzone.addEventListener("drop", (event) => {
+        event.preventDefault();
+        dropzone.classList.remove("dragover");
+        addFiles(event.dataTransfer.files);
+      });
+      filePicker.addEventListener("change", (event) =>
+        addFiles(event.target.files),
+      );
+
+      function addFiles(files) {
+        Array.from(files || []).forEach((file) => {
+          const exists = state.files.some(
+            (x) => x.name === file.name && x.size === file.size,
+          );
+          if (!exists) state.files.push(file);
+        });
+        renderFiles();
+      }
+
+      function renderFiles() {
+        const list = $("fileList");
+        if (!state.files.length) {
+          list.innerHTML = "";
+          $("analyzeUpload").disabled = true;
+          setStatus("uploadStatus", "请选择待分析文件");
+          return;
+        }
+        list.innerHTML = state.files
+          .map(
+            (f, index) => `<li class="file-item">
         <div class="item-main">
           <div class="item-title">${escapeHtml(f.name)}</div>
           <div class="item-meta">${fmtSize(f.size)}</div>
         </div>
         <button class="btn btn-danger" type="button" data-remove="${index}">移除</button>
-      </li>`).join("");
-      list.querySelectorAll("[data-remove]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          state.files.splice(Number(btn.dataset.remove), 1);
-          renderFiles();
+      </li>`,
+          )
+          .join("");
+        list.querySelectorAll("[data-remove]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            state.files.splice(Number(btn.dataset.remove), 1);
+            renderFiles();
+          });
         });
+        $("analyzeUpload").disabled = false;
+        setStatus("uploadStatus", "已选择 " + state.files.length + " 个文件");
+      }
+
+      $("analyzeUpload").addEventListener("click", async () => {
+        if (!state.files.length) return;
+        const fd = new FormData();
+        state.files.forEach((file) => fd.append("files", file));
+        const url =
+          "/analyze" +
+          buildQuery({
+            entry: $("uploadEntry").value.trim(),
+            keep: $("keepWorkdir").checked ? "true" : "",
+          });
+        setStatus("uploadStatus", "正在上传并分析...");
+        $("analyzeUpload").disabled = true;
+        try {
+          const resp = await fetch(url, { method: "POST", body: fd });
+          const data = await readJsonResponse(resp);
+          if (!resp.ok) throw new Error(data.detail || "HTTP " + resp.status);
+          // 异步轮询
+          const payload = await pollTask(
+            data.request_id,
+            "uploadStatus",
+            (msg, kind) => {
+              setStatus("uploadStatus", msg, kind);
+            },
+          );
+          showResult(payload, "直接上传", "上传文件");
+          setStatus("uploadStatus", "分析完成", "ok");
+        } catch (err) {
+          setStatus(
+            "uploadStatus",
+            "分析失败：" + (err.message || err),
+            "error",
+          );
+        } finally {
+          $("analyzeUpload").disabled = state.files.length === 0;
+        }
       });
-      $("analyzeUpload").disabled = false;
-      setStatus("uploadStatus", "已选择 " + state.files.length + " 个文件");
-    }
 
-    $("analyzeUpload").addEventListener("click", async () => {
-      if (!state.files.length) return;
-      const fd = new FormData();
-      state.files.forEach((file) => fd.append("files", file));
-      const url = "/analyze" + buildQuery({
-        entry: $("uploadEntry").value.trim(),
-        keep: $("keepWorkdir").checked ? "true" : ""
-      });
-      setStatus("uploadStatus", "正在上传并分析...");
-      $("analyzeUpload").disabled = true;
-      try {
-        const resp = await fetch(url, { method: "POST", body: fd });
-        const data = await readJsonResponse(resp);
-        if (!resp.ok) throw new Error(data.detail || "HTTP " + resp.status);
-        showResult(data, "直接上传", "上传文件");
-        const kind = data.status === "check_progress_empty" ? "warn" : "ok";
-        setStatus("uploadStatus", state.current.message, kind);
-      } catch (err) {
-        setStatus("uploadStatus", "分析失败：" + (err.message || err), "error");
-      } finally {
-        $("analyzeUpload").disabled = state.files.length === 0;
+      async function loadReports() {
+        try {
+          const resp = await fetch("/dsit/reports");
+          const data = await readJsonResponse(resp);
+          if (!resp.ok) throw new Error(data.detail || "HTTP " + resp.status);
+          state.reports = Array.isArray(data.reports) ? data.reports : [];
+          renderReports();
+          setStatus(
+            "dsitStatus",
+            state.reports.length
+              ? "共 " + state.reports.length + " 份报告"
+              : "暂无已加载报告",
+          );
+        } catch (err) {
+          $("reportList").innerHTML =
+            `<li class="empty">报告列表加载失败：${escapeHtml(err.message || err)}</li>`;
+          setStatus("dsitStatus", "报告列表加载失败", "error");
+        }
       }
-    });
 
-    async function loadReports() {
-      try {
-        const resp = await fetch("/dsit/reports");
-        const data = await readJsonResponse(resp);
-        if (!resp.ok) throw new Error(data.detail || "HTTP " + resp.status);
-        state.reports = Array.isArray(data.reports) ? data.reports : [];
-        renderReports();
-        setStatus("dsitStatus", state.reports.length ? "共 " + state.reports.length + " 份报告" : "暂无已加载报告");
-      } catch (err) {
-        $("reportList").innerHTML = `<li class="empty">报告列表加载失败：${escapeHtml(err.message || err)}</li>`;
-        setStatus("dsitStatus", "报告列表加载失败", "error");
-      }
-    }
-
-    function renderReports() {
-      const list = $("reportList");
-      if (!state.reports.length) {
-        list.innerHTML = `<li class="empty">暂无报告。请上传 zip 或从本地路径加载。</li>`;
-        return;
-      }
-      list.innerHTML = state.reports.map((r) => {
-        const active = r.report_id === state.selectedReportId ? " active" : "";
-        const info = (r.total_files || 0) + " 文件 / " + (r.total_bugs || 0) + " 问题";
-        return `<li class="report-item${active}" data-id="${escapeHtml(r.report_id)}">
+      function renderReports() {
+        const list = $("reportList");
+        if (!state.reports.length) {
+          list.innerHTML = `<li class="empty">暂无报告。请上传 zip 或从本地路径加载。</li>`;
+          return;
+        }
+        list.innerHTML = state.reports
+          .map((r) => {
+            const active =
+              r.report_id === state.selectedReportId ? " active" : "";
+            const info =
+              (r.total_files || 0) + " 文件 / " + (r.total_bugs || 0) + " 问题";
+            return `<li class="report-item${active}" data-id="${escapeHtml(r.report_id)}">
           <div class="item-main">
             <div class="item-title">${escapeHtml(r.report_name || r.report_id)}</div>
             <div class="item-meta">${escapeHtml(r.report_id)}</div>
           </div>
           <span class="badge">${escapeHtml(info)}</span>
         </li>`;
-      }).join("");
-      list.querySelectorAll(".report-item").forEach((item) => {
-        item.addEventListener("click", () => loadReport(item.dataset.id));
+          })
+          .join("");
+        list.querySelectorAll(".report-item").forEach((item) => {
+          item.addEventListener("click", () => loadReport(item.dataset.id));
+        });
+      }
+
+      async function loadReport(reportId) {
+        state.selectedReportId = reportId;
+        renderReports();
+        setStatus("dsitStatus", "正在加载报告...");
+        try {
+          const [reportResp, summaryResp] = await Promise.all([
+            fetch("/dsit/report/" + encodeURIComponent(reportId)),
+            fetch("/dsit/report/" + encodeURIComponent(reportId) + "/summary"),
+          ]);
+          const report = await readJsonResponse(reportResp);
+          const summary = await readJsonResponse(summaryResp);
+          if (!reportResp.ok)
+            throw new Error(report.detail || "HTTP " + reportResp.status);
+          if (summaryResp.ok && !report.summary) report.summary = summary;
+          showResult(report, "DSIT 报告", report.project_name || reportId);
+          setStatus("dsitStatus", "报告已加载", "ok");
+        } catch (err) {
+          setStatus(
+            "dsitStatus",
+            "报告加载失败：" + (err.message || err),
+            "error",
+          );
+        }
+      }
+
+      $("refreshReports").addEventListener("click", loadReports);
+      $("loadLocalDsit").addEventListener("click", async () => {
+        const localPath = $("localDsitPath").value.trim();
+        if (!localPath) {
+          setStatus("dsitStatus", "请输入服务器本地输出目录", "error");
+          return;
+        }
+        const fd = new FormData();
+        fd.append("local_path", localPath);
+        setStatus("dsitStatus", "正在解析本地 DSIT 输出...");
+        try {
+          const resp = await fetch("/dsit/upload-local", {
+            method: "POST",
+            body: fd,
+          });
+          const data = await readJsonResponse(resp);
+          if (!resp.ok) throw new Error(data.detail || "HTTP " + resp.status);
+          await loadReports();
+          await loadReport(data.report_id);
+        } catch (err) {
+          setStatus("dsitStatus", "加载失败：" + (err.message || err), "error");
+        }
       });
-    }
 
-    async function loadReport(reportId) {
-      state.selectedReportId = reportId;
-      renderReports();
-      setStatus("dsitStatus", "正在加载报告...");
-      try {
-        const [reportResp, summaryResp] = await Promise.all([
-          fetch("/dsit/report/" + encodeURIComponent(reportId)),
-          fetch("/dsit/report/" + encodeURIComponent(reportId) + "/summary")
-        ]);
-        const report = await readJsonResponse(reportResp);
-        const summary = await readJsonResponse(summaryResp);
-        if (!reportResp.ok) throw new Error(report.detail || "HTTP " + reportResp.status);
-        if (summaryResp.ok && !report.summary) report.summary = summary;
-        showResult(report, "DSIT 报告", report.project_name || reportId);
-        setStatus("dsitStatus", "报告已加载", "ok");
-      } catch (err) {
-        setStatus("dsitStatus", "报告加载失败：" + (err.message || err), "error");
+      const dsitDropzone = $("dsitDropzone");
+      const dsitFile = $("dsitFile");
+      dsitDropzone.addEventListener("click", () => dsitFile.click());
+      dsitDropzone.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        dsitDropzone.classList.add("dragover");
+      });
+      dsitDropzone.addEventListener("dragleave", () =>
+        dsitDropzone.classList.remove("dragover"),
+      );
+      dsitDropzone.addEventListener("drop", (event) => {
+        event.preventDefault();
+        dsitDropzone.classList.remove("dragover");
+        uploadDsitFile(event.dataTransfer.files && event.dataTransfer.files[0]);
+      });
+      dsitFile.addEventListener("change", (event) =>
+        uploadDsitFile(event.target.files && event.target.files[0]),
+      );
+
+      async function uploadDsitFile(file) {
+        if (!file) return;
+        const fd = new FormData();
+        fd.append("file", file);
+        setStatus("dsitStatus", "正在上传并解析 DSIT zip...");
+        try {
+          const resp = await fetch("/dsit/upload", {
+            method: "POST",
+            body: fd,
+          });
+          const data = await readJsonResponse(resp);
+          if (!resp.ok) throw new Error(data.detail || "HTTP " + resp.status);
+          await loadReports();
+          await loadReport(data.report_id);
+        } catch (err) {
+          setStatus("dsitStatus", "上传失败：" + (err.message || err), "error");
+        }
       }
-    }
 
-    $("refreshReports").addEventListener("click", loadReports);
-    $("loadLocalDsit").addEventListener("click", async () => {
-      const localPath = $("localDsitPath").value.trim();
-      if (!localPath) {
-        setStatus("dsitStatus", "请输入服务器本地输出目录", "error");
-        return;
-      }
-      const fd = new FormData();
-      fd.append("local_path", localPath);
-      setStatus("dsitStatus", "正在解析本地 DSIT 输出...");
-      try {
-        const resp = await fetch("/dsit/upload-local", { method: "POST", body: fd });
-        const data = await readJsonResponse(resp);
-        if (!resp.ok) throw new Error(data.detail || "HTTP " + resp.status);
-        await loadReports();
-        await loadReport(data.report_id);
-      } catch (err) {
-        setStatus("dsitStatus", "加载失败：" + (err.message || err), "error");
-      }
-    });
-
-    const dsitDropzone = $("dsitDropzone");
-    const dsitFile = $("dsitFile");
-    dsitDropzone.addEventListener("click", () => dsitFile.click());
-    dsitDropzone.addEventListener("dragover", (event) => { event.preventDefault(); dsitDropzone.classList.add("dragover"); });
-    dsitDropzone.addEventListener("dragleave", () => dsitDropzone.classList.remove("dragover"));
-    dsitDropzone.addEventListener("drop", (event) => {
-      event.preventDefault();
-      dsitDropzone.classList.remove("dragover");
-      uploadDsitFile(event.dataTransfer.files && event.dataTransfer.files[0]);
-    });
-    dsitFile.addEventListener("change", (event) => uploadDsitFile(event.target.files && event.target.files[0]));
-
-    async function uploadDsitFile(file) {
-      if (!file) return;
-      const fd = new FormData();
-      fd.append("file", file);
-      setStatus("dsitStatus", "正在上传并解析 DSIT zip...");
-      try {
-        const resp = await fetch("/dsit/upload", { method: "POST", body: fd });
-        const data = await readJsonResponse(resp);
-        if (!resp.ok) throw new Error(data.detail || "HTTP " + resp.status);
-        await loadReports();
-        await loadReport(data.report_id);
-      } catch (err) {
-        setStatus("dsitStatus", "上传失败：" + (err.message || err), "error");
-      }
-    }
-
-    (function bootstrap() {
-      const params = new URLSearchParams(window.location.search);
-      const targetProject = params.get("project");
-      state.selectedProjectId = targetProject || null;
-      loadProjects(targetProject);
-      renderFiles();
-    })();
-  </script>
-</body>
+      (function bootstrap() {
+        const params = new URLSearchParams(window.location.search);
+        const targetProject = params.get("project");
+        state.selectedProjectId = targetProject || null;
+        loadProjects(targetProject);
+        renderFiles();
+      })();
+    </script>
+  </body>
 </html>
