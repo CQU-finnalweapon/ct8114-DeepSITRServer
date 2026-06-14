@@ -409,6 +409,7 @@ CODETIDY_NOT_FOUND_MESSAGE = (
 def _candidate_codetidy_paths() -> List[Path]:
     project_root = Path(__file__).resolve().parent
     parent = project_root.parent
+    grandparent = parent.parent
     paths: List[Path] = []
 
     env_path = os.environ.get("CODETIDY_BIN")
@@ -419,12 +420,16 @@ def _candidate_codetidy_paths() -> List[Path]:
         project_root / "DeepSITRServer" / "core" / "codetidy.exe",
         parent / "DeepSITRServer-2026-6-9" / "DeepSITRServer" / "core" / "codetidy.exe",
         parent / "DeepSITRServer" / "core" / "codetidy.exe",
+        grandparent / "DeepSITRServer-2026-6-9" / "DeepSITRServer" / "core" / "codetidy.exe",
+        grandparent / "DeepSITRServer" / "core" / "codetidy.exe",
     ])
 
-    try:
-        paths.extend(parent.rglob("codetidy.exe"))
-    except OSError:
-        pass
+    # 向上递归搜索 codetidy.exe（覆盖各种目录布局）
+    for search_root in (project_root, parent, grandparent):
+        try:
+            paths.extend(search_root.rglob("codetidy.exe"))
+        except OSError:
+            pass
 
     which = shutil.which("codetidy.exe") or shutil.which("codetidy")
     if which:
@@ -500,7 +505,9 @@ def run_codetidy(
     if extra_args:
         cmd.extend(extra_args)
     else:
-        cmd.append("-std=c++11")
+        # 自动检测 C/C++ 选择合适的语言标准
+        has_c_file = any(f.suffix.lower() == ".c" for f in source_files)
+        cmd.append("-std=c11" if has_c_file else "-std=c++11")
 
     return subprocess.run(
         cmd,
