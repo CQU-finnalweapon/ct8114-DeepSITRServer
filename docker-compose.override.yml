@@ -1,0 +1,13 @@
+# 本地开发覆盖 — 使用模拟共享卷代替真实 UniPortal
+# docker-compose 会自动合并此文件
+
+services:
+  app:
+    volumes:
+      # 用本地 mock_uniportal/ 目录替代外部 uniportal_storage 卷
+      - ./mock_uniportal:/data/uniportal
+    environment:
+      # 启用模拟共享卷模式
+      - MOCK_UNIPORTAL_DIR=/data/uniportal
+      # 清空真实 UniPortal 路径（避免混淆）
+      - UNIPORTAL_STORAGE_PATH=

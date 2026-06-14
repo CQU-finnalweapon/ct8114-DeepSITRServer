@@ -78,6 +78,10 @@ ALLOWED_SUFFIXES = {".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hxx"}
 # ---- UniPortal 双源接入相关配置 ----------------------------------------
 UNIPORTAL_STORAGE_PATH = os.environ.get("UNIPORTAL_STORAGE_PATH")
 UNIPORTAL_MODE = bool(UNIPORTAL_STORAGE_PATH)
+# 共享卷是否可写（默认可写，兼容旧部署设置 :ro 时自动退化为只读）
+UNIPORTAL_WRITABLE = os.environ.get("UNIPORTAL_WRITABLE", "true").lower() == "true"
+# 本地模拟共享卷目录（用于开发/测试，无需真实 UniPortal）
+MOCK_UNIPORTAL_DIR = os.environ.get("MOCK_UNIPORTAL_DIR", "")
 LOCAL_WORKSPACES_DIR = Path(
     os.environ.get("LOCAL_WORKSPACES_DIR", "workspaces")
 )
@@ -216,9 +220,27 @@ def _build_item_index() -> Dict[str, Path]:
     """遍历 UNIPORTAL_STORAGE_PATH/{portal_proj}/{item_id}/, 返回 {item_id: 绝对路径}.
 
     item_id 即子工具用作 project_id 的 UUID. 共享卷为空或环境变量未设置时返回 {}.
+
+    支持两种模式:
+      - 真实 UniPortal: UNIPORTAL_STORAGE_PATH=/data/uniportal
+      - 本地模拟:      MOCK_UNIPORTAL_DIR=mock_uniportal/
+        (模拟共享卷结构: mock_uniportal/{portal_proj_id}/{item_id}/)
     """
 
     index: Dict[str, Path] = {}
+
+    # 优先检查模拟共享卷 (本地开发/测试)
+    if MOCK_UNIPORTAL_DIR:
+        mock_root = Path(MOCK_UNIPORTAL_DIR).resolve()
+        if mock_root.is_dir():
+            for portal_proj in mock_root.iterdir():
+                if not portal_proj.is_dir() or portal_proj.name.startswith("."):
+                    continue
+                for item in portal_proj.iterdir():
+                    if item.is_dir() and not item.name.startswith((".", "_")):
+                        index[item.name] = item
+            return index
+
     if not UNIPORTAL_STORAGE_PATH:
         return index
     root = Path(UNIPORTAL_STORAGE_PATH)
@@ -240,10 +262,14 @@ def _resolve_project_path(project_id: str) -> Path:
     把报告写到 LOCAL_WORKSPACES_DIR/{item_id}/_ct8114/, 会留下一个
     没有源码的同名空壳; 先查私有就会拿到这个空壳, 导致 "没有可分析的源文件".
     UniPortal item_id 是纯 UUID, 跟未来私有上传的命名 (proj_xxxx) 不冲突.
+
+    支持模拟共享卷 (MOCK_UNIPORTAL_DIR) 用于本地开发测试.
     """
 
     pid = _safe_project_id(project_id)
-    if UNIPORTAL_MODE:
+    # 检查 UniPortal 共享卷（含模拟）
+    uniportal_active = UNIPORTAL_MODE or bool(MOCK_UNIPORTAL_DIR)
+    if uniportal_active:
         item = _build_item_index().get(pid)
         if item and item.is_dir():
             return item
@@ -474,25 +500,44 @@ def list_projects(
       * 带 portal_project_id: 共享卷只扫该工程目录下的 item
       * 未带: 完全不返回 UniPortal 项目 (子工具被直接访问时的安全默认)
     私有上传始终展示, 不受 portal_project_id 影响.
+
+    模拟模式: 当 MOCK_UNIPORTAL_DIR 设置时, portal_project_id 参数无效,
+    直接列出模拟共享卷所有项目.
     """
 
     items: List[dict] = []
 
     # 1. UniPortal 共享卷 (按工程隔离扫描)
-    if UNIPORTAL_MODE and portal_project_id:
-        pid = _safe_project_id(portal_project_id)  # 非法直接 400
-        proj_path = Path(UNIPORTAL_STORAGE_PATH) / pid
-        if proj_path.is_dir():
-            for item in sorted(proj_path.iterdir()):
-                if not item.is_dir() or item.name.startswith((".", "_")):
-                    continue
+    uniportal_active = UNIPORTAL_MODE or bool(MOCK_UNIPORTAL_DIR)
+
+    if uniportal_active:
+        if MOCK_UNIPORTAL_DIR:
+            # 模拟模式: 列出所有模拟共享卷项目
+            index = _build_item_index()
+            for item_id, item_path in sorted(index.items()):
                 items.append({
-                    "project_id": item.name,
-                    "project_name": _project_display_name(item, item.name),
-                    "file_count": _count_code_files(item),
+                    "project_id": item_id,
+                    "project_name": _project_display_name(item_path, item_id),
+                    "file_count": _count_code_files(item_path),
                     "status": "available",
                     "source": "uniportal",
+                    "writable": UNIPORTAL_WRITABLE or bool(MOCK_UNIPORTAL_DIR),
                 })
+        elif portal_project_id:
+            pid = _safe_project_id(portal_project_id)  # 非法直接 400
+            proj_path = Path(UNIPORTAL_STORAGE_PATH) / pid
+            if proj_path.is_dir():
+                for item in sorted(proj_path.iterdir()):
+                    if not item.is_dir() or item.name.startswith((".", "_")):
+                        continue
+                    items.append({
+                        "project_id": item.name,
+                        "project_name": _project_display_name(item, item.name),
+                        "file_count": _count_code_files(item),
+                        "status": "available",
+                        "source": "uniportal",
+                        "writable": UNIPORTAL_WRITABLE,
+                    })
 
     # 2. 本工具私有卷 (读写) — 跳过本工具内部目录 (_ct8114 等)
     #    并过滤"空壳目录": 对 UniPortal item 跑过分析后会在私有卷里留下
@@ -537,6 +582,46 @@ def list_project_files(project_id: str) -> JSONResponse:
     return JSONResponse({"project_id": project_id, "files": sorted(files)})
 
 
+def _write_back_to_uniportal(root: Path, project_id: str, payload: dict) -> None:
+    """将分析报告写回 UniPortal 共享卷项目目录.
+
+    写入路径: {root}/_ct8114/last_report.json
+    同时更新 meta.json 记录最近分析时间.
+
+    这是 ct8114 子工具与 UniPortal 一体化平台双向通信的关键:
+    分析结果写回共享卷后, UniPortal 可在项目详情页直接展示.
+    """
+    ct8114_dir = root / "_ct8114"
+    ct8114_dir.mkdir(parents=True, exist_ok=True)
+
+    # 保存完整报告
+    (ct8114_dir / "last_report.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    # 更新元信息
+    from datetime import datetime
+    meta_path = root / "meta.json"
+    meta = {}
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    meta["ct8114_last_analysis"] = datetime.now().isoformat()
+    meta["ct8114_report_path"] = str(ct8114_dir / "last_report.json")
+    summary = payload.get("report", {}).get("summary", {})
+    if summary:
+        meta["ct8114_summary"] = summary
+
+    meta_path.write_text(
+        json.dumps(meta, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
 @app.post("/projects/{project_id}/analyze")
 def analyze_project(
     project_id: str,
@@ -550,8 +635,17 @@ def analyze_project(
         description="把诊断报告落盘到 workspaces/_reports/{project_id}/",
     ),
 ) -> JSONResponse:
-    """对项目运行 codetidy.exe 分析，返回 DSIT 格式报告."""
+    """对项目运行 codetidy.exe 分析，返回 DSIT 格式报告.
+
+    当共享卷可写时 (UNIPORTAL_WRITABLE=true 或 MOCK_UNIPORTAL_DIR 设置),
+    分析报告同时写回共享卷项目目录下的 _ct8114/ 子目录,
+    供 UniPortal 平台或其他子工具读取.
+    """
     root = _resolve_project_path(project_id)
+
+    # 判断项目是否来自共享卷
+    uniportal_active = UNIPORTAL_MODE or bool(MOCK_UNIPORTAL_DIR)
+    is_uniportal = uniportal_active and project_id in _build_item_index()
 
     code_files = _collect_code_files(root)
     if not code_files:
@@ -607,22 +701,46 @@ def analyze_project(
         except OSError as e:
             payload["save_report_error"] = str(e)
 
+    # ---- 共享卷写回: 当项目来自 UniPortal 共享卷且可写时 ----
+    if is_uniportal and (UNIPORTAL_WRITABLE or bool(MOCK_UNIPORTAL_DIR)):
+        try:
+            _write_back_to_uniportal(root, project_id, payload)
+            payload["uniportal_writeback"] = "ok"
+        except OSError as e:
+            payload["uniportal_writeback_error"] = str(e)
+
     return JSONResponse(payload)
 
 
 @app.delete("/projects/{project_id}")
 def delete_project(project_id: str) -> JSONResponse:
-    """只允许删除本工具私有卷里的项目. UniPortal 项目应回到 UniPortal 删."""
+    """删除项目.
+
+    权限规则:
+      - 私有卷项目 (local): 始终可删
+      - UniPortal 共享卷项目: 仅当 UNIPORTAL_WRITABLE=true 或 MOCK_UNIPORTAL_DIR 时可删
+      - 模拟模式 (MOCK_UNIPORTAL_DIR): 始终可删（仅本地文件）
+    """
 
     pid = _safe_project_id(project_id)
     local = LOCAL_WORKSPACES_DIR / pid
     if local.is_dir():
         shutil.rmtree(local, ignore_errors=True)
         return JSONResponse({"deleted": True, "project_id": pid, "source": "local"})
-    if UNIPORTAL_MODE and pid in _build_item_index():
+
+    uniportal_active = UNIPORTAL_MODE or bool(MOCK_UNIPORTAL_DIR)
+    if uniportal_active and pid in _build_item_index():
+        if UNIPORTAL_WRITABLE or bool(MOCK_UNIPORTAL_DIR):
+            item_path = _build_item_index()[pid]
+            shutil.rmtree(item_path, ignore_errors=True)
+            return JSONResponse({
+                "deleted": True,
+                "project_id": pid,
+                "source": "uniportal",
+            })
         raise HTTPException(
             status_code=403,
-            detail="UniPortal 来源的项目请到 UniPortal 删除",
+            detail="UniPortal 共享卷为只读模式，请到 UniPortal 删除项目",
         )
     raise HTTPException(status_code=404, detail=f"项目 {pid!r} 未找到")
 
@@ -659,7 +777,9 @@ def healthz() -> dict:
     return {
         "status": "ok",
         "engine": "codetidy (DeepSITRServer)",
-        "uniportal_mode": UNIPORTAL_MODE,
-        "uniportal_storage_path": UNIPORTAL_STORAGE_PATH or None,
+        "uniportal_mode": UNIPORTAL_MODE or bool(MOCK_UNIPORTAL_DIR),
+        "uniportal_storage_path": UNIPORTAL_STORAGE_PATH or MOCK_UNIPORTAL_DIR or None,
+        "uniportal_writable": UNIPORTAL_WRITABLE or bool(MOCK_UNIPORTAL_DIR),
+        "mock_uniportal": bool(MOCK_UNIPORTAL_DIR),
         "local_workspaces_dir": str(LOCAL_WORKSPACES_DIR),
     }

@@ -63,8 +63,15 @@ ct8114-DeepSITRServer/
 ├── requirements.txt       # Python 依赖
 ├── dockerfile             # Docker 镜像构建
 ├── docker-compose.yml     # Docker Compose 编排
+├── docker-compose.override.yml  # 本地开发覆盖（模拟共享卷）
+├── .env.example           # 本地开发环境变量示例
 ├── build.sh               # 构建脚本
 ├── run.sh                 # 运行脚本
+├── mock_uniportal/        # 本地模拟 UniPortal 共享卷（测试用）
+│   ├── proj_001/          #   模拟 UniPortal 工程
+│   │   └── demo_project/  #     模拟项目（含测试源码）
+│   └── proj_002/          #   模拟 UniPortal 工程
+│       └── hello_world/   #     模拟项目（含测试源码）
 ├── static/                # 静态资源（旧版纯 HTML 首页）
 ├── frontend/              # Vue 3 + Vite 前端项目
 │   ├── src/
@@ -139,19 +146,36 @@ Content-Type: multipart/form-data
 3. 解析输出，以 **DSIT 兼容 JSON** 格式返回前端
 4. 默认清理临时目录（可通过 `?keep=true` 保留）
 
-### B. UniPortal 项目分析（双源接入）
+### B. UniPortal 项目分析（双源接入 — 可读写共享卷）
 
-| API                      | 方法     | 说明                     |
-| ------------------------ | -------- | ------------------------ |
-| `/projects`              | `GET`    | 列出两个数据源的项目列表 |
-| `/projects/{id}/files`   | `GET`    | 列出项目内可分析的源文件 |
-| `/projects/{id}/analyze` | `POST`   | 对项目执行 codetidy 分析 |
-| `/projects/{id}`         | `DELETE` | 删除私有卷中的项目       |
+| API                      | 方法     | 说明                                          |
+| ------------------------ | -------- | --------------------------------------------- |
+| `/projects`              | `GET`    | 列出两个数据源的项目列表                      |
+| `/projects/{id}/files`   | `GET`    | 列出项目内可分析的源文件                      |
+| `/projects/{id}/analyze` | `POST`   | 对项目执行 codetidy 分析并写回报告            |
+| `/projects/{id}`         | `DELETE` | 删除项目（共享卷可写时支持删 UniPortal 项目） |
 
 **双源数据约定**：
 
-1. 先查 `LOCAL_WORKSPACES_DIR/{project_id}/`（子工具自上传，读写）
-2. 再查 `UNIPORTAL_STORAGE_PATH/*/{project_id}/`（UniPortal 共享卷，只读）
+1. 先查 `UNIPORTAL_STORAGE_PATH/{portal_proj_id}/{project_id}/`（UniPortal 共享卷，可读写）
+2. 再查 `LOCAL_WORKSPACES_DIR/{project_id}/`（子工具自上传，读写）
+
+**共享卷读写机制**：
+
+当 `UNIPORTAL_WRITABLE=true`（默认）或使用模拟卷时，分析完成后会自动写回：
+
+- **报告文件**: `{project_dir}/_ct8114/last_report.json`
+- **元信息**: `{project_dir}/meta.json`（含最近分析时间、报告摘要）
+
+```
+UniPortal 共享卷目录结构:
+{portal_proj_id}/
+└── {project_id}/              # 项目源码目录
+    ├── src/                   # C/C++ 源码
+    ├── _ct8114/               # ct8114 写回目录
+    │   └── last_report.json   # 最新分析报告
+    └── meta.json              # 项目元信息（含分析摘要）
+```
 
 ### C. 加载已有报告 (DSIT)
 
@@ -180,32 +204,55 @@ Content-Type: multipart/form-data
 
 ## 环境变量
 
-| 变量                     | 默认值                     | 说明                                       |
-| ------------------------ | -------------------------- | ------------------------------------------ |
-| `MAX_TOTAL_BYTES`        | `5242880` (5MB)            | 即时上传文件总大小限制                     |
-| `MAX_ZIP_BYTES`          | `52428800` (50MB)          | ZIP 上传大小限制                           |
-| `MAX_ZIP_EXTRACT_BYTES`  | `209715200` (200MB)        | ZIP 解压后大小限制                         |
-| `UNIPORTAL_STORAGE_PATH` | —                          | UniPortal 共享卷路径（设置后启用双源模式） |
-| `LOCAL_WORKSPACES_DIR`   | `workspaces`               | 本地项目存储目录                           |
-| `REPORTS_DIR`            | `workspaces/_reports`      | 分析报告存储目录                           |
-| `DSIT_REPORTS_DIR`       | `workspaces/_dsit_reports` | DSIT 报告存储目录                          |
+| 变量                     | 默认值                     | 说明                                                         |
+| ------------------------ | -------------------------- | ------------------------------------------------------------ |
+| `MAX_TOTAL_BYTES`        | `5242880` (5MB)            | 即时上传文件总大小限制                                       |
+| `MAX_ZIP_BYTES`          | `52428800` (50MB)          | ZIP 上传大小限制                                             |
+| `MAX_ZIP_EXTRACT_BYTES`  | `209715200` (200MB)        | ZIP 解压后大小限制                                           |
+| `UNIPORTAL_STORAGE_PATH` | —                          | UniPortal 共享卷路径（Docker: `/data/uniportal`）            |
+| `UNIPORTAL_WRITABLE`     | `true`                     | 共享卷是否可写（`true`=可读写, `false`=只读）                |
+| `MOCK_UNIPORTAL_DIR`     | —                          | 本地模拟共享卷路径（设置后启用模拟模式，无需真实 UniPortal） |
+| `LOCAL_WORKSPACES_DIR`   | `workspaces`               | 本地项目存储目录                                             |
+| `REPORTS_DIR`            | `workspaces/_reports`      | 分析报告存储目录                                             |
+| `DSIT_REPORTS_DIR`       | `workspaces/_dsit_reports` | DSIT 报告存储目录                                            |
 
 ---
 
 ## Docker 架构
 
 ```
-┌─────────────────────────────────────────────┐
-│              ct8114 容器                      │
-│                                              │
-│  FastAPI (Uvicorn) :8000                     │
-│       │                                       │
-│       ├── codetidy.exe (GJB 8114 分析)        │
-│       ├── /app/local_workspaces/ (本地项目)    │
-│       ├── /app/workspaces/_tasks/ (任务目录)   │
-│       └── /data/uniportal/ (UniPortal 挂载)   │
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│                   ct8114 容器                      │
+│                                                   │
+│  FastAPI (Uvicorn) :8000                          │
+│       │                                            │
+│       ├── codetidy.exe (GJB 8114 分析)             │
+│       ├── /app/local_workspaces/ (本地私有项目)     │
+│       ├── /app/workspaces/_tasks/ (任务沙盒)       │
+│       └── /data/uniportal/ (UniPortal 共享卷 ↔️)   │
+│            ↑↓ 双向读写                              │
+│            ├── 读取: 项目源码                       │
+│            └── 写回: _ct8114/last_report.json      │
+└──────────────────────────────────────────────────┘
 ```
+
+### 本地开发测试（模拟共享卷）
+
+无需真实 UniPortal，使用 `mock_uniportal/` 目录模拟共享卷：
+
+```bash
+# 方式一: 直接设置环境变量启动
+$env:MOCK_UNIPORTAL_DIR="mock_uniportal"
+uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+
+# 方式二: 使用 docker-compose.override.yml（已预置）
+docker-compose up -d
+
+# 方式三: Linux/macOS
+MOCK_UNIPORTAL_DIR=mock_uniportal uvicorn server:app --host 0.0.0.0 --port 8000
+```
+
+启动后访问 `http://localhost:8000/projects` 即可看到模拟共享卷中的项目列表，运行分析后检查 `mock_uniportal/proj_001/demo_project/_ct8114/last_report.json` 确认写回成功。
 
 ---
 

@@ -17,3 +17,6 @@ Thumbs.db
 
 # DeepSITRServer (not part of this repo)
 DeepSITRServer-2026-6-9/
+
+# Mock UniPortal shared volume (local testing only)
+mock_uniportal/

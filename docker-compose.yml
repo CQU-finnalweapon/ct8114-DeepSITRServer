@@ -2,9 +2,10 @@ version: "3.9"
 
 # ==============================================================
 # 卷职责划分:
-#   uniportal_storage — UniPortal 共享卷 (只读)
+#   uniportal_storage — UniPortal 共享卷 (可读写)
 #     读取上传的 C/C++ 源码, 目录结构:
 #         {portal_proj_id}/{item_id}/{解压后源码根目录}/
+#     分析完成后, 报告写回 {item_id}/_ct8114/last_report.json
 #   ct8114_local — 本工具私有读写卷
 #     存放本工具自有上传的项目 (proj_*) 以及每次分析的报告
 #         {project_id}/_ct8114/last_report.json
@@ -20,8 +21,8 @@ services:
     ports:
       - "8006:8000"
     volumes:
-      # UniPortal 共享卷 (只读) — 不能写, 否则报 read-only filesystem
-      - uniportal_storage:/data/uniportal:ro
+      # UniPortal 共享卷 (可读写) — 分析报告写回 _ct8114/ 子目录
+      - uniportal_storage:/data/uniportal
       # 本工具私有: 自上传项目 + 分析报告 (可读写)
       - ct8114_local:/app/local_workspaces
       # 本工具私有: clang-tidy 沙盒 (可读写)
@@ -29,15 +30,28 @@ services:
     environment:
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
-      # 共享卷源码读取路径 (只读)
+      # 共享卷源码路径 (可读写)
       - UNIPORTAL_STORAGE_PATH=/data/uniportal
+      # 共享卷可写开关 (true=可写, false=只读)
+      - UNIPORTAL_WRITABLE=true
       # 本工具生成物写入路径 (可读写)
       - LOCAL_WORKSPACES_DIR=/app/local_workspaces
-      # clang-tidy 沙盒目录 (可读写)
+      # codetidy 沙盒目录 (可读写)
       - TASKS_DIR=/app/workspaces/_tasks
       # GJB8114 检查项配置 (如需关闭部分检查, 在此调整)
       - CLANG_TIDY_CHECKS=gjb8114-*,-gjb8114-r-1-3-8,-gjb8114-r-1-7-3,-gjb8114-r-1-7-7
     restart: unless-stopped
+
+# ========== 本地开发覆盖 (docker-compose.override.yml) ==========
+# 当需要本地测试且无真实 UniPortal 时, 创建 docker-compose.override.yml:
+#
+#   services:
+#     app:
+#       volumes:
+#         - ./mock_uniportal:/data/uniportal
+#       environment:
+#         - MOCK_UNIPORTAL_DIR=/data/uniportal
+#         - UNIPORTAL_STORAGE_PATH=
 
 # ==============================================================
 # 卷声明
