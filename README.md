@@ -1,7 +1,7 @@
 # ct8114 — GJB 8114 代码分析服务 (DeepSITRServer / codetidy 引擎)
 
 > 基于 **FastAPI** + **Vue 3** 的 **codetidy.exe (DeepSITRServer)** 在线静态代码分析服务  
-> 支持即时上传分析、UniPortal 项目分析和预生成报告加载
+> 支持异步分析 + 前端轮询、UniPortal 项目分析和预生成报告加载
 
 ---
 
@@ -11,13 +11,45 @@
 
 > **v2 架构变更**: 本版本已完全移除 clang-tidy + 插件方案，统一使用 DeepSITRServer 的 codetidy.exe 引擎，分析结果以 DSIT 兼容格式（`.xplusx.err` JSON）输出。
 
-### 三种工作模式
+### 四种工作模式
 
-| 模式                   | 说明                                                                    | 入口            |
-| ---------------------- | ----------------------------------------------------------------------- | --------------- |
-| **即时上传分析**       | 浏览器上传 C/C++ 文件，codetidy 实时分析，返回 DSIT 格式诊断            | `POST /analyze` |
-| **UniPortal 项目分析** | 接入 UniPortal 平台，对共享卷中的项目进行批量分析（双源接入）           | `/projects/*`   |
-| **加载已有报告**       | 加载 DeepSITRServer 预生成的输出目录（`.xplusx.err` / `.sta` / `.rst`） | `/dsit/*`       |
+| 模式                   | 说明                                                                    | 入口                                 |
+| ---------------------- | ----------------------------------------------------------------------- | ------------------------------------ |
+| **即时上传分析**       | 浏览器上传 C/C++ 文件 → 异步 codetidy 分析 → 前端轮询获取结果           | `POST /analyze` + `GET /status/{id}` |
+| **UniPortal 项目分析** | 接入 UniPortal 平台，对共享卷中的项目进行异步批量分析（双源接入）       | `/projects/*` + `GET /status/{id}`   |
+| **加载已有报告**       | 加载 DeepSITRServer 预生成的输出目录（`.xplusx.err` / `.sta` / `.rst`） | `/dsit/*`                            |
+| **任务状态轮询**       | 查询异步分析任务的实时状态（pending → running → completed/failed）      | `GET /status/{request_id}`           |
+
+---
+
+## 异步分析 + 轮询架构 (v2.1)
+
+codetidy 分析可能耗时较长（大型项目可达数分钟），为避免 HTTP 请求超时，v2.1 将分析与查询解耦：
+
+```
+┌──────────┐     POST /analyze       ┌──────────────┐    后台线程    ┌───────────┐
+│  前端     │ ──────────────────────→ │  FastAPI      │ ───────────→ │ codetidy   │
+│ Vue 3    │ ←── {request_id,status} │  server.py    │              │ .exe        │
+│          │                         │               │              │            │
+│          │    GET /status/{id}     │  _TASK_STORE  │ ←── 完成 ── │            │
+│  轮询    │ ──────────────────────→ │  {pending,    │              └───────────┘
+│ (1.5s)   │ ←── {status,payload}    │   running,    │
+└──────────┘                         │   completed,  │
+                                      │   failed}     │
+                                      └──────────────┘
+```
+
+### 任务生命周期
+
+```
+pending (已入队) → running (codetidy 执行中) → completed (成功, 含完整报告)
+                                             → failed    (失败, 含错误信息)
+```
+
+- 任务 TTL: 3600s（过期自动清理）
+- 前端轮询间隔: 1.5s
+- 前端超时: 300s（与后端分析超时一致）
+- 按钮实时反馈: "轮询中 (第 N 次)..."
 
 ---
 
@@ -127,7 +159,7 @@ npm run build      # 生产构建 → ../static/
 
 ## API 接口详情
 
-### A. 即时上传分析
+### A. 即时上传分析（异步）
 
 ```
 POST /analyze
@@ -137,16 +169,40 @@ Content-Type: multipart/form-data
   files: 上传的 C/C++ 源文件（可多个）
   entry: 指定主入口文件名（可选）
   keep:  调试用，保留服务端临时文件（可选，默认 false）
+
+返回:
+  {request_id, status: "pending", message: "..."}
+  → 前端使用 request_id 轮询 GET /status/{request_id} 获取结果
 ```
 
 **流程**：
 
 1. 生成 UUID，在系统临时目录下建立工作目录
-2. 上传文件落盘，调用 `codetidy.exe` 进行分析
-3. 解析输出，以 **DSIT 兼容 JSON** 格式返回前端
-4. 默认清理临时目录（可通过 `?keep=true` 保留）
+2. 上传文件落盘，立即返回 `request_id`（状态: `pending`）
+3. 后台线程调用 `codetidy.exe` 进行分析
+4. 前端轮询 `GET /status/{request_id}` 直至 `completed`
 
-### B. UniPortal 项目分析（双源接入 — 可读写共享卷）
+### B. 异步任务状态轮询
+
+```
+GET /status/{request_id}
+
+返回:
+  {
+    request_id: "codetidy_xxx",
+    status: "pending" | "running" | "completed" | "failed",
+    payload: {...},          // 仅 completed 时存在
+    error: {...},            // 仅 failed 时存在
+    created_at: 123456.0,
+    updated_at: 123456.0,
+  }
+```
+
+```
+GET /status                 # 调试用，列出所有活跃任务
+```
+
+### C. UniPortal 项目分析（双源接入 — 可读写共享卷）
 
 | API                      | 方法     | 说明                                          |
 | ------------------------ | -------- | --------------------------------------------- |
@@ -177,7 +233,7 @@ UniPortal 共享卷目录结构:
     └── meta.json              # 项目元信息（含分析摘要）
 ```
 
-### C. 加载已有报告 (DSIT)
+### D. 加载已有报告 (DSIT)
 
 | API                         | 方法     | 说明                    |
 | --------------------------- | -------- | ----------------------- |
@@ -190,15 +246,20 @@ UniPortal 共享卷目录结构:
 
 ### API 一览
 
-| 端点                     | 方法     | 说明                     |
-| ------------------------ | -------- | ------------------------ |
-| `/`                      | `GET`    | 根路径，重定向到前端首页 |
-| `/analyze`               | `POST`   | 即时上传分析（codetidy） |
-| `/projects`              | `GET`    | 获取项目列表（双源合并） |
-| `/projects/{id}/files`   | `GET`    | 获取项目内源文件列表     |
-| `/projects/{id}/analyze` | `POST`   | 对项目执行 codetidy 分析 |
-| `/projects/{id}`         | `DELETE` | 删除私有项目             |
-| `/dsit/*`                | 多种     | 加载/查看/删除 DSIT 报告 |
+| 端点                     | 方法     | 说明                         |
+| ------------------------ | -------- | ---------------------------- |
+| `/`                      | `GET`    | 根路径，重定向到前端首页     |
+| `/analyze`               | `POST`   | 提交异步分析任务（即时上传） |
+| `/status/{request_id}`   | `GET`    | 轮询分析任务状态与结果       |
+| `/status`                | `GET`    | 列出所有活跃任务（调试用）   |
+| `/projects`              | `GET`    | 获取项目列表（双源合并）     |
+| `/projects/{id}/files`   | `GET`    | 获取项目内源文件列表         |
+| `/projects/{id}/analyze` | `POST`   | 提交异步分析任务（项目分析） |
+| `/projects/{id}`         | `DELETE` | 删除项目                     |
+| `/dsit/*`                | 多种     | 加载/查看/删除 DSIT 报告     |
+| `/healthz`               | `GET`    | 健康检查（含引擎/任务信息）  |
+| `/debug/dcab/start`      | `GET`    | 调试：解析 codetidy 路径     |
+| `/debug/dcab/check`      | `GET`    | 调试：检查 codetidy 可用性   |
 
 ---
 
@@ -215,6 +276,8 @@ UniPortal 共享卷目录结构:
 | `LOCAL_WORKSPACES_DIR`   | `workspaces`               | 本地项目存储目录                                             |
 | `REPORTS_DIR`            | `workspaces/_reports`      | 分析报告存储目录                                             |
 | `DSIT_REPORTS_DIR`       | `workspaces/_dsit_reports` | DSIT 报告存储目录                                            |
+| `MOCK_ANALYSIS`          | —                          | 设为 `true` 时跳过 codetidy，使用模拟数据（测试用）          |
+| `TASK_TTL_SECONDS`       | `3600`                     | 异步任务过期时间（秒），超时自动清理                         |
 
 ---
 
@@ -491,6 +554,19 @@ DeepSITRServer `xplusx.err` → ct8114 前端诊断卡片的字段映射：
 
 ## 测试方法
 
+### 异步轮询测试
+
+```bash
+cd ct8114-DeepSITRServer/ct8114-DeepSITRServer
+python test_async_polling.py
+```
+
+该脚本自动完成：
+1. 上传 C 源码 → 验证立即返回 `{request_id, status:"pending"}`
+2. 轮询 `GET /status/{request_id}` → 验证 `completed` 状态及完整报告
+3. 项目分析 → 同上流程
+4. 验证 404 未知任务
+
 ### 自动化集成测试
 
 ```bash
@@ -550,4 +626,4 @@ E:\北航项目\DeepSITRServer-2026-6-9\DeepSITRServer\Test2
 
 ---
 
-> **总结**: `ct8114` 是一个使用 DeepSITRServer 内置 codetidy.exe 引擎的 GJB 8114 代码合规性 Web 分析服务。v2 版本已完全移除 clang-tidy 依赖，统一使用 codetidy + DSIT 格式，支持即时上传分析、UniPortal 项目分析和预生成报告加载三种工作模式。
+> **总结**: `ct8114` 是一个使用 DeepSITRServer 内置 codetidy.exe 引擎的 GJB 8114 代码合规性 Web 分析服务。v2.1 版本引入**异步分析 + 前端轮询**架构，将耗时的 codetidy 执行与 HTTP 请求解耦，支持即时上传分析、UniPortal 项目分析、预生成报告加载和任务状态轮询四种工作模式。
