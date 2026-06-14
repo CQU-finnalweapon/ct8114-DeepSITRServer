@@ -1,86 +1,85 @@
-# ct8114 — GJB 8114 代码分析服务 (DeepSITRServer / codetidy 引擎)
+# ct8114 — GJB 8114 代码分析服务
 
-> 基于 **FastAPI** + **Vue 3** 的 **codetidy.exe (DeepSITRServer)** 在线静态代码分析服务  
-> 支持异步分析 + 前端轮询、UniPortal 项目分析和预生成报告加载
-
----
-
-## 项目概述
-
-`ct8114` 是一个基于 Python **FastAPI** 构建的 Web 服务，前端使用 **Vue 3 + Vite + TypeScript**，后端使用 DeepSITRServer 内置的 **codetidy.exe** 作为唯一分析引擎，对 C/C++ 代码进行**军用编码规范 (GJB 8114)** 合规检测。
-
-> **v2 架构变更**: 本版本已完全移除 clang-tidy + 插件方案，统一使用 DeepSITRServer 的 codetidy.exe 引擎，分析结果以 DSIT 兼容格式（`.xplusx.err` JSON）输出。
-
-### 四种工作模式
-
-| 模式                   | 说明                                                                    | 入口                                 |
-| ---------------------- | ----------------------------------------------------------------------- | ------------------------------------ |
-| **即时上传分析**       | 浏览器上传 C/C++ 文件 → 异步 codetidy 分析 → 前端轮询获取结果           | `POST /analyze` + `GET /status/{id}` |
-| **UniPortal 项目分析** | 接入 UniPortal 平台，对共享卷中的项目进行异步批量分析（双源接入）       | `/projects/*` + `GET /status/{id}`   |
-| **加载已有报告**       | 加载 DeepSITRServer 预生成的输出目录（`.xplusx.err` / `.sta` / `.rst`） | `/dsit/*`                            |
-| **任务状态轮询**       | 查询异步分析任务的实时状态（pending → running → completed/failed）      | `GET /status/{request_id}`           |
+基于 **FastAPI** + **codetidy.exe (DeepSITRServer)** 的在线静态代码分析服务，对 C/C++ 代码进行 **GJB 8114** 军用编码规范合规检测。
 
 ---
 
-## 异步分析 + 轮询架构 (v2.1)
+## 快速开始
 
-codetidy 分析可能耗时较长（大型项目可达数分钟），为避免 HTTP 请求超时，v2.1 将分析与查询解耦：
+### 1. 配置 codetidy 引擎
 
-```
-┌──────────┐     POST /analyze       ┌──────────────┐    后台线程    ┌───────────┐
-│  前端     │ ──────────────────────→ │  FastAPI      │ ───────────→ │ codetidy   │
-│ Vue 3    │ ←── {request_id,status} │  server.py    │              │ .exe        │
-│          │                         │               │              │            │
-│          │    GET /status/{id}     │  _TASK_STORE  │ ←── 完成 ── │            │
-│  轮询    │ ──────────────────────→ │  {pending,    │              └───────────┘
-│ (1.5s)   │ ←── {status,payload}    │   running,    │
-└──────────┘                         │   completed,  │
-                                      │   failed}     │
-                                      └──────────────┘
+```powershell
+# 推荐：设置 DeepSITRServer 安装目录
+$env:DEEPSITR_ROOT="E:\path\to\DeepSITRServer"
+
+# 或直接指定 exe 路径
+$env:CODETIDY_BIN="E:\path\to\DeepSITRServer\core\codetidy.exe"
 ```
 
-### 任务生命周期
+> 搜索优先级: `DEEPSITR_ROOT` → `CODETIDY_BIN` → `./DeepSITRServer/core/codetidy.exe` → 递归搜索
+
+### 2. 启动服务
+
+```bash
+pip install -r requirements.txt
+uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+```
+
+访问 `http://localhost:8000`
+
+### 3. 模拟共享卷（本地测试）
+
+```powershell
+$env:MOCK_UNIPORTAL_DIR="mock_uniportal"
+uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+```
+
+---
+
+## 异步分析架构
 
 ```
-pending (已入队) → running (codetidy 执行中) → completed (成功, 含完整报告)
-                                             → failed    (失败, 含错误信息)
+POST /analyze ──→ FastAPI ──→ codetidy.exe (后台线程)
+     │                 │
+     └── {request_id}  └── _TASK_STORE {pending→running→completed/failed}
+                            ↑
+GET /status/{request_id} ───┘  (前端轮询 2s 间隔)
 ```
 
 - 任务 TTL: 3600s（过期自动清理）
-- 前端轮询间隔: 1.5s
-- 前端超时: 300s（与后端分析超时一致）
-- 按钮实时反馈: "轮询中 (第 N 次)..."
+- 轮询间隔: 2s，超时: 300s
 
 ---
 
-## 技术栈
+## API 概览
 
-| 层级             | 技术                                                                              |
-| ---------------- | --------------------------------------------------------------------------------- |
-| **后端框架**     | **FastAPI** (Python 3) + Uvicorn ASGI                                             |
-| **前端框架**     | **Vue 3** + **Vite** + **TypeScript**                                             |
-| **静态分析引擎** | **codetidy.exe** (DeepSITRServer 内置, clang-tidy + GJB 8114 规则)                |
-| **报告解析**     | `dsit_parser.py` — 解析 `.xplusx.err` JSON + codetidy 实时输出                    |
-| **容器化**       | **Docker** + **docker-compose**（基于 `ghcr.io/gjb8114/clang-tidy-gjb8114` 镜像） |
-| **代码规范**     | GJB 8114 军用软件编码规范                                                         |
+| 端点                     | 方法   | 说明                             |
+| ------------------------ | ------ | -------------------------------- |
+| `/analyze`               | POST   | 上传文件并提交异步分析           |
+| `/status/{request_id}`   | GET    | 轮询任务状态与结果               |
+| `/status`                | GET    | 列出所有活跃任务（调试）         |
+| `/projects`              | GET    | 获取项目列表（UniPortal + 本地） |
+| `/projects/{id}/analyze` | POST   | 对项目执行异步分析               |
+| `/projects/{id}`         | DELETE | 删除项目                         |
+| `/dsit/*`                | 多种   | 加载/查看/删除 DSIT 报告         |
+| `/healthz`               | GET    | 健康检查                         |
 
-### Python 依赖
+---
 
-```
-fastapi
-uvicorn[standard]
-python-multipart
-pyyaml
-```
+## 环境变量
 
-### 前端依赖
-
-```
-vue 3.5
-vite 6.3
-typescript 5.8
-vue-tsc 2.2
-```
+| 变量                     | 默认值                | 说明                              |
+| ------------------------ | --------------------- | --------------------------------- |
+| `DEEPSITR_ROOT`          | —                     | DeepSITRServer 安装根目录（推荐） |
+| `CODETIDY_BIN`           | —                     | codetidy.exe 完整路径             |
+| `CODETIDY_CHECKS`        | `clang-analyzer-gjb*` | 检查规则                          |
+| `CODETIDY_TIMEOUT`       | `300`                 | 分析超时（秒）                    |
+| `UNIPORTAL_STORAGE_PATH` | —                     | UniPortal 共享卷路径              |
+| `UNIPORTAL_WRITABLE`     | `true`                | 共享卷是否可写                    |
+| `MOCK_UNIPORTAL_DIR`     | —                     | 本地模拟共享卷路径                |
+| `MOCK_ANALYSIS`          | —                     | `true` 时跳过 codetidy（测试用）  |
+| `TASK_TTL_SECONDS`       | `3600`                | 异步任务过期时间（秒）            |
+| `MAX_TOTAL_BYTES`        | `5MB`                 | 上传文件大小限制                  |
 
 ---
 
@@ -88,271 +87,31 @@ vue-tsc 2.2
 
 ```
 ct8114-DeepSITRServer/
-├── server.py              # FastAPI 主服务（路由、中间件、配置）
-├── routers_dsit.py        # DSIT 报告管理 API 路由
-├── dsit_parser.py         # codetidy 调用封装 + DSIT 输出解析
-├── fixes_parser.py        # 修复建议解析器
+├── server.py              # FastAPI 主服务
+├── dsit_parser.py         # codetidy 调用封装 + 输出解析
+├── routers_dsit.py        # DSIT 报告管理路由
+├── fixes_parser.py        # 修复建议解析器（兼容保留）
 ├── requirements.txt       # Python 依赖
-├── dockerfile             # Docker 镜像构建
+├── .env.example           # 环境变量模板
+├── dockerfile             # Docker 构建
 ├── docker-compose.yml     # Docker Compose 编排
-├── docker-compose.override.yml  # 本地开发覆盖（模拟共享卷）
-├── .env.example           # 本地开发环境变量示例
-├── build.sh               # 构建脚本
-├── run.sh                 # 运行脚本
-├── mock_uniportal/        # 本地模拟 UniPortal 共享卷（测试用）
-│   ├── proj_001/          #   模拟 UniPortal 工程
-│   │   └── demo_project/  #     模拟项目（含测试源码）
-│   └── proj_002/          #   模拟 UniPortal 工程
-│       └── hello_world/   #     模拟项目（含测试源码）
-├── static/                # 静态资源（旧版纯 HTML 首页）
-├── frontend/              # Vue 3 + Vite 前端项目
+├── docker-compose.override.yml  # 本地开发覆盖
+├── scripts/               # 构建/运行辅助脚本
+│   ├── build.sh
+│   └── run.sh
+├── frontend/              # Vue 3 + Vite 前端源码
 │   ├── src/
-│   │   ├── App.vue        # 根组件
-│   │   ├── main.ts        # 入口
-│   │   ├── components/    # 通用组件
-│   │   ├── api/           # API 调用层
-│   │   ├── utils/         # 工具函数
-│   │   └── styles.css     # 全局样式
-│   ├── index.html         # HTML 模板
-│   ├── vite.config.ts     # Vite 配置
-│   └── package.json       # 前端依赖
-├── workspaces/            # 项目工作空间（本地项目 + 报告存储）
-└── test_*.py              # 测试脚本
+│   │   ├── App.vue
+│   │   ├── components/
+│   │   ├── api/
+│   │   └── utils/
+│   ├── vite.config.ts
+│   └── package.json
+├── static/                # 构建输出（纯 HTML 前端）
+├── mock_uniportal/        # 本地模拟共享卷
+├── workspaces/            # 项目工作空间 + 报告存储
+└── OUTPUT_SPEC.md         # 输出规范文档
 ```
-
----
-
-## 快速开始
-
-### 前置条件：配置 codetidy 引擎路径
-
-本服务依赖 DeepSITRServer 的 `codetidy.exe` 进行 GJB 8114 分析。请通过以下任一方式配置：
-
-**方式一（推荐）：设置 `DEEPSITR_ROOT` 环境变量**
-
-```powershell
-# Windows PowerShell
-$env:DEEPSITR_ROOT="E:\path\to\DeepSITRServer"
-```
-
-```bash
-# Linux / macOS
-export DEEPSITR_ROOT=/opt/DeepSITRServer
-```
-
-**方式二：设置 `CODETIDY_BIN` 环境变量（直接指定 exe 路径）**
-
-```powershell
-$env:CODETIDY_BIN="E:\path\to\DeepSITRServer\core\codetidy.exe"
-```
-
-**方式三：将 `codetidy.exe` 放在项目目录下的 `DeepSITRServer/core/` 中**
-
-```
-ct8114-DeepSITRServer/
-└── DeepSITRServer/
-    └── core/
-        └── codetidy.exe
-```
-
-> 搜索优先级: `DEEPSITR_ROOT` → `CODETIDY_BIN` → `./DeepSITRServer/core/codetidy.exe` → 递归搜索 → PATH
-
-### 本地运行
-
-```bash
-# 安装 Python 依赖
-pip install -r requirements.txt
-
-# 启动服务（确保已设置 DEEPSITR_ROOT 或 CODETIDY_BIN）
-uvicorn server:app --host 0.0.0.0 --port 8000 --reload
-```
-
-服务启动后访问：`http://localhost:8000`
-
-### Docker 部署
-
-```bash
-# 构建镜像
-docker build -t ct8114-server -f dockerfile .
-
-# 或使用 docker-compose
-docker-compose up -d
-```
-
-### 前端开发
-
-```bash
-cd frontend
-npm install
-npm run dev        # 开发模式
-npm run build      # 生产构建 → ../static/
-```
-
----
-
-## API 接口详情
-
-### A. 即时上传分析（异步）
-
-```
-POST /analyze
-Content-Type: multipart/form-data
-
-参数:
-  files: 上传的 C/C++ 源文件（可多个）
-  entry: 指定主入口文件名（可选）
-  keep:  调试用，保留服务端临时文件（可选，默认 false）
-
-返回:
-  {request_id, status: "pending", message: "..."}
-  → 前端使用 request_id 轮询 GET /status/{request_id} 获取结果
-```
-
-**流程**：
-
-1. 生成 UUID，在系统临时目录下建立工作目录
-2. 上传文件落盘，立即返回 `request_id`（状态: `pending`）
-3. 后台线程调用 `codetidy.exe` 进行分析
-4. 前端轮询 `GET /status/{request_id}` 直至 `completed`
-
-### B. 异步任务状态轮询
-
-```
-GET /status/{request_id}
-
-返回:
-  {
-    request_id: "codetidy_xxx",
-    status: "pending" | "running" | "completed" | "failed",
-    payload: {...},          // 仅 completed 时存在
-    error: {...},            // 仅 failed 时存在
-    created_at: 123456.0,
-    updated_at: 123456.0,
-  }
-```
-
-```
-GET /status                 # 调试用，列出所有活跃任务
-```
-
-### C. UniPortal 项目分析（双源接入 — 可读写共享卷）
-
-| API                      | 方法     | 说明                                          |
-| ------------------------ | -------- | --------------------------------------------- |
-| `/projects`              | `GET`    | 列出两个数据源的项目列表                      |
-| `/projects/{id}/files`   | `GET`    | 列出项目内可分析的源文件                      |
-| `/projects/{id}/analyze` | `POST`   | 对项目执行 codetidy 分析并写回报告            |
-| `/projects/{id}`         | `DELETE` | 删除项目（共享卷可写时支持删 UniPortal 项目） |
-
-**双源数据约定**：
-
-1. 先查 `UNIPORTAL_STORAGE_PATH/{portal_proj_id}/{project_id}/`（UniPortal 共享卷，可读写）
-2. 再查 `LOCAL_WORKSPACES_DIR/{project_id}/`（子工具自上传，读写）
-
-**共享卷读写机制**：
-
-当 `UNIPORTAL_WRITABLE=true`（默认）或使用模拟卷时，分析完成后会自动写回：
-
-- **报告文件**: `{project_dir}/_ct8114/last_report.json`
-- **元信息**: `{project_dir}/meta.json`（含最近分析时间、报告摘要）
-
-```
-UniPortal 共享卷目录结构:
-{portal_proj_id}/
-└── {project_id}/              # 项目源码目录
-    ├── src/                   # C/C++ 源码
-    ├── _ct8114/               # ct8114 写回目录
-    │   └── last_report.json   # 最新分析报告
-    └── meta.json              # 项目元信息（含分析摘要）
-```
-
-### D. 加载已有报告 (DSIT)
-
-| API                         | 方法     | 说明                    |
-| --------------------------- | -------- | ----------------------- |
-| `/dsit/upload`              | `POST`   | 上传 DSIT 输出目录 .zip |
-| `/dsit/upload-local`        | `POST`   | 从本地路径加载输出目录  |
-| `/dsit/reports`             | `GET`    | 列出已加载报告          |
-| `/dsit/report/{id}`         | `GET`    | 获取完整报告            |
-| `/dsit/report/{id}/summary` | `GET`    | 获取报告摘要            |
-| `/dsit/report/{id}`         | `DELETE` | 删除报告                |
-
-### API 一览
-
-| 端点                     | 方法     | 说明                         |
-| ------------------------ | -------- | ---------------------------- |
-| `/`                      | `GET`    | 根路径，重定向到前端首页     |
-| `/analyze`               | `POST`   | 提交异步分析任务（即时上传） |
-| `/status/{request_id}`   | `GET`    | 轮询分析任务状态与结果       |
-| `/status`                | `GET`    | 列出所有活跃任务（调试用）   |
-| `/projects`              | `GET`    | 获取项目列表（双源合并）     |
-| `/projects/{id}/files`   | `GET`    | 获取项目内源文件列表         |
-| `/projects/{id}/analyze` | `POST`   | 提交异步分析任务（项目分析） |
-| `/projects/{id}`         | `DELETE` | 删除项目                     |
-| `/dsit/*`                | 多种     | 加载/查看/删除 DSIT 报告     |
-| `/healthz`               | `GET`    | 健康检查（含引擎/任务信息）  |
-| `/debug/dcab/start`      | `GET`    | 调试：解析 codetidy 路径     |
-| `/debug/dcab/check`      | `GET`    | 调试：检查 codetidy 可用性   |
-
----
-
-## 环境变量
-
-| 变量                     | 默认值                     | 说明                                                                |
-| ------------------------ | -------------------------- | ------------------------------------------------------------------- |
-| `DEEPSITR_ROOT`          | —                          | **DeepSITRServer 安装根目录（推荐）**，自动查找 `core/codetidy.exe` |
-| `CODETIDY_BIN`           | —                          | codetidy.exe 完整路径（覆盖 `DEEPSITR_ROOT`）                       |
-| `CODETIDY_CHECKS`        | `clang-analyzer-gjb*`      | codetidy 启用的检查规则                                             |
-| `CODETIDY_TIMEOUT`       | `300`                      | codetidy 分析超时（秒）                                             |
-| `MAX_TOTAL_BYTES`        | `5242880` (5MB)            | 即时上传文件总大小限制                                              |
-| `MAX_ZIP_BYTES`          | `52428800` (50MB)          | ZIP 上传大小限制                                                    |
-| `MAX_ZIP_EXTRACT_BYTES`  | `209715200` (200MB)        | ZIP 解压后大小限制                                                  |
-| `UNIPORTAL_STORAGE_PATH` | —                          | UniPortal 共享卷路径（Docker: `/data/uniportal`）                   |
-| `UNIPORTAL_WRITABLE`     | `true`                     | 共享卷是否可写（`true`=可读写, `false`=只读）                       |
-| `MOCK_UNIPORTAL_DIR`     | —                          | 本地模拟共享卷路径（设置后启用模拟模式，无需真实 UniPortal）        |
-| `LOCAL_WORKSPACES_DIR`   | `workspaces`               | 本地项目存储目录                                                    |
-| `REPORTS_DIR`            | `workspaces/_reports`      | 分析报告存储目录                                                    |
-| `DSIT_REPORTS_DIR`       | `workspaces/_dsit_reports` | DSIT 报告存储目录                                                   |
-| `MOCK_ANALYSIS`          | —                          | 设为 `true` 时跳过 codetidy，使用模拟数据（测试用）                 |
-| `TASK_TTL_SECONDS`       | `3600`                     | 异步任务过期时间（秒），超时自动清理                                |
-
----
-
-## Docker 架构
-
-```
-┌──────────────────────────────────────────────────┐
-│                   ct8114 容器                      │
-│                                                   │
-│  FastAPI (Uvicorn) :8000                          │
-│       │                                            │
-│       ├── codetidy.exe (GJB 8114 分析)             │
-│       ├── /app/local_workspaces/ (本地私有项目)     │
-│       ├── /app/workspaces/_tasks/ (任务沙盒)       │
-│       └── /data/uniportal/ (UniPortal 共享卷 ↔️)   │
-│            ↑↓ 双向读写                              │
-│            ├── 读取: 项目源码                       │
-│            └── 写回: _ct8114/last_report.json      │
-└──────────────────────────────────────────────────┘
-```
-
-### 本地开发测试（模拟共享卷）
-
-无需真实 UniPortal，使用 `mock_uniportal/` 目录模拟共享卷：
-
-```bash
-# 方式一: 直接设置环境变量启动
-$env:MOCK_UNIPORTAL_DIR="mock_uniportal"
-uvicorn server:app --host 0.0.0.0 --port 8000 --reload
-
-# 方式二: 使用 docker-compose.override.yml（已预置）
-docker-compose up -d
-
-# 方式三: Linux/macOS
-MOCK_UNIPORTAL_DIR=mock_uniportal uvicorn server:app --host 0.0.0.0 --port 8000
-```
-
-启动后访问 `http://localhost:8000/projects` 即可看到模拟共享卷中的项目列表，运行分析后检查 `mock_uniportal/proj_001/demo_project/_ct8114/last_report.json` 确认写回成功。
 
 ---
 
@@ -370,84 +129,6 @@ MOCK_UNIPORTAL_DIR=mock_uniportal uvicorn server:app --host 0.0.0.0 --port 8000
 ## License
 
 Internal use — GJB 8114 Military Software Coding Standards Compliance Tool.
-| `/healthz` | `GET` | 健康检查（含引擎信息） |
-
----
-
-## 核心文件说明
-
-### `server.py` — 主服务程序
-
-FastAPI 应用入口，包含全部 REST API 端点。核心逻辑：
-
-- **环境变量配置**：
-  - `DEEPSITR_ROOT` — **DeepSITRServer 安装根目录（推荐）**，自动查找 `core/codetidy.exe`
-  - `CODETIDY_BIN` — codetidy.exe 完整路径（覆盖 `DEEPSITR_ROOT`）
-  - `CODETIDY_CHECKS` — 启用的检查规则（默认 `clang-analyzer-gjb*`）
-  - `UNIPORTAL_STORAGE_PATH` — UniPortal 共享卷路径
-  - `LOCAL_WORKSPACES_DIR` — 本地工作区目录
-  - `MAX_TOTAL_BYTES` — 上传文件大小上限（默认 5MB）
-
-- **文件过滤**：仅允许 `.c/.h/.cc/.cpp/.cxx/.hpp/.hxx` 后缀
-- **安全机制**：文件名防路径穿越、文件大小限制、超时控制
-
-### `dsit_parser.py` — 核心分析层
-
-提供两大功能：
-
-**A. codetidy 实时分析引擎**（替代 clang-tidy）：
-
-- `analyze_with_codetidy()` — 对源文件运行 codetidy.exe 并返回 DSITReport
-- `run_codetidy()` — 底层 codetidy.exe 调用
-- 自动收集 include 目录、处理编码、解析诊断输出
-
-**B. DeepSITRServer 输出解析**：
-
-- `parse_xplusx_err()` — 解析 `.xplusx.err` JSON 诊断文件
-- `parse_sta()` / `parse_rst()` — 解析统计/元数据文件
-- `parse_output_dir()` — 递归扫描整个输出目录
-
-**数据模型**：
-
-- `DSITReport` — 完整分析报告
-- `DSITBug` — 单条诊断（checker/rule_id/line/column/level/message）
-- `DSITFileStats` — 单文件统计
-
-### `routers_dsit.py` — DSIT 报告管理路由
-
-独立的 FastAPI Router，提供 6 个端点管理预生成的 DeepSITRServer 报告。
-
-### `fixes_parser.py` — 旧版 YAML 解析器（保留兼容）
-
-解析 clang-tidy `-export-fixes` 输出的 YAML 文件。v2 中不再作为主要解析路径，保留用于可能的兼容需求。
-
-### `static/index.html` — 前端页面
-
-纯静态 HTML 页面，提供三个模式标签：
-
-- **「直接上传」** — 拖拽/选择文件 → codetidy 实时分析 → DSIT 格式诊断卡片
-- **「项目库」** — UniPortal + 本地项目浏览 → codetidy 批量分析
-- **「加载报告」** — 上传/加载预生成的 DeepSITRServer 输出
-
-功能包括：统计面板、规则筛选 chip、搜索过滤、诊断卡片（规则编号 + 文件路径 + 行列号 + 错误描述）
-
-### `test.c` — 测试用例
-
-一个简单的 C 源码文件，包含 `byte_array` 结构体的实现，用于验证分析功能是否正常工作。
-
-### `run.sh` — 启动脚本
-
-```bash
-docker run -d --restart=always \
-  --name ct8114 \
-  -p 8006:8006 \
-  ct8114:v1 \
-  uvicorn server:app --host 0.0.0.0 --port 8006
-```
-
-默认运行在 `8006` 端口，可通过 `PORT` 环境变量自定义。
-
-### `build.sh` — 构建脚本
 
 ```bash
 docker build -t ct8114:v1 .
