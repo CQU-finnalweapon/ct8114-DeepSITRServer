@@ -30,20 +30,51 @@ async function readJson(response: Response): Promise<any> {
 }
 
 export function toFriendlyError(error: unknown, status?: number): string {
-  const value = typeof error === "object" && error !== null ? error as Record<string, any> : {};
-  const detail = value.detail ?? value.message ?? value.error ?? error;
-  const text = typeof detail === "string" ? detail : JSON.stringify(detail || value);
-  if (/codetidy\.exe|CODETIDY_BIN|未找到\s*codetidy|not found/i.test(text)) {
-    return "后端分析程序路径未配置或不存在";
+  // 统一提取错误文本，确保始终返回可读字符串
+  try {
+    if (error instanceof Error) {
+      // Error 对象：优先取 message，但跳过已经是 JSON 的二次包装
+      const msg = error.message || String(error);
+      // 如果 message 本身是 JSON 字符串，尝试解析后提取 detail
+      if (msg.startsWith("{") && msg.endsWith("}")) {
+        try {
+          const parsed = JSON.parse(msg);
+          return toFriendlyError(parsed, status);
+        } catch {
+          /* not JSON, use as-is */
+        }
+      }
+      return msg || `请求失败：HTTP ${status || "unknown"}`;
+    }
+
+    if (typeof error === "object" && error !== null) {
+      const value = error as Record<string, any>;
+      // 处理 FastAPI HTTPException 格式: { detail: "..." } 或 { detail: {...} }
+      const detail = value.detail;
+      if (detail !== undefined) {
+        if (typeof detail === "string") return detail;
+        if (typeof detail === "object") {
+          // 提取嵌套消息
+          return detail.message || detail.error || JSON.stringify(detail);
+        }
+        return String(detail);
+      }
+      // 其他对象格式
+      return value.message || value.error || JSON.stringify(value);
+    }
+
+    if (typeof error === "string") return error;
+    return `请求失败：HTTP ${status || "unknown"}`;
+  } catch {
+    return `请求失败：HTTP ${status || "unknown"}`;
   }
-  if (!text || text === "{}") return status ? `请求失败：HTTP ${status}` : "请求失败";
-  return text;
 }
 
 function buildQuery(params: Record<string, string | boolean | undefined>) {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== "" && value !== false) query.set(key, String(value));
+    if (value !== undefined && value !== "" && value !== false)
+      query.set(key, String(value));
   });
   const text = query.toString();
   return text ? `?${text}` : "";
@@ -51,7 +82,10 @@ function buildQuery(params: Record<string, string | boolean | undefined>) {
 
 export async function fetchProjects(portalProjectId?: string) {
   const url = `/projects${buildQuery({ portal_project_id: portalProjectId })}`;
-  return readJson(await fetch(url)) as Promise<{ projects: ProjectItem[]; uniportal_mode?: boolean }>;
+  return readJson(await fetch(url)) as Promise<{
+    projects: ProjectItem[];
+    uniportal_mode?: boolean;
+  }>;
 }
 
 export async function analyzeProject(projectId: string, entry?: string) {
@@ -59,7 +93,11 @@ export async function analyzeProject(projectId: string, entry?: string) {
   return readJson(await fetch(url, { method: "POST" }));
 }
 
-export async function analyzeUpload(files: File[], entry?: string, keep?: boolean) {
+export async function analyzeUpload(
+  files: File[],
+  entry?: string,
+  keep?: boolean,
+) {
   const body = new FormData();
   files.forEach((file) => body.append("files", file));
   const url = `/analyze${buildQuery({ entry, keep: keep ? "true" : undefined })}`;
@@ -81,13 +119,17 @@ export async function uploadDsitZip(file: File, reportName?: string) {
 }
 
 export async function fetchDsitReports() {
-  return readJson(await fetch("/dsit/reports")) as Promise<{ reports: DsitReportItem[] }>;
+  return readJson(await fetch("/dsit/reports")) as Promise<{
+    reports: DsitReportItem[];
+  }>;
 }
 
 export async function fetchDsitReport(reportId: string) {
   const [report, summary] = await Promise.all([
     readJson(await fetch(`/dsit/report/${encodeURIComponent(reportId)}`)),
-    fetch(`/dsit/report/${encodeURIComponent(reportId)}/summary`).then(readJson).catch(() => null)
+    fetch(`/dsit/report/${encodeURIComponent(reportId)}/summary`)
+      .then(readJson)
+      .catch(() => null),
   ]);
   if (summary && !report.summary) report.summary = summary;
   return report;

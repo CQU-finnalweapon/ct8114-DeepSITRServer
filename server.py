@@ -54,6 +54,8 @@ from fastapi.staticfiles import StaticFiles
 
 from dsit_parser import (
     CODETIDY_NOT_FOUND_MESSAGE,
+    DSITBug,
+    DSITFileStats,
     DSITReport,
     analyze_with_codetidy,
     find_codetidy_bin,
@@ -87,6 +89,9 @@ LOCAL_WORKSPACES_DIR = Path(
 )
 # 报告存储目录
 REPORTS_DIR = Path(os.environ.get("REPORTS_DIR", "workspaces/_reports"))
+
+# 模拟分析模式（本地测试用，无需 codetidy.exe）
+MOCK_ANALYSIS = os.environ.get("MOCK_ANALYSIS", "").lower() == "true"
 
 SOURCE_SUFFIXES = {".c", ".cc", ".cpp", ".cxx"}
 HEADER_SUFFIXES = {".h", ".hpp", ".hxx"}
@@ -310,6 +315,72 @@ def _local_project_display_name(project_dir: Path) -> str:
 # 即时上传分析
 # =====================================================================
 
+def _mock_analysis(target_files: List[Path], project_name: str) -> DSITReport:
+    """模拟分析：生成伪造的 DSIT 报告，用于本地测试流程。
+
+    报告包含针对每个源文件的模拟诊断结果，便于验证前端展示和共享卷写回。
+    """
+    import random
+    from datetime import datetime
+
+    # 模拟针对每个文件生成 1~3 条诊断
+    bugs: list = []
+    mock_rules = [
+        ("GJB-R-1-8-2", "禁止使用 goto 语句", "Warning", "0", "naming"),
+        ("GJB-R-1-3-8", "分支语句必须使用大括号", "Error", "1", "logic"),
+        ("GJB-R-1-7-3", "禁止使用魔数，应定义为常量", "Warning", "0", "style"),
+        ("GJB-R-1-5-1", "函数圈复杂度不应超过 10", "Warning", "0", "style"),
+        ("GJB-R-1-7-7", "字符串操作应使用安全函数", "Error", "1", "security"),
+    ]
+
+    for f in target_files:
+        fname = f.name
+        num_bugs = random.randint(1, 3)
+        for i in range(num_bugs):
+            rule = random.choice(mock_rules)
+            bugs.append(DSITBug(
+                checker=f"mock-checker-{rule[0]}",
+                file_path=fname,
+                line=random.randint(3, 80),
+                column=random.randint(1, 40),
+                message=f"[MOCK] {rule[1]}",
+                rule_id=rule[0],
+                force=rule[2],
+                type_code=rule[3],
+                status="open",
+            ))
+
+    # 文件统计
+    file_stats: list = []
+    for f in target_files:
+        lines = random.randint(20, 200)
+        fbugs = [b for b in bugs if b.file_path == f.name]
+        file_stats.append(DSITFileStats(
+            file_path=str(f),
+            total_lines=lines,
+            total_statements=random.randint(5, lines // 2),
+            total_declares=random.randint(1, 10),
+            function_count=random.randint(1, 8),
+            function_max_lines=random.randint(5, 50),
+            function_max_depth=random.randint(1, 6),
+            comment_lines=random.randint(5, 30),
+            code_size=lines * 40,
+            bugs=fbugs,
+        ))
+
+    total_bugs = len(bugs)
+    by_level = {"Error": 0, "Warning": 0}
+    for b in bugs:
+        by_level[b.level] = by_level.get(b.level, 0) + 1
+
+    return DSITReport(
+        report_id=f"mock_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+        project_name=project_name or "Mock Project",
+        project_path=str(target_files[0].parent) if target_files else "",
+        files_stats=file_stats,
+    )
+
+
 def _run_analysis(
     workdir: Path,
     target_files: List[Path],
@@ -319,7 +390,14 @@ def _run_analysis(
     """调用 codetidy.exe 分析源文件，返回 DSITReport。
 
     这是统一的内部分析入口，供 /analyze 和 /projects/{id}/analyze 共用。
+
+    当 MOCK_ANALYSIS=true 时，跳过 codetidy 调用，返回模拟分析数据，
+    用于本地开发测试共享卷读写等流程。
     """
+    # 模拟分析模式（本地测试，无需 codetidy.exe）
+    if MOCK_ANALYSIS:
+        return _mock_analysis(target_files, project_name)
+
     try:
         return analyze_with_codetidy(
             source_files=target_files,
