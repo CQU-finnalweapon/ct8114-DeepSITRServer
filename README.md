@@ -1,34 +1,36 @@
-# ct8114 — GJB 8114 代码分析服务 (codetidy 引擎)
+# ct8114 — GJB 8114 代码分析服务 (DeepSITRServer / codetidy 引擎)
 
-> 基于 **FastAPI** 的 **codetidy.exe (DeepSITRServer)** 在线静态代码分析服务  
+> 基于 **FastAPI** + **Vue 3** 的 **codetidy.exe (DeepSITRServer)** 在线静态代码分析服务  
 > 支持即时上传分析、UniPortal 项目分析和预生成报告加载
 
 ---
 
 ## 项目概述
 
-`ct8114` 是一个基于 Python **FastAPI** 构建的 Web 服务，使用 DeepSITRServer 内置的 **codetidy.exe** 作为唯一分析引擎，对 C/C++ 代码进行**军用编码规范 (GJB 8114)** 合规检测。
+`ct8114` 是一个基于 Python **FastAPI** 构建的 Web 服务，前端使用 **Vue 3 + Vite + TypeScript**，后端使用 DeepSITRServer 内置的 **codetidy.exe** 作为唯一分析引擎，对 C/C++ 代码进行**军用编码规范 (GJB 8114)** 合规检测。
 
 > **v2 架构变更**: 本版本已完全移除 clang-tidy + 插件方案，统一使用 DeepSITRServer 的 codetidy.exe 引擎，分析结果以 DSIT 兼容格式（`.xplusx.err` JSON）输出。
 
-提供三种工作模式：
+### 三种工作模式
 
-1. **即时上传分析** — 通过浏览器上传文件，codetidy 实时分析，返回 DSIT 格式诊断
-2. **UniPortal 项目分析** — 接入 UniPortal 平台，对共享卷中的项目进行批量分析
-3. **加载已有报告** — 加载 DeepSITRServer 预生成的输出目录（`.xplusx.err` / `.sta` / `.rst`）
+| 模式                   | 说明                                                                    | 入口            |
+| ---------------------- | ----------------------------------------------------------------------- | --------------- |
+| **即时上传分析**       | 浏览器上传 C/C++ 文件，codetidy 实时分析，返回 DSIT 格式诊断            | `POST /analyze` |
+| **UniPortal 项目分析** | 接入 UniPortal 平台，对共享卷中的项目进行批量分析（双源接入）           | `/projects/*`   |
+| **加载已有报告**       | 加载 DeepSITRServer 预生成的输出目录（`.xplusx.err` / `.sta` / `.rst`） | `/dsit/*`       |
 
 ---
 
 ## 技术栈
 
-| 组件         | 技术                                                          |
-| ------------ | ------------------------------------------------------------- |
-| Web 框架     | **FastAPI** (Python)                                          |
-| 静态分析引擎 | **codetidy.exe** (DeepSITRServer 内置, clang-tidy + GJB 8114) |
-| 前端界面     | 纯 **HTML/CSS** 静态页面（浅色蓝主题）                        |
-| 报告解析     | `dsit_parser.py` 解析 `.xplusx.err` JSON + codetidy 实时分析  |
-| 容器化       | **Docker** (基于 `ghcr.io/gjb8114/clang-tidy-gjb8114` 镜像)   |
-| 运行环境     | Python 3 + Uvicorn ASGI 服务器                                |
+| 层级             | 技术                                                                              |
+| ---------------- | --------------------------------------------------------------------------------- |
+| **后端框架**     | **FastAPI** (Python 3) + Uvicorn ASGI                                             |
+| **前端框架**     | **Vue 3** + **Vite** + **TypeScript**                                             |
+| **静态分析引擎** | **codetidy.exe** (DeepSITRServer 内置, clang-tidy + GJB 8114 规则)                |
+| **报告解析**     | `dsit_parser.py` — 解析 `.xplusx.err` JSON + codetidy 实时输出                    |
+| **容器化**       | **Docker** + **docker-compose**（基于 `ghcr.io/gjb8114/clang-tidy-gjb8114` 镜像） |
+| **代码规范**     | GJB 8114 军用软件编码规范                                                         |
 
 ### Python 依赖
 
@@ -39,18 +41,95 @@ python-multipart
 pyyaml
 ```
 
+### 前端依赖
+
+```
+vue 3.5
+vite 6.3
+typescript 5.8
+vue-tsc 2.2
+```
+
 ---
 
-## 工作模式
+## 项目结构
+
+```
+ct8114-DeepSITRServer/
+├── server.py              # FastAPI 主服务（路由、中间件、配置）
+├── routers_dsit.py        # DSIT 报告管理 API 路由
+├── dsit_parser.py         # codetidy 调用封装 + DSIT 输出解析
+├── fixes_parser.py        # 修复建议解析器
+├── requirements.txt       # Python 依赖
+├── dockerfile             # Docker 镜像构建
+├── docker-compose.yml     # Docker Compose 编排
+├── build.sh               # 构建脚本
+├── run.sh                 # 运行脚本
+├── static/                # 静态资源（旧版纯 HTML 首页）
+├── frontend/              # Vue 3 + Vite 前端项目
+│   ├── src/
+│   │   ├── App.vue        # 根组件
+│   │   ├── main.ts        # 入口
+│   │   ├── components/    # 通用组件
+│   │   ├── api/           # API 调用层
+│   │   ├── utils/         # 工具函数
+│   │   └── styles.css     # 全局样式
+│   ├── index.html         # HTML 模板
+│   ├── vite.config.ts     # Vite 配置
+│   └── package.json       # 前端依赖
+├── workspaces/            # 项目工作空间（本地项目 + 报告存储）
+└── test_*.py              # 测试脚本
+```
+
+---
+
+## 快速开始
+
+### 本地运行
+
+```bash
+# 安装 Python 依赖
+pip install -r requirements.txt
+
+# 启动服务
+uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+```
+
+服务启动后访问：`http://localhost:8000`
+
+### Docker 部署
+
+```bash
+# 构建镜像
+docker build -t ct8114-server -f dockerfile .
+
+# 或使用 docker-compose
+docker-compose up -d
+```
+
+### 前端开发
+
+```bash
+cd frontend
+npm install
+npm run dev        # 开发模式
+npm run build      # 生产构建 → ../static/
+```
+
+---
+
+## API 接口详情
 
 ### A. 即时上传分析
 
 ```
 POST /analyze
-    上传文件: multipart files=<file1>&files=<file2>...
-    参数:
-      - entry: 指定主入口文件名（可选）
-      - keep:  调试用，保留服务端临时文件（可选）
+Content-Type: multipart/form-data
+
+参数:
+  files: 上传的 C/C++ 源文件（可多个）
+  entry: 指定主入口文件名（可选）
+  keep:  调试用，保留服务端临时文件（可选，默认 false）
 ```
 
 **流程**：
@@ -69,6 +148,11 @@ POST /analyze
 | `/projects/{id}/analyze` | `POST`   | 对项目执行 codetidy 分析 |
 | `/projects/{id}`         | `DELETE` | 删除私有卷中的项目       |
 
+**双源数据约定**：
+
+1. 先查 `LOCAL_WORKSPACES_DIR/{project_id}/`（子工具自上传，读写）
+2. 再查 `UNIPORTAL_STORAGE_PATH/*/{project_id}/`（UniPortal 共享卷，只读）
+
 ### C. 加载已有报告 (DSIT)
 
 | API                         | 方法     | 说明                    |
@@ -80,25 +164,66 @@ POST /analyze
 | `/dsit/report/{id}/summary` | `GET`    | 获取报告摘要            |
 | `/dsit/report/{id}`         | `DELETE` | 删除报告                |
 
-**双源数据约定**：
-
-1. 先查 `LOCAL_WORKSPACES_DIR/{project_id}/`（子工具自上传，读写）
-2. 再查 `UNIPORTAL_STORAGE_PATH/*/{project_id}/`（UniPortal 共享卷，只读）
-
----
-
-## API 接口详情
+### API 一览
 
 | 端点                     | 方法     | 说明                     |
 | ------------------------ | -------- | ------------------------ |
-| `/`                      | `GET`    | 根路径重定向到静态首页   |
+| `/`                      | `GET`    | 根路径，重定向到前端首页 |
 | `/analyze`               | `POST`   | 即时上传分析（codetidy） |
 | `/projects`              | `GET`    | 获取项目列表（双源合并） |
 | `/projects/{id}/files`   | `GET`    | 获取项目内源文件列表     |
 | `/projects/{id}/analyze` | `POST`   | 对项目执行 codetidy 分析 |
 | `/projects/{id}`         | `DELETE` | 删除私有项目             |
 | `/dsit/*`                | 多种     | 加载/查看/删除 DSIT 报告 |
-| `/healthz`               | `GET`    | 健康检查（含引擎信息）   |
+
+---
+
+## 环境变量
+
+| 变量                     | 默认值                     | 说明                                       |
+| ------------------------ | -------------------------- | ------------------------------------------ |
+| `MAX_TOTAL_BYTES`        | `5242880` (5MB)            | 即时上传文件总大小限制                     |
+| `MAX_ZIP_BYTES`          | `52428800` (50MB)          | ZIP 上传大小限制                           |
+| `MAX_ZIP_EXTRACT_BYTES`  | `209715200` (200MB)        | ZIP 解压后大小限制                         |
+| `UNIPORTAL_STORAGE_PATH` | —                          | UniPortal 共享卷路径（设置后启用双源模式） |
+| `LOCAL_WORKSPACES_DIR`   | `workspaces`               | 本地项目存储目录                           |
+| `REPORTS_DIR`            | `workspaces/_reports`      | 分析报告存储目录                           |
+| `DSIT_REPORTS_DIR`       | `workspaces/_dsit_reports` | DSIT 报告存储目录                          |
+
+---
+
+## Docker 架构
+
+```
+┌─────────────────────────────────────────────┐
+│              ct8114 容器                      │
+│                                              │
+│  FastAPI (Uvicorn) :8000                     │
+│       │                                       │
+│       ├── codetidy.exe (GJB 8114 分析)        │
+│       ├── /app/local_workspaces/ (本地项目)    │
+│       ├── /app/workspaces/_tasks/ (任务目录)   │
+│       └── /data/uniportal/ (UniPortal 挂载)   │
+└─────────────────────────────────────────────┘
+```
+
+---
+
+## 支持的文件类型
+
+| 类型       | 后缀                  |
+| ---------- | --------------------- |
+| C 源文件   | `.c`                  |
+| C 头文件   | `.h`                  |
+| C++ 源文件 | `.cc`, `.cpp`, `.cxx` |
+| C++ 头文件 | `.hpp`, `.hxx`        |
+
+---
+
+## License
+
+Internal use — GJB 8114 Military Software Coding Standards Compliance Tool.
+| `/healthz` | `GET` | 健康检查（含引擎信息） |
 
 ---
 

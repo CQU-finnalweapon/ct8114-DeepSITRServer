@@ -1,0 +1,112 @@
+<template>
+  <section class="tool-card">
+    <div class="card-head">
+      <div>
+        <h2>项目库</h2>
+        <p>读取 UniPortal 共享项目和本工具私有项目。</p>
+      </div>
+      <button class="btn btn-secondary" type="button" :disabled="loading" @click="loadProjects">刷新</button>
+    </div>
+
+    <div class="card-body stack">
+      <div v-if="projects.length === 0" class="empty-state">
+        暂无项目，可使用直接上传或 DSIT 报告入口。
+      </div>
+      <button
+        v-for="project in projects"
+        v-else
+        :key="project.project_id"
+        class="list-item"
+        :class="{ active: selectedId === project.project_id }"
+        type="button"
+        @click="selectedId = project.project_id"
+      >
+        <span class="item-main">
+          <strong>{{ project.project_name || project.project_id }}</strong>
+          <small>{{ project.project_id }}</small>
+        </span>
+        <span class="item-side">
+          <span class="badge" :class="project.source === 'uniportal' ? 'badge-blue' : ''">
+            {{ project.source === "uniportal" ? "UniPortal" : "本地" }}
+          </span>
+          <span class="badge">{{ project.file_count || 0 }} 文件</span>
+        </span>
+      </button>
+
+      <label class="field">
+        <span>入口文件（可选）</span>
+        <input v-model.trim="entry" class="input" placeholder="例如 src/main.c，留空则分析全部源文件" />
+      </label>
+
+      <button class="btn btn-primary btn-block" type="button" :disabled="!selectedId || analyzing" @click="runAnalyze">
+        {{ analyzing ? "分析中..." : "开始分析项目" }}
+      </button>
+
+      <p class="status" :class="statusKind">{{ statusText }}</p>
+    </div>
+  </section>
+</template>
+
+<script setup lang="ts">
+import { onMounted, ref } from "vue";
+import { analyzeProject, fetchProjects, type ProjectItem, toFriendlyError } from "../api/codeAnalysis";
+
+const emit = defineEmits<{
+  result: [raw: any, source: string];
+}>();
+
+const projects = ref<ProjectItem[]>([]);
+const selectedId = ref("");
+const entry = ref("");
+const loading = ref(false);
+const analyzing = ref(false);
+const statusText = ref("请选择项目");
+const statusKind = ref("");
+
+function readPortalProjectId() {
+  const urlValue = new URLSearchParams(window.location.search).get("portal_project_id");
+  if (urlValue) {
+    sessionStorage.setItem("ct8114.portalProjectId", urlValue);
+    return urlValue;
+  }
+  return sessionStorage.getItem("ct8114.portalProjectId") || undefined;
+}
+
+async function loadProjects() {
+  loading.value = true;
+  statusKind.value = "";
+  statusText.value = "正在加载项目库...";
+  try {
+    const data = await fetchProjects(readPortalProjectId());
+    projects.value = data.projects || [];
+    if (!projects.value.some((item) => item.project_id === selectedId.value)) selectedId.value = "";
+    statusText.value = projects.value.length ? `共 ${projects.value.length} 个项目，请选择后分析` : "暂无项目，可使用直接上传或 DSIT 报告入口";
+  } catch (error) {
+    statusKind.value = "error";
+    statusText.value = toFriendlyError(error);
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function runAnalyze() {
+  if (!selectedId.value) return;
+  analyzing.value = true;
+  statusKind.value = "";
+  statusText.value = "项目分析中，请稍候...";
+  try {
+    const raw = await analyzeProject(selectedId.value, entry.value);
+    const project = projects.value.find((item) => item.project_id === selectedId.value);
+    emit("result", raw, project?.project_name || selectedId.value);
+    statusKind.value = "ok";
+    statusText.value = "分析完成";
+  } catch (error) {
+    statusKind.value = "error";
+    statusText.value = toFriendlyError(error);
+  } finally {
+    analyzing.value = false;
+  }
+}
+
+onMounted(loadProjects);
+</script>

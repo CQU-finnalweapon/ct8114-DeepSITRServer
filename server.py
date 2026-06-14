@@ -43,6 +43,7 @@ import shutil
 import subprocess
 import tempfile
 import uuid
+import zipfile
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -51,7 +52,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from dsit_parser import analyze_with_codetidy, parse_output_dir, DSITReport
+from dsit_parser import (
+    CODETIDY_NOT_FOUND_MESSAGE,
+    DSITReport,
+    analyze_with_codetidy,
+    find_codetidy_bin,
+    get_codetidy_search_paths,
+    parse_output_dir,
+)
 from routers_dsit import router as dsit_router
 
 
@@ -63,6 +71,8 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 # 限制即时上传分析的文件总大小 (默认 5MB)
 MAX_TOTAL_BYTES = int(os.environ.get("MAX_TOTAL_BYTES", str(5 * 1024 * 1024)))
+MAX_ZIP_BYTES = int(os.environ.get("MAX_ZIP_BYTES", str(50 * 1024 * 1024)))
+MAX_ZIP_EXTRACT_BYTES = int(os.environ.get("MAX_ZIP_EXTRACT_BYTES", str(200 * 1024 * 1024)))
 ALLOWED_SUFFIXES = {".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hxx"}
 
 # ---- UniPortal 双源接入相关配置 ----------------------------------------
@@ -134,6 +144,64 @@ def _collect_code_files(root: Path) -> List[Path]:
             if Path(fn).suffix.lower() in CODE_SUFFIXES:
                 result.append(Path(dirpath) / fn)
     return result
+
+
+def _find_project_root(extract_dir: Path, code_files: List[Path]) -> Path:
+    """Return the most useful project root inside an extracted zip.
+
+    Common zip packages contain a single top-level directory. In that case use
+    it as the project root; otherwise keep the extraction directory.
+    """
+
+    direct_children = [
+        p for p in extract_dir.iterdir()
+        if p.is_dir() and not p.name.startswith((".", "__MACOSX"))
+    ]
+    visible_files = [
+        p for p in extract_dir.iterdir()
+        if p.is_file() and not p.name.startswith(".")
+    ]
+    if len(direct_children) == 1 and not visible_files:
+        child = direct_children[0]
+        try:
+            if all(p.resolve().is_relative_to(child.resolve()) for p in code_files):
+                return child
+        except AttributeError:
+            child_resolved = str(child.resolve())
+            if all(str(p.resolve()).startswith(child_resolved) for p in code_files):
+                return child
+    return extract_dir
+
+
+def _safe_extract_zip(zip_path: Path, extract_dir: Path) -> None:
+    """Safely extract a zip file while preventing zip-slip traversal."""
+
+    extract_root = extract_dir.resolve()
+    total_uncompressed = 0
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            for info in zf.infolist():
+                name = info.filename.replace("\\", "/")
+                if not name or name.endswith("/"):
+                    continue
+                target = (extract_root / name).resolve()
+                try:
+                    target.relative_to(extract_root)
+                except ValueError as exc:
+                    raise HTTPException(status_code=400, detail="zip 文件包含非法路径，已拒绝解压") from exc
+
+                total_uncompressed += info.file_size
+                if total_uncompressed > MAX_ZIP_EXTRACT_BYTES:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"zip 解压后文件总大小超过限制 ({MAX_ZIP_EXTRACT_BYTES} bytes)",
+                    )
+
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with zf.open(info, "r") as src, target.open("wb") as dst:
+                    shutil.copyfileobj(src, dst)
+    except zipfile.BadZipFile as exc:
+        raise HTTPException(status_code=400, detail="无效的 zip 文件") from exc
 
 
 def _count_code_files(root: Path) -> int:
@@ -235,8 +303,11 @@ def _run_analysis(
     except FileNotFoundError as exc:
         raise HTTPException(
             status_code=500,
-            detail=f"未找到 codetidy.exe。请确认 DeepSITRServer 已部署，"
-                   f"或设置 CODETIDY_BIN 环境变量。\n{exc}",
+            detail={
+                "message": CODETIDY_NOT_FOUND_MESSAGE,
+                "checked_paths": get_codetidy_search_paths(),
+                "error": str(exc),
+            },
         ) from exc
     except subprocess.TimeoutExpired as exc:
         raise HTTPException(
@@ -273,6 +344,13 @@ async def analyze(
     if not files:
         raise HTTPException(status_code=400, detail="未收到任何文件")
 
+    zip_uploads = [
+        uf for uf in files
+        if Path(uf.filename or "").suffix.lower() == ".zip"
+    ]
+    if zip_uploads and len(files) != 1:
+        raise HTTPException(status_code=400, detail="工程 zip 上传时请只选择一个 zip 文件")
+
     request_id = f"codetidy_{uuid.uuid4().hex[:12]}"
     base_tmp = Path(tempfile.gettempdir()) / "ct8114"
     base_tmp.mkdir(parents=True, exist_ok=True)
@@ -285,11 +363,14 @@ async def analyze(
         # 1. 落盘上传文件
         for uf in files:
             name = _safe_filename(uf.filename or "")
-            _validate_suffix(name)
+            suffix = Path(name).suffix.lower()
+            if suffix != ".zip":
+                _validate_suffix(name)
             dest = workdir / name
             content = await uf.read()
             total_bytes += len(content)
-            if total_bytes > MAX_TOTAL_BYTES:
+            max_upload_bytes = MAX_ZIP_BYTES if suffix == ".zip" else MAX_TOTAL_BYTES
+            if total_bytes > max_upload_bytes:
                 raise HTTPException(
                     status_code=413,
                     detail=f"上传文件总大小超过限制 ({MAX_TOTAL_BYTES} bytes)",
@@ -298,7 +379,47 @@ async def analyze(
             saved_paths.append(dest)
 
         # 2. 确定分析目标
-        if entry is not None:
+        if zip_uploads:
+            zip_path = saved_paths[0]
+            extract_dir = workdir / "_zip_project"
+            extract_dir.mkdir(parents=True, exist_ok=True)
+            _safe_extract_zip(zip_path, extract_dir)
+
+            all_code_files = _collect_code_files(extract_dir)
+            if not all_code_files:
+                raise HTTPException(
+                    status_code=400,
+                    detail="zip 中未找到可分析的源码文件（支持 .c/.h/.cc/.cpp/.cxx/.hpp/.hxx）",
+                )
+
+            project_root = _find_project_root(extract_dir, all_code_files)
+            if entry is not None:
+                rel_entry = entry.strip().lstrip("/\\")
+                if not rel_entry:
+                    raise HTTPException(status_code=400, detail="entry 不能为空")
+                if ".." in Path(rel_entry).parts:
+                    raise HTTPException(status_code=400, detail=f"非法 entry: {entry!r}")
+                entry_path = (project_root / rel_entry).resolve()
+                try:
+                    entry_path.relative_to(project_root.resolve())
+                except ValueError:
+                    raise HTTPException(status_code=400, detail=f"entry 越界: {entry!r}")
+                if not entry_path.exists():
+                    raise HTTPException(status_code=400, detail=f"未找到入口文件 {entry!r}")
+                if entry_path.suffix.lower() not in SOURCE_SUFFIXES:
+                    raise HTTPException(status_code=400, detail=f"入口文件不是可分析源文件: {entry!r}")
+                target_files = [entry_path]
+            else:
+                target_files = [
+                    p for p in all_code_files
+                    if p.suffix.lower() in SOURCE_SUFFIXES
+                ]
+                if not target_files:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="zip 中未找到 .c/.cc/.cpp/.cxx 源文件；仅头文件不能作为分析入口",
+                    )
+        elif entry is not None:
             entry_name = _safe_filename(entry)
             target_files = [workdir / entry_name]
             if not target_files[0].exists():
@@ -504,6 +625,33 @@ def delete_project(project_id: str) -> JSONResponse:
             detail="UniPortal 来源的项目请到 UniPortal 删除",
         )
     raise HTTPException(status_code=404, detail=f"项目 {pid!r} 未找到")
+
+
+def _codetidy_debug_payload(action: str) -> dict:
+    codetidy = find_codetidy_bin()
+    return {
+        "status": "ok" if codetidy else "error",
+        "action": action,
+        "codetidy_bin": str(codetidy) if codetidy else None,
+        "message": "codetidy.exe 路径解析成功" if codetidy else CODETIDY_NOT_FOUND_MESSAGE,
+        "checked_paths": get_codetidy_search_paths(),
+    }
+
+
+@app.get("/debug/dcab/start")
+def debug_dcab_start() -> JSONResponse:
+    """Debug endpoint: resolve the codetidy/DCAB executable path."""
+
+    payload = _codetidy_debug_payload("start")
+    return JSONResponse(payload, status_code=200 if payload["status"] == "ok" else 500)
+
+
+@app.get("/debug/dcab/check")
+def debug_dcab_check() -> JSONResponse:
+    """Debug endpoint: check the codetidy/DCAB executable path."""
+
+    payload = _codetidy_debug_payload("check")
+    return JSONResponse(payload, status_code=200 if payload["status"] == "ok" else 500)
 
 
 @app.get("/healthz")
