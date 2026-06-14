@@ -42,6 +42,8 @@ import os
 import shutil
 import subprocess
 import tempfile
+import threading
+import time
 import uuid
 import zipfile
 from pathlib import Path
@@ -98,6 +100,160 @@ HEADER_SUFFIXES = {".h", ".hpp", ".hxx"}
 CODE_SUFFIXES = SOURCE_SUFFIXES | HEADER_SUFFIXES
 
 _TOOL_INTERNAL_DIRS = {"_ct8114", "_reports", "_dsit_reports", "__pycache__", ".git", ".idea", ".vscode"}
+
+# =====================================================================
+# 异步分析任务存储
+# =====================================================================
+
+# 任务状态: pending → running → completed / failed
+_TASK_STORE: Dict[str, dict] = {}
+_TASK_STORE_LOCK = threading.Lock()
+
+# 任务过期时间 (秒), 超时自动清理
+TASK_TTL_SECONDS = int(os.environ.get("TASK_TTL_SECONDS", "3600"))
+
+
+def _cleanup_expired_tasks() -> int:
+    """清理过期任务，返回清理数量."""
+    now = time.time()
+    expired = []
+    with _TASK_STORE_LOCK:
+        for rid, task in _TASK_STORE.items():
+            created = task.get("created_at", 0)
+            if now - created > TASK_TTL_SECONDS:
+                expired.append(rid)
+        for rid in expired:
+            del _TASK_STORE[rid]
+    return len(expired)
+
+
+def _set_task_status(request_id: str, status: str, **extra) -> None:
+    """线程安全地更新任务状态."""
+    with _TASK_STORE_LOCK:
+        if request_id in _TASK_STORE:
+            _TASK_STORE[request_id]["status"] = status
+            _TASK_STORE[request_id]["updated_at"] = time.time()
+            _TASK_STORE[request_id].update(extra)
+
+
+def _run_analysis_background(
+    request_id: str,
+    workdir: Path,
+    target_files: List[Path],
+    project_name: str = "",
+    timeout: int = 300,
+    keep: bool = False,
+    save_report: bool = True,
+    project_id: str = "",
+    is_uniportal: bool = False,
+    root: Optional[Path] = None,
+    saved_paths: Optional[List[Path]] = None,
+    extract_dir: Optional[Path] = None,
+    all_code_files: Optional[List[Path]] = None,
+    zip_uploads: bool = False,
+) -> None:
+    """后台线程执行 codetidy 分析，完成后更新 _TASK_STORE.
+
+    此函数在独立线程中运行，通过 _set_task_status 更新任务状态，
+    前端通过 GET /status/{request_id} 轮询获取结果.
+    """
+    try:
+        _set_task_status(request_id, "running")
+
+        # 执行分析
+        report = _run_analysis(workdir, target_files, project_name, timeout)
+        report.report_id = request_id
+
+        report_dict = report.to_dict()
+        payload: dict = {
+            "request_id": request_id,
+            "project_id": project_id or request_id,
+            "report": report_dict,
+        }
+
+        # 保存报告到本地
+        if save_report:
+            try:
+                out_dir = REPORTS_DIR / (project_id or request_id)
+                out_dir.mkdir(parents=True, exist_ok=True)
+                (out_dir / "last_report.json").write_text(
+                    json.dumps(payload, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+                payload["saved_report"] = str(out_dir / "last_report.json")
+            except OSError as e:
+                payload["save_report_error"] = str(e)
+
+        # 模拟共享卷 — 上传项目自动保存
+        if MOCK_UNIPORTAL_DIR and saved_paths:
+            try:
+                mock_root = Path(MOCK_UNIPORTAL_DIR).resolve()
+                mock_root.mkdir(parents=True, exist_ok=True)
+                portal_dir = mock_root / "_upload"
+                portal_dir.mkdir(parents=True, exist_ok=True)
+
+                if zip_uploads and extract_dir and all_code_files:
+                    project_name_src = Path(saved_paths[0].name).stem if saved_paths else "project"
+                else:
+                    project_name_src = target_files[0].stem if target_files else "project"
+
+                upload_pid = f"upload_{uuid.uuid4().hex[:8]}"
+                project_dir = portal_dir / upload_pid
+                project_dir.mkdir(parents=True, exist_ok=True)
+
+                if zip_uploads and extract_dir and all_code_files:
+                    proj_root = _find_project_root(extract_dir, all_code_files)
+                    for f in proj_root.rglob("*"):
+                        if f.is_file() and f.suffix.lower() in CODE_SUFFIXES:
+                            rel = f.relative_to(proj_root)
+                            dest = project_dir / rel
+                            dest.parent.mkdir(parents=True, exist_ok=True)
+                            shutil.copy2(f, dest)
+                else:
+                    for f in saved_paths:
+                        shutil.copy2(f, project_dir / f.name)
+
+                wb_info = _write_back_to_uniportal(project_dir, upload_pid, payload)
+                payload["uniportal_writeback"] = "ok"
+                payload["uniportal_writeback_path"] = wb_info["report_path"]
+                payload["uniportal_writeback_time"] = wb_info["last_analysis"]
+                payload["saved_project_id"] = upload_pid
+                payload["saved_project_path"] = str(project_dir)
+            except OSError as e:
+                payload["uniportal_writeback_error"] = str(e)
+
+        # 共享卷写回 (项目分析)
+        if is_uniportal and root and (UNIPORTAL_WRITABLE or bool(MOCK_UNIPORTAL_DIR)):
+            try:
+                wb_info = _write_back_to_uniportal(root, project_id, payload)
+                payload["uniportal_writeback"] = "ok"
+                payload["uniportal_writeback_path"] = wb_info["report_path"]
+                payload["uniportal_writeback_time"] = wb_info["last_analysis"]
+            except OSError as e:
+                payload["uniportal_writeback_error"] = str(e)
+
+        # 清理临时目录
+        if not keep:
+            shutil.rmtree(workdir, ignore_errors=True)
+
+        _set_task_status(request_id, "completed", payload=payload)
+
+    except HTTPException as e:
+        if not keep:
+            shutil.rmtree(workdir, ignore_errors=True)
+        _set_task_status(
+            request_id,
+            "failed",
+            error={"detail": e.detail, "status_code": e.status_code},
+        )
+    except Exception as e:
+        if not keep:
+            shutil.rmtree(workdir, ignore_errors=True)
+        _set_task_status(
+            request_id,
+            "failed",
+            error={"detail": str(e), "status_code": 500},
+        )
 
 
 app = FastAPI(title="GJB8114 Code Analysis Service (codetidy)")
@@ -571,65 +727,52 @@ async def analyze(
                     detail="上传的文件中没有可分析的源文件 (.c/.cc/.cpp/.cxx)",
                 )
 
-        # 3. 使用 codetidy.exe 分析
-        report = _run_analysis(workdir, target_files, timeout=120)
-        report.report_id = request_id
+        # 3. 将文件落盘与验证完成后，启动后台线程执行 codetidy 分析
+        #    前端通过 GET /status/{request_id} 轮询获取结果
 
-        # 4. 构建响应
-        report_dict = report.to_dict()
-        payload = {
+        _cleanup_expired_tasks()
+
+        with _TASK_STORE_LOCK:
+            _TASK_STORE[request_id] = {
+                "request_id": request_id,
+                "status": "pending",
+                "created_at": time.time(),
+                "updated_at": time.time(),
+            }
+
+        # 后台线程参数
+        bg_kwargs = dict(
+            request_id=request_id,
+            workdir=workdir,
+            target_files=target_files,
+            project_name="",
+            timeout=120,
+            keep=keep,
+            save_report=True,
+            project_id=request_id,
+            is_uniportal=False,
+            saved_paths=saved_paths,
+            extract_dir=extract_dir if zip_uploads else None,
+            all_code_files=all_code_files if zip_uploads else None,
+            zip_uploads=bool(zip_uploads),
+        )
+
+        thread = threading.Thread(
+            target=_run_analysis_background,
+            kwargs=bg_kwargs,
+            daemon=True,
+        )
+        thread.start()
+
+        return JSONResponse({
             "request_id": request_id,
-            "workdir": str(workdir) if keep else None,
-            "report": report_dict,
-        }
-
-        # 5. 模拟共享卷 — 上传项目自动保存到共享卷
-        if MOCK_UNIPORTAL_DIR:
-            try:
-                mock_root = Path(MOCK_UNIPORTAL_DIR).resolve()
-                mock_root.mkdir(parents=True, exist_ok=True)
-
-                # 在模拟共享卷中为上传项目创建目录
-                portal_dir = mock_root / "_upload"
-                portal_dir.mkdir(parents=True, exist_ok=True)
-
-                # 生成项目名和 ID
-                if zip_uploads:
-                    project_name = Path(zip_uploads[0].filename or "project").stem
-                else:
-                    project_name = target_files[0].stem if target_files else "project"
-                project_id = f"upload_{uuid.uuid4().hex[:8]}"
-                project_dir = portal_dir / project_id
-                project_dir.mkdir(parents=True, exist_ok=True)
-
-                # 复制所有源码到共享卷
-                if zip_uploads:
-                    proj_root = _find_project_root(extract_dir, all_code_files)
-                    for f in proj_root.rglob("*"):
-                        if f.is_file() and f.suffix.lower() in CODE_SUFFIXES:
-                            rel = f.relative_to(proj_root)
-                            dest = project_dir / rel
-                            dest.parent.mkdir(parents=True, exist_ok=True)
-                            shutil.copy2(f, dest)
-                else:
-                    for f in saved_paths:
-                        shutil.copy2(f, project_dir / f.name)
-
-                # 写回分析报告
-                wb_info = _write_back_to_uniportal(project_dir, project_id, payload)
-
-                payload["uniportal_writeback"] = "ok"
-                payload["uniportal_writeback_path"] = wb_info["report_path"]
-                payload["uniportal_writeback_time"] = wb_info["last_analysis"]
-                payload["saved_project_id"] = project_id
-                payload["saved_project_path"] = str(project_dir)
-            except OSError as e:
-                payload["uniportal_writeback_error"] = str(e)
-
-        return JSONResponse(payload)
-    finally:
+            "status": "pending",
+            "message": "分析任务已提交，请轮询 GET /status/{request_id} 获取结果",
+        })
+    except Exception:
         if not keep:
             shutil.rmtree(workdir, ignore_errors=True)
+        raise
 
 
 # =====================================================================
@@ -840,45 +983,106 @@ def analyze_project(
 
     request_id = f"proj_{uuid.uuid4().hex[:12]}"
 
-    # 使用 codetidy.exe 分析
-    report = _run_analysis(
-        root,
-        target_files,
-        project_name=root.name,
-        timeout=300,
-    )
-    report.report_id = request_id
+    # 启动后台线程执行 codetidy 分析
+    # 前端通过 GET /status/{request_id} 轮询获取结果
 
-    report_dict = report.to_dict()
-    payload = {
+    _cleanup_expired_tasks()
+
+    with _TASK_STORE_LOCK:
+        _TASK_STORE[request_id] = {
+            "request_id": request_id,
+            "status": "pending",
+            "created_at": time.time(),
+            "updated_at": time.time(),
+        }
+
+    thread = threading.Thread(
+        target=_run_analysis_background,
+        kwargs=dict(
+            request_id=request_id,
+            workdir=root,
+            target_files=target_files,
+            project_name=root.name,
+            timeout=300,
+            keep=keep,
+            save_report=save_report,
+            project_id=project_id,
+            is_uniportal=is_uniportal,
+            root=root,
+        ),
+        daemon=True,
+    )
+    thread.start()
+
+    return JSONResponse({
         "request_id": request_id,
         "project_id": project_id,
-        "report": report_dict,
-    }
+        "status": "pending",
+        "message": "分析任务已提交，请轮询 GET /status/{request_id} 获取结果",
+    })
 
-    if save_report:
-        try:
-            out_dir = REPORTS_DIR / project_id
-            out_dir.mkdir(parents=True, exist_ok=True)
-            (out_dir / "last_report.json").write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-            payload["saved_report"] = str(out_dir / "last_report.json")
-        except OSError as e:
-            payload["save_report_error"] = str(e)
 
-    # ---- 共享卷写回: 当项目来自 UniPortal 共享卷且可写时 ----
-    if is_uniportal and (UNIPORTAL_WRITABLE or bool(MOCK_UNIPORTAL_DIR)):
-        try:
-            wb_info = _write_back_to_uniportal(root, project_id, payload)
-            payload["uniportal_writeback"] = "ok"
-            payload["uniportal_writeback_path"] = wb_info["report_path"]
-            payload["uniportal_writeback_time"] = wb_info["last_analysis"]
-        except OSError as e:
-            payload["uniportal_writeback_error"] = str(e)
+# =====================================================================
+# 异步分析任务轮询
+# =====================================================================
 
-    return JSONResponse(payload)
+@app.get("/status/{request_id}")
+def get_analysis_status(request_id: str) -> JSONResponse:
+    """查询分析任务状态.
+
+    前端在 POST /analyze 或 POST /projects/{id}/analyze 后，
+    使用返回的 request_id 轮询此端点:
+
+        轮询间隔建议: 1-2 秒
+        超时建议: 300 秒 (与后端分析超时一致)
+
+    状态说明:
+        pending   — 任务已入队，等待执行
+        running   — codetidy 正在分析中
+        completed — 分析完成，payload 中包含完整报告
+        failed    — 分析失败，error 中包含错误信息
+
+    Returns:
+        {
+            "request_id": "...",
+            "status": "pending|running|completed|failed",
+            "payload": {...},        // 仅在 completed 时
+            "error": {...},          // 仅在 failed 时
+            "created_at": 123456.0,
+            "updated_at": 123456.0,
+        }
+    """
+    _cleanup_expired_tasks()
+
+    with _TASK_STORE_LOCK:
+        task = _TASK_STORE.get(request_id)
+
+    if not task:
+        raise HTTPException(
+            status_code=404,
+            detail=f"任务 {request_id!r} 不存在或已过期（TTL={TASK_TTL_SECONDS}s）",
+        )
+
+    return JSONResponse(task)
+
+
+@app.get("/status")
+def list_all_statuses() -> JSONResponse:
+    """列出所有活跃任务的状态（调试用）."""
+    _cleanup_expired_tasks()
+
+    with _TASK_STORE_LOCK:
+        tasks = [
+            {
+                "request_id": rid,
+                "status": t["status"],
+                "created_at": t.get("created_at"),
+                "updated_at": t.get("updated_at"),
+            }
+            for rid, t in _TASK_STORE.items()
+        ]
+
+    return JSONResponse({"tasks": tasks, "count": len(tasks)})
 
 
 @app.delete("/projects/{project_id}")
@@ -946,6 +1150,9 @@ def healthz() -> dict:
     return {
         "status": "ok",
         "engine": "codetidy (DeepSITRServer)",
+        "async_mode": True,
+        "active_tasks": len(_TASK_STORE),
+        "task_ttl_seconds": TASK_TTL_SECONDS,
         "uniportal_mode": UNIPORTAL_MODE or bool(MOCK_UNIPORTAL_DIR),
         "uniportal_storage_path": UNIPORTAL_STORAGE_PATH or MOCK_UNIPORTAL_DIR or None,
         "uniportal_writable": UNIPORTAL_WRITABLE or bool(MOCK_UNIPORTAL_DIR),

@@ -76,7 +76,7 @@
         :disabled="!selectedId || analyzing"
         @click="runAnalyze"
       >
-        {{ analyzing ? "分析中..." : "开始分析项目" }}
+        {{ analyzing ? pollLabel : "开始分析项目" }}
       </button>
 
       <p class="status" :class="statusKind">{{ statusText }}</p>
@@ -85,9 +85,9 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import {
-  analyzeProject,
+  analyzeProjectWithPolling,
   fetchProjects,
   type ProjectItem,
   toFriendlyError,
@@ -136,13 +136,26 @@ async function loadProjects() {
   }
 }
 
+const pollCount = ref(0);
+const pollLabel = computed(() => {
+  if (!analyzing.value) return "开始分析项目";
+  return `轮询中 (第 ${pollCount.value} 次)...`;
+});
+
 async function runAnalyze() {
   if (!selectedId.value) return;
   analyzing.value = true;
+  pollCount.value = 0;
   statusKind.value = "";
-  statusText.value = "项目分析中，请稍候...";
+  statusText.value = "正在提交分析任务...";
   try {
-    const raw = await analyzeProject(selectedId.value, entry.value);
+    const raw = await analyzeProjectWithPolling(
+      selectedId.value,
+      entry.value,
+      1500,
+      300_000,
+      (count) => { pollCount.value = count; statusText.value = `分析任务已提交，正在轮询 (第 ${count} 次)...`; },
+    );
     const project = projects.value.find(
       (item) => item.project_id === selectedId.value,
     );

@@ -39,7 +39,7 @@
       </label>
 
       <button class="btn btn-primary btn-block" type="button" :disabled="files.length === 0 || analyzing" @click="runAnalyze">
-        {{ analyzing ? "分析中..." : "开始分析" }}
+        {{ analyzing ? pollLabel : "开始分析" }}
       </button>
 
       <div class="debug-actions">
@@ -54,7 +54,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { analyzeUpload, debugDcabCheck, debugDcabStart, toFriendlyError } from "../api/codeAnalysis";
+import { analyzeUploadWithPolling, debugDcabCheck, debugDcabStart, toFriendlyError } from "../api/codeAnalysis";
 
 const emit = defineEmits<{
   result: [raw: any, source: string];
@@ -112,15 +112,32 @@ function formatSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
+const pollCount = ref(0);
+const pollLabel = computed(() => {
+  if (!analyzing.value) return "开始分析";
+  return `轮询中 (第 ${pollCount.value} 次)...`;
+});
+
 async function runAnalyze() {
   analyzing.value = true;
+  pollCount.value = 0;
   statusKind.value = "";
-  statusText.value = hasZip.value ? "正在上传工程 zip，后端解压后分析..." : "正在上传并分析...";
+  statusText.value = "正在提交分析任务...";
   try {
-    const raw = await analyzeUpload(files.value, entry.value, keep.value);
+    const raw = await analyzeUploadWithPolling(
+      files.value,
+      entry.value,
+      keep.value,
+      1500,  // poll interval
+      300_000, // timeout
+      (count) => {
+        pollCount.value = count;
+        statusText.value = `分析任务已提交，正在轮询 (第 ${count} 次)...`;
+      },
+    );
     emit("result", raw, hasZip.value ? "工程 zip 上传" : "直接上传");
-    statusKind.value = raw.status === "check_progress_empty" ? "warn" : "ok";
-    statusText.value = raw.detection_id ? "已启动分析，等待结果查询" : "分析完成";
+    statusKind.value = "ok";
+    statusText.value = "分析完成";
   } catch (error) {
     statusKind.value = "error";
     statusText.value = toFriendlyError(error);

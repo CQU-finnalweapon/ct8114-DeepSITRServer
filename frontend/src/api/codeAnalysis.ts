@@ -97,6 +97,94 @@ export async function analyzeProject(projectId: string, entry?: string) {
   return readJson(await fetch(url, { method: "POST" }));
 }
 
+/** 轮询分析任务状态，直到完成或失败.
+ *
+ * @param requestId  — POST /analyze 或 POST /projects/{id}/analyze 返回的 request_id
+ * @param intervalMs — 轮询间隔 (毫秒), 默认 1500ms
+ * @param timeoutMs  — 超时时间 (毫秒), 默认 300000ms (5 分钟)
+ * @returns 任务完成后的完整 payload (同原同步接口返回格式)
+ * @throws  超时或任务失败时抛出错误
+ */
+export async function pollAnalysisStatus(
+  requestId: string,
+  intervalMs = 1500,
+  timeoutMs = 300_000,
+  onPoll?: (count: number, status: string) => void,
+): Promise<any> {
+  const startedAt = Date.now();
+  let count = 0;
+
+  while (true) {
+    // 超时检查
+    if (Date.now() - startedAt > timeoutMs) {
+      throw new Error(`分析超时 (${timeoutMs / 1000}s)，请稍后重试`);
+    }
+
+    const resp = await fetch(`/status/${encodeURIComponent(requestId)}`);
+    const task = await readJson(resp);
+    count++;
+
+    if (task.status === "completed") {
+      return task.payload;
+    }
+
+    if (task.status === "failed") {
+      const err = task.error || {};
+      throw new Error(
+        err.detail || err.message || JSON.stringify(err) || "分析任务失败",
+      );
+    }
+
+    // 通知回调
+    if (onPoll) onPoll(count, task.status || "unknown");
+
+    // pending 或 running — 等待后继续轮询
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+}
+
+/** 启动上传分析 + 自动轮询，返回完整结果.
+ *
+ * 封装了 POST /analyze → 轮询 GET /status/{request_id} 的完整流程.
+ * 前端组件可直接 await 此函数，无需手动管理轮询.
+ */
+export async function analyzeUploadWithPolling(
+  files: File[],
+  entry?: string,
+  keep?: boolean,
+  pollIntervalMs = 1500,
+  pollTimeoutMs = 300_000,
+  onPoll?: (count: number) => void,
+) {
+  // 1. 提交分析任务
+  const body = new FormData();
+  files.forEach((file) => body.append("files", file));
+  const url = `/analyze${buildQuery({ entry, keep: keep ? "true" : undefined })}`;
+  const submitResp = await readJson(await fetch(url, { method: "POST", body }));
+  const requestId = submitResp.request_id;
+  if (!requestId) throw new Error("服务端未返回 request_id");
+
+  // 2. 轮询等待结果
+  return pollAnalysisStatus(requestId, pollIntervalMs, pollTimeoutMs, onPoll);
+}
+
+/** 启动项目分析 + 自动轮询，返回完整结果. */
+export async function analyzeProjectWithPolling(
+  projectId: string,
+  entry?: string,
+  pollIntervalMs = 1500,
+  pollTimeoutMs = 300_000,
+  onPoll?: (count: number) => void,
+) {
+  // 1. 提交分析任务
+  const submitResp = await analyzeProject(projectId, entry);
+  const requestId = submitResp.request_id;
+  if (!requestId) throw new Error("服务端未返回 request_id");
+
+  // 2. 轮询等待结果
+  return pollAnalysisStatus(requestId, pollIntervalMs, pollTimeoutMs, onPoll);
+}
+
 export async function analyzeUpload(
   files: File[],
   entry?: string,
