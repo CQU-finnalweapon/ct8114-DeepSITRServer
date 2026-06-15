@@ -92,6 +92,15 @@ export async function fetchProjects(portalProjectId?: string) {
   }>;
 }
 
+export async function fetchProjectFiles(projectId: string) {
+  return readJson(
+    await fetch(`/projects/${encodeURIComponent(projectId)}/files`),
+  ) as Promise<{
+    project_id: string;
+    files: string[];
+  }>;
+}
+
 export async function analyzeProject(projectId: string, entry?: string) {
   const url = `/projects/${encodeURIComponent(projectId)}/analyze${buildQuery({ entry })}`;
   return readJson(await fetch(url, { method: "POST" }));
@@ -225,6 +234,12 @@ export async function fetchDsitReport(reportId: string) {
   ]);
   if (summary && !report.summary) report.summary = summary;
   return report;
+}
+
+export async function fetchProjectLastReport(projectId: string) {
+  return readJson(
+    await fetch(`/projects/${encodeURIComponent(projectId)}/last-report`),
+  );
 }
 
 export async function debugDcabStart() {

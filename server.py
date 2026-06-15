@@ -64,6 +64,17 @@ from dsit_parser import (
     get_codetidy_search_paths,
     parse_output_dir,
 )
+from dcab_client import (
+    DcabClientError,
+    check_progress,
+    get_dcab_config,
+    is_empty_check_response,
+    load_recent_xplusx_bugs,
+    report_from_defect_list,
+    report_from_xplusx_bugs,
+    start_progress,
+    strip_detection_braces,
+)
 from routers_dsit import router as dsit_router
 
 
@@ -94,6 +105,7 @@ REPORTS_DIR = Path(os.environ.get("REPORTS_DIR", "workspaces/_reports"))
 
 # 模拟分析模式（本地测试用，无需 codetidy.exe）
 MOCK_ANALYSIS = os.environ.get("MOCK_ANALYSIS", "").lower() == "true"
+ANALYSIS_ENGINE = os.environ.get("ANALYSIS_ENGINE", "codetidy").strip().lower() or "codetidy"
 
 SOURCE_SUFFIXES = {".c", ".cc", ".cpp", ".cxx"}
 HEADER_SUFFIXES = {".h", ".hpp", ".hxx"}
@@ -136,6 +148,60 @@ def _set_task_status(request_id: str, status: str, **extra) -> None:
             _TASK_STORE[request_id].update(extra)
 
 
+def _build_report_payload(
+    request_id: str,
+    project_id: str,
+    report: DSITReport,
+) -> dict:
+    report.report_id = request_id
+    return {
+        "request_id": request_id,
+        "project_id": project_id or request_id,
+        "report": report.to_dict(),
+        "uniportal_writeback": "no",
+        "uniportal_writeback_path": "",
+        "uniportal_writeback_time": "",
+        "saved_report": "",
+    }
+
+
+def _save_report_payload(payload: dict, project_id: str) -> None:
+    try:
+        out_dir = REPORTS_DIR / (project_id or payload.get("request_id") or "unknown")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        saved_report_path = out_dir / "last_report.json"
+        payload["saved_report"] = str(saved_report_path)
+        saved_report_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except OSError as e:
+        payload["save_report_error"] = str(e)
+
+
+def _complete_project_report_task(
+    request_id: str,
+    project_id: str,
+    report: DSITReport,
+    save_report: bool,
+    is_uniportal: bool,
+    root: Optional[Path],
+) -> dict:
+    payload = _build_report_payload(request_id, project_id, report)
+    if save_report:
+        _save_report_payload(payload, project_id)
+    if is_uniportal and root and (UNIPORTAL_WRITABLE or bool(MOCK_UNIPORTAL_DIR)):
+        try:
+            wb_info = _write_back_to_uniportal(root, project_id, payload)
+            payload["uniportal_writeback"] = "ok"
+            payload["uniportal_writeback_path"] = wb_info["report_path"]
+            payload["uniportal_writeback_time"] = wb_info["last_analysis"]
+        except OSError as e:
+            payload["uniportal_writeback_error"] = str(e)
+    _set_task_status(request_id, "completed", payload=payload)
+    return payload
+
+
 def _run_analysis_background(
     request_id: str,
     workdir: Path,
@@ -151,6 +217,7 @@ def _run_analysis_background(
     extract_dir: Optional[Path] = None,
     all_code_files: Optional[List[Path]] = None,
     zip_uploads: bool = False,
+    cleanup_workdir: bool = True,
 ) -> None:
     """后台线程执行 codetidy 分析，完成后更新 _TASK_STORE.
 
@@ -169,6 +236,10 @@ def _run_analysis_background(
             "request_id": request_id,
             "project_id": project_id or request_id,
             "report": report_dict,
+            "uniportal_writeback": "no",
+            "uniportal_writeback_path": "",
+            "uniportal_writeback_time": "",
+            "saved_report": "",
         }
 
         # 保存报告到本地
@@ -176,11 +247,12 @@ def _run_analysis_background(
             try:
                 out_dir = REPORTS_DIR / (project_id or request_id)
                 out_dir.mkdir(parents=True, exist_ok=True)
-                (out_dir / "last_report.json").write_text(
+                saved_report_path = out_dir / "last_report.json"
+                payload["saved_report"] = str(saved_report_path)
+                saved_report_path.write_text(
                     json.dumps(payload, ensure_ascii=False, indent=2),
                     encoding="utf-8",
                 )
-                payload["saved_report"] = str(out_dir / "last_report.json")
             except OSError as e:
                 payload["save_report_error"] = str(e)
 
@@ -233,13 +305,13 @@ def _run_analysis_background(
                 payload["uniportal_writeback_error"] = str(e)
 
         # 清理临时目录
-        if not keep:
+        if cleanup_workdir and not keep:
             shutil.rmtree(workdir, ignore_errors=True)
 
         _set_task_status(request_id, "completed", payload=payload)
 
     except HTTPException as e:
-        if not keep:
+        if cleanup_workdir and not keep:
             shutil.rmtree(workdir, ignore_errors=True)
         _set_task_status(
             request_id,
@@ -247,7 +319,7 @@ def _run_analysis_background(
             error={"detail": e.detail, "status_code": e.status_code},
         )
     except Exception as e:
-        if not keep:
+        if cleanup_workdir and not keep:
             shutil.rmtree(workdir, ignore_errors=True)
         _set_task_status(
             request_id,
@@ -467,7 +539,23 @@ def _local_project_display_name(project_dir: Path) -> str:
     return project_dir.name
 
 
-def _check_analysis_status(project_path: Path) -> dict:
+def _find_last_report_file(project_path: Path, project_id: str) -> Optional[Path]:
+    """按优先级查找历史报告文件.
+
+    优先级:
+      1. {project_path}/_ct8114/last_report.json  (UniPortal 写回路径)
+      2. REPORTS_DIR/{project_id}/last_report.json (本地私有卷落盘路径)
+    """
+    ct8114_report = project_path / "_ct8114" / "last_report.json"
+    if ct8114_report.exists():
+        return ct8114_report
+    local_report = REPORTS_DIR / project_id / "last_report.json"
+    if local_report.exists():
+        return local_report
+    return None
+
+
+def _check_analysis_status(project_path: Path, project_id: str = "") -> dict:
     """检查项目是否已被 ct8114 分析过，返回分析状态信息.
 
     返回字段:
@@ -475,8 +563,8 @@ def _check_analysis_status(project_path: Path) -> dict:
         last_analysis: str | None — 最近分析时间 (ISO 格式)
         report_bugs: int | None — 最近分析的问题总数
     """
-    report_file = project_path / "_ct8114" / "last_report.json"
-    if not report_file.exists():
+    report_file = _find_last_report_file(project_path, project_id or project_path.name)
+    if report_file is None:
         return {"analyzed": False, "last_analysis": None, "report_bugs": None}
 
     try:
@@ -488,6 +576,8 @@ def _check_analysis_status(project_path: Path) -> dict:
         if meta_file.exists():
             meta = json.loads(meta_file.read_text(encoding="utf-8"))
             last_analysis = meta.get("ct8114_last_analysis")
+        if not last_analysis:
+            last_analysis = data.get("uniportal_writeback_time") or None
         return {
             "analyzed": True,
             "last_analysis": last_analysis,
@@ -810,7 +900,7 @@ def list_projects(
             # 模拟模式: 列出所有模拟共享卷项目
             index = _build_item_index()
             for item_id, item_path in sorted(index.items()):
-                analysis_info = _check_analysis_status(item_path)
+                analysis_info = _check_analysis_status(item_path, item_id)
                 items.append({
                     "project_id": item_id,
                     "project_name": _project_display_name(item_path, item_id),
@@ -827,7 +917,7 @@ def list_projects(
                 for item in sorted(proj_path.iterdir()):
                     if not item.is_dir() or item.name.startswith((".", "_")):
                         continue
-                    analysis_info = _check_analysis_status(item)
+                    analysis_info = _check_analysis_status(item, item.name)
                     items.append({
                         "project_id": item.name,
                         "project_name": _project_display_name(item, item.name),
@@ -851,12 +941,14 @@ def list_projects(
             file_count = _count_code_files(sub)
             if file_count == 0:
                 continue  # 没源码的空壳 (通常是分析报告副产物), 不展示
+            analysis_info = _check_analysis_status(sub, sub.name)
             items.append({
                 "project_id": sub.name,
                 "project_name": _local_project_display_name(sub),
                 "file_count": file_count,
                 "status": "available",
                 "source": "local",
+                **analysis_info,
             })
 
     return JSONResponse({
@@ -897,6 +989,13 @@ def _write_back_to_uniportal(root: Path, project_id: str, payload: dict) -> dict
     ct8114_dir.mkdir(parents=True, exist_ok=True)
 
     report_path = ct8114_dir / "last_report.json"
+    from datetime import datetime
+    now = datetime.now().isoformat()
+
+    payload["uniportal_writeback"] = "ok"
+    payload["uniportal_writeback_path"] = str(report_path)
+    payload["uniportal_writeback_time"] = now
+
     # 保存完整报告
     report_path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2),
@@ -904,7 +1003,6 @@ def _write_back_to_uniportal(root: Path, project_id: str, payload: dict) -> dict
     )
 
     # 更新元信息
-    from datetime import datetime
     meta_path = root / "meta.json"
     meta = {}
     if meta_path.exists():
@@ -913,7 +1011,6 @@ def _write_back_to_uniportal(root: Path, project_id: str, payload: dict) -> dict
         except Exception:
             pass
 
-    now = datetime.now().isoformat()
     meta["ct8114_last_analysis"] = now
     meta["ct8114_report_path"] = str(report_path)
     summary = payload.get("report", {}).get("summary", {})
@@ -930,6 +1027,74 @@ def _write_back_to_uniportal(root: Path, project_id: str, payload: dict) -> dict
         "meta_path": str(meta_path),
         "last_analysis": now,
     }
+
+
+def _poll_dcab_http_task(task: dict) -> dict:
+    request_id = task["request_id"]
+    project_id = task.get("project_id", request_id)
+    detection_id = strip_detection_braces(task.get("detection_id", ""))
+    project_path = task.get("project_path", "")
+    project_name = task.get("project_name") or Path(project_path).name or project_id
+    root = Path(project_path) if project_path else None
+
+    try:
+        data = check_progress(detection_id)
+    except DcabClientError as exc:
+        _set_task_status(
+            request_id,
+            "failed",
+            error={"detail": str(exc), "status_code": 502},
+        )
+        with _TASK_STORE_LOCK:
+            return dict(_TASK_STORE[request_id])
+
+    defect_list = data.get("defect_list") if isinstance(data, dict) else None
+    if isinstance(defect_list, list):
+        report = report_from_defect_list(
+            defect_list,
+            report_id=request_id,
+            project_name=project_name,
+            project_path=project_path,
+        )
+        _complete_project_report_task(
+            request_id=request_id,
+            project_id=project_id,
+            report=report,
+            save_report=bool(task.get("save_report", True)),
+            is_uniportal=bool(task.get("is_uniportal", False)),
+            root=root,
+        )
+        with _TASK_STORE_LOCK:
+            return dict(_TASK_STORE[request_id])
+
+    if is_empty_check_response(data):
+        config = get_dcab_config()
+        bugs = load_recent_xplusx_bugs(config.get("workdir") or project_path, task.get("created_at", 0))
+        if bugs:
+            report = report_from_xplusx_bugs(
+                bugs,
+                report_id=request_id,
+                project_name=project_name,
+                project_path=project_path,
+            )
+            _complete_project_report_task(
+                request_id=request_id,
+                project_id=project_id,
+                report=report,
+                save_report=bool(task.get("save_report", True)),
+                is_uniportal=bool(task.get("is_uniportal", False)),
+                root=root,
+            )
+            with _TASK_STORE_LOCK:
+                return dict(_TASK_STORE[request_id])
+
+    _set_task_status(
+        request_id,
+        "running",
+        dcab_last_check=data or {"status": "check_progress_empty"},
+    )
+    with _TASK_STORE_LOCK:
+        return dict(_TASK_STORE[request_id])
 
 
 @app.post("/projects/{project_id}/analyze")
@@ -983,6 +1148,39 @@ def analyze_project(
 
     request_id = f"proj_{uuid.uuid4().hex[:12]}"
 
+    if ANALYSIS_ENGINE == "dcab_http":
+        try:
+            started = start_progress(str(root))
+        except DcabClientError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+        detection_id = strip_detection_braces(started.get("detection_id", ""))
+        _cleanup_expired_tasks()
+        with _TASK_STORE_LOCK:
+            _TASK_STORE[request_id] = {
+                "request_id": request_id,
+                "status": "running",
+                "engine": "dcab_http",
+                "detection_id": detection_id,
+                "project_id": project_id,
+                "project_path": str(root),
+                "project_name": root.name,
+                "is_uniportal": is_uniportal,
+                "save_report": save_report,
+                "created_at": time.time(),
+                "updated_at": time.time(),
+                "dcab_start_response": started,
+            }
+
+        return JSONResponse({
+            "request_id": request_id,
+            "project_id": project_id,
+            "status": "running",
+            "engine": "dcab_http",
+            "detection_id": detection_id,
+            "message": "分析任务已提交，请轮询 GET /status/{request_id} 获取结果",
+        })
+
     # 启动后台线程执行 codetidy 分析
     # 前端通过 GET /status/{request_id} 轮询获取结果
 
@@ -1009,6 +1207,7 @@ def analyze_project(
             project_id=project_id,
             is_uniportal=is_uniportal,
             root=root,
+            cleanup_workdir=False,
         ),
         daemon=True,
     )
@@ -1063,6 +1262,9 @@ def get_analysis_status(request_id: str) -> JSONResponse:
             detail=f"任务 {request_id!r} 不存在或已过期（TTL={TASK_TTL_SECONDS}s）",
         )
 
+    if task.get("engine") == "dcab_http" and task.get("status") == "running":
+        task = _poll_dcab_http_task(task)
+
     return JSONResponse(task)
 
 
@@ -1083,6 +1285,32 @@ def list_all_statuses() -> JSONResponse:
         ]
 
     return JSONResponse({"tasks": tasks, "count": len(tasks)})
+
+
+@app.get("/projects/{project_id}/last-report")
+def get_project_last_report(project_id: str) -> JSONResponse:
+    """读取项目上次分析结果.
+
+    查找优先级:
+      1. {project_root}/_ct8114/last_report.json  (UniPortal 写回路径)
+      2. REPORTS_DIR/{project_id}/last_report.json (本地私有卷落盘路径)
+
+    供前端在不重跑分析的情况下直接展示历史报告.
+    404 表示该项目从未被分析过.
+    """
+    pid = _safe_project_id(project_id)
+    root = _resolve_project_path(pid)
+    report_file = _find_last_report_file(root, pid)
+    if report_file is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"项目 {pid!r} 尚无历史报告，请先运行分析",
+        )
+    try:
+        data = json.loads(report_file.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"读取历史报告失败: {e}") from e
+    return JSONResponse(data)
 
 
 @app.delete("/projects/{project_id}")
@@ -1119,6 +1347,18 @@ def delete_project(project_id: str) -> JSONResponse:
 
 
 def _codetidy_debug_payload(action: str) -> dict:
+    if ANALYSIS_ENGINE == "dcab_http":
+        config = get_dcab_config()
+        return {
+            "status": "ok",
+            "action": action,
+            "engine": "dcab_http",
+            "dcab_base_url": config["base_url"],
+            "dcab_start_path": config["start_path"],
+            "dcab_check_path": config["check_path"],
+            "deepsitr_workdir": config.get("workdir") or None,
+            "message": "DCA HTTP engine configured",
+        }
     codetidy = find_codetidy_bin()
     return {
         "status": "ok" if codetidy else "error",
@@ -1149,10 +1389,11 @@ def debug_dcab_check() -> JSONResponse:
 def healthz() -> dict:
     return {
         "status": "ok",
-        "engine": "codetidy (DeepSITRServer)",
+        "engine": ANALYSIS_ENGINE,
         "async_mode": True,
         "active_tasks": len(_TASK_STORE),
         "task_ttl_seconds": TASK_TTL_SECONDS,
+        "dcab": get_dcab_config() if ANALYSIS_ENGINE == "dcab_http" else None,
         "uniportal_mode": UNIPORTAL_MODE or bool(MOCK_UNIPORTAL_DIR),
         "uniportal_storage_path": UNIPORTAL_STORAGE_PATH or MOCK_UNIPORTAL_DIR or None,
         "uniportal_writable": UNIPORTAL_WRITABLE or bool(MOCK_UNIPORTAL_DIR),

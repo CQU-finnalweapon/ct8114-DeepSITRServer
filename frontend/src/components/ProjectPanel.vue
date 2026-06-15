@@ -19,13 +19,12 @@
       <div v-if="projects.length === 0" class="empty-state">
         暂无项目，可使用直接上传或 DSIT 报告入口。
       </div>
-      <button
+      <div
         v-for="project in projects"
         v-else
         :key="project.project_id"
         class="list-item"
         :class="{ active: selectedId === project.project_id }"
-        type="button"
         @click="selectedId = project.project_id"
       >
         <span class="item-main">
@@ -37,29 +36,62 @@
             class="badge"
             :class="project.source === 'uniportal' ? 'badge-blue' : ''"
           >
-            {{ project.source === "uniportal" ? "UniPortal" : "本地" }}
+            {{ project.source === "uniportal" ? "UniPortal" : "Local" }}
           </span>
           <span
             v-if="project.writable && project.source === 'uniportal'"
             class="badge badge-green"
-            title="分析报告写回共享卷"
-            >↔ 读写</span
+            title="Report can be written back to the shared volume"
+            >RW</span
           >
           <span
             v-if="project.analyzed"
             class="badge badge-green"
-            :title="'最近分析: ' + (project.last_analysis || '未知')"
-            >✓ 已分析</span
+            :title="'Last analysis: ' + (project.last_analysis || 'unknown')"
+            >Analyzed</span
           >
           <span
             v-if="project.report_bugs != null"
             class="badge"
             :class="project.report_bugs > 0 ? 'badge-yellow' : 'badge-green'"
-            >{{ project.report_bugs }} 问题</span
+            >{{ project.report_bugs }} issues</span
           >
-          <span class="badge">{{ project.file_count || 0 }} 文件</span>
+          <span class="badge">{{ project.file_count || 0 }} files</span>
         </span>
-      </button>
+        <span class="item-actions">
+          <button
+            class="btn btn-secondary"
+            type="button"
+            :disabled="loadingFiles === project.project_id"
+            @click.stop="viewFiles(project.project_id)"
+          >
+            查看文件
+          </button>
+          <button
+            v-if="project.analyzed"
+            class="btn btn-secondary"
+            type="button"
+            :disabled="loadingReport === project.project_id"
+            @click.stop="loadLastReport(project.project_id, project.project_name)"
+          >
+            {{ loadingReport === project.project_id ? '加载中...' : '查看历史报告' }}
+          </button>
+          <button
+            class="btn btn-primary"
+            type="button"
+            :disabled="analyzing"
+            @click.stop="runAnalyze(project.project_id)"
+          >
+            重新分析
+          </button>
+        </span>
+      </div>
+
+      <div v-if="visibleFiles.length" class="file-list compact-list">
+        <div class="file-row" v-for="file in visibleFiles" :key="file">
+          <span><strong>{{ file }}</strong></span>
+        </div>
+      </div>
 
       <label class="field">
         <span>入口文件（可选）</span>
@@ -74,9 +106,9 @@
         class="btn btn-primary btn-block"
         type="button"
         :disabled="!selectedId || analyzing"
-        @click="runAnalyze"
+        @click="runAnalyze()"
       >
-        {{ analyzing ? pollLabel : "开始分析项目" }}
+        {{ analyzing ? pollLabel : "重新分析项目" }}
       </button>
 
       <p class="status" :class="statusKind">{{ statusText }}</p>
@@ -88,6 +120,8 @@
 import { computed, onMounted, ref } from "vue";
 import {
   analyzeProjectWithPolling,
+  fetchProjectFiles,
+  fetchProjectLastReport,
   fetchProjects,
   type ProjectItem,
   toFriendlyError,
@@ -101,6 +135,9 @@ const projects = ref<ProjectItem[]>([]);
 const selectedId = ref("");
 const entry = ref("");
 const loading = ref(false);
+const loadingFiles = ref("");
+const loadingReport = ref("");
+const visibleFiles = ref<string[]>([]);
 const analyzing = ref(false);
 const statusText = ref("请选择项目");
 const statusKind = ref("");
@@ -142,7 +179,46 @@ const pollLabel = computed(() => {
   return `轮询中 (第 ${pollCount.value} 次)...`;
 });
 
-async function runAnalyze() {
+async function viewFiles(projectId: string) {
+  loadingFiles.value = projectId;
+  selectedId.value = projectId;
+  visibleFiles.value = [];
+  statusKind.value = "";
+  statusText.value = "Loading project files...";
+  try {
+    const data = await fetchProjectFiles(projectId);
+    visibleFiles.value = data.files || [];
+    statusText.value = visibleFiles.value.length
+      ? `Loaded ${visibleFiles.value.length} source files`
+      : "No source files found";
+  } catch (error) {
+    statusKind.value = "error";
+    statusText.value = toFriendlyError(error);
+  } finally {
+    loadingFiles.value = "";
+  }
+}
+
+async function loadLastReport(projectId: string, projectName?: string) {
+  loadingReport.value = projectId;
+  selectedId.value = projectId;
+  statusKind.value = "";
+  statusText.value = "正在加载历史报告...";
+  try {
+    const raw = await fetchProjectLastReport(projectId);
+    emit("result", raw, projectName || projectId);
+    statusKind.value = "ok";
+    statusText.value = "已加载历史报告";
+  } catch (error) {
+    statusKind.value = "error";
+    statusText.value = toFriendlyError(error);
+  } finally {
+    loadingReport.value = "";
+  }
+}
+
+async function runAnalyze(projectId?: string) {
+  if (projectId) selectedId.value = projectId;
   if (!selectedId.value) return;
   analyzing.value = true;
   pollCount.value = 0;
