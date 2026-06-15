@@ -170,10 +170,23 @@ function makeMessage(raw: any, status: string, count: number) {
 
 export function normalizeReport(raw: any): NormalizedReport {
   const diagnostics = collectDiagnostics(raw);
-  const warning = diagnostics.filter((item) =>
-    /^warn/i.test(item.level),
-  ).length;
-  const error = diagnostics.filter((item) => /^error/i.test(item.level)).length;
+  const report = raw?.report || raw || {};
+  const rawSummary = report?.summary || raw?.summary || {};
+  const byLevel = rawSummary?.by_level || {};
+  const warning = toNumber(
+    firstValue(
+      byLevel.Warning,
+      byLevel.WARNING,
+      diagnostics.filter((item) => /^warn/i.test(item.level)).length,
+    ),
+  );
+  const error = toNumber(
+    firstValue(
+      byLevel.Error,
+      byLevel.ERROR,
+      diagnostics.filter((item) => /^error/i.test(item.level)).length,
+    ),
+  );
   const rules = new Set(diagnostics.map((item) => item.ruleId).filter(Boolean));
   const status = String(
     firstValue(
@@ -217,11 +230,11 @@ export function normalizeReport(raw: any): NormalizedReport {
       ? String(uniportalWriteback)
       : undefined,
     summary: {
-      total: diagnostics.length,
+      total: toNumber(firstValue(rawSummary?.total_bugs, diagnostics.length)),
       warning,
       error,
       fileCount: inferFileCount(raw, diagnostics),
-      ruleCount: rules.size,
+      ruleCount: Object.keys(rawSummary?.by_rule || {}).length || rules.size,
     },
     diagnostics,
     raw,

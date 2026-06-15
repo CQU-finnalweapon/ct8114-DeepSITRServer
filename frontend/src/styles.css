@@ -335,6 +335,16 @@ button {
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+.item-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.compact-list {
+  max-height: 180px;
+  overflow: auto;
+}
 .badge-blue {
   color: var(--primary);
   background: var(--primary-soft);
@@ -453,6 +463,42 @@ button {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) 160px 220px;
   gap: 12px;
+}
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.summary-grid h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+.mini-list {
+  display: grid;
+  gap: 6px;
+}
+.mini-list span {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+}
+.mini-list strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mini-list em {
+  color: var(--muted);
+  font-style: normal;
+  font-weight: 800;
+}
+.empty-inline {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .table-wrap {

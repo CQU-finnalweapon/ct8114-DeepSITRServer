@@ -97,18 +97,21 @@ class DSITReport:
         all_bugs: List[Dict] = []
 
         for fs in self.files_stats:
-            by_file[fs.file_path] = len(fs.bugs)
+            fs_path = _relative_report_path(fs.file_path, self.project_path)
+            by_file[fs_path] = len(fs.bugs)
             for bug in fs.bugs:
+                bug_path = _relative_report_path(bug.file_path, self.project_path)
+                rule_id = _safe_rule_id(bug.rule_id, bug.checker)
                 by_checker[bug.checker] = by_checker.get(bug.checker, 0) + 1
                 by_level[bug.level] = by_level.get(bug.level, 0) + 1
-                by_rule[bug.rule_id] = by_rule.get(bug.rule_id, 0) + 1
+                by_rule[rule_id] = by_rule.get(rule_id, 0) + 1
                 all_bugs.append({
                     "checker": bug.checker,
-                    "file_path": bug.file_path,
+                    "file_path": bug_path,
                     "line": bug.line,
                     "column": bug.column,
                     "message": bug.message,
-                    "rule_id": bug.rule_id,
+                    "rule_id": rule_id,
                     "level": bug.level,
                     "force": bug.force,
                     "type_code": bug.type_code,
@@ -132,7 +135,7 @@ class DSITReport:
             "project_path": self.project_path,
             "files_stats": [
                 {
-                    "file_path": fs.file_path,
+                    "file_path": _relative_report_path(fs.file_path, self.project_path),
                     "total_lines": fs.total_lines,
                     "total_statements": fs.total_statements,
                     "function_count": fs.function_count,
@@ -142,11 +145,11 @@ class DSITReport:
                     "bugs": [
                         {
                             "checker": b.checker,
-                            "file_path": b.file_path,
+                            "file_path": _relative_report_path(b.file_path, self.project_path),
                             "line": b.line,
                             "column": b.column,
                             "message": b.message,
-                            "rule_id": b.rule_id,
+                            "rule_id": _safe_rule_id(b.rule_id, b.checker),
                             "level": b.level,
                             "force": b.force,
                         }
@@ -157,6 +160,28 @@ class DSITReport:
             ],
             "summary": self.summary(),
         }
+
+
+def _safe_rule_id(rule_id: str, checker: str = "") -> str:
+    rid = (rule_id or "").strip()
+    if rid:
+        return rid
+    checker = (checker or "").strip()
+    if checker:
+        return checker
+    return "UNKNOWN_RULE"
+
+
+def _relative_report_path(file_path: str, project_path: str) -> str:
+    if not file_path:
+        return ""
+    path = Path(file_path)
+    if project_path:
+        try:
+            return path.resolve().relative_to(Path(project_path).resolve()).as_posix()
+        except Exception:
+            pass
+    return path.as_posix()
 
 
 # ============================================================================

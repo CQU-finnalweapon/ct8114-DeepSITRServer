@@ -2,8 +2,8 @@
   <section class="tool-card">
     <div class="card-head">
       <div>
-        <h2>直接上传</h2>
-        <p>上传源码文件或工程 zip，并调用现有 /analyze 接口。</p>
+        <h2>Local upload / compatibility mode</h2>
+        <p>Upload source files or a project zip through the existing /analyze API.</p>
       </div>
     </div>
 
@@ -75,7 +75,7 @@
         {{ analyzing ? pollLabel : "开始分析" }}
       </button>
 
-      <div class="debug-actions">
+      <div v-if="isDebug" class="debug-actions">
         <button
           class="btn btn-secondary"
           type="button"
@@ -120,6 +120,7 @@ const analyzing = ref(false);
 const debugging = ref(false);
 const statusText = ref("请选择待分析源码文件或工程 zip");
 const statusKind = ref("");
+const isDebug = new URLSearchParams(window.location.search).get("debug") === "1";
 
 const hasZip = computed(() =>
   files.value.some((file) => file.name.toLowerCase().endsWith(".zip")),

@@ -30,7 +30,7 @@
 
         <ProjectPanel v-if="activeTab === 'projects'" @result="handleResult" />
         <UploadPanel v-else-if="activeTab === 'upload'" @result="handleResult" />
-        <DsitReportPanel v-else @result="handleResult" />
+        <DsitReportPanel v-else-if="activeTab === 'dsit'" @result="handleResult" />
       </aside>
 
       <ResultPanel :report="report" :source-name="sourceName" />
@@ -48,17 +48,19 @@ import { normalizeReport, type NormalizedReport } from "./utils/normalizeReport"
 
 type TabKey = "projects" | "upload" | "dsit";
 
-const tabs: Array<{ key: TabKey; label: string }> = [
+const isDebug = new URLSearchParams(window.location.search).get("debug") === "1";
+
+const tabs = computed<Array<{ key: TabKey; label: string }>>(() => [
   { key: "projects", label: "项目库" },
   { key: "upload", label: "直接上传" },
-  { key: "dsit", label: "DSIT 报告" }
-];
+  ...(isDebug ? [{ key: "dsit" as const, label: "DSIT 报告" }] : []),
+]);
 
 const activeTab = ref<TabKey>("projects");
 const report = ref<NormalizedReport | null>(null);
 const sourceName = ref("");
 
-const activeLabel = computed(() => tabs.find((tab) => tab.key === activeTab.value)?.label || "");
+const activeLabel = computed(() => tabs.value.find((tab) => tab.key === activeTab.value)?.label || "");
 
 function handleResult(raw: any, source: string) {
   report.value = normalizeReport(raw);

@@ -44,7 +44,7 @@
           <span v-if="report?.requestId" class="badge"
             >request_id：{{ report.requestId }}</span
           >
-          <span v-if="report?.detectionId" class="badge badge-blue"
+          <span v-if="isDebug && report?.detectionId" class="badge badge-blue"
             >detection_id：{{ report.detectionId }}</span
           >
           <span
@@ -100,6 +100,73 @@
               </option>
             </select>
           </label>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="report" class="tool-card">
+      <div class="card-head">
+        <div>
+          <h2>Report summary</h2>
+          <p>total_bugs={{ rawSummary.total_bugs ?? report.summary.total }}, total_files={{ rawSummary.total_files ?? report.summary.fileCount }}</p>
+        </div>
+      </div>
+      <div class="card-body summary-grid">
+        <div>
+          <h3>by_level</h3>
+          <div v-if="byLevelEntries.length" class="mini-list">
+            <span v-for="[key, value] in byLevelEntries" :key="key">
+              <strong>{{ key }}</strong>
+              <em>{{ value }}</em>
+            </span>
+          </div>
+          <div v-else class="empty-inline">No level summary</div>
+        </div>
+        <div>
+          <h3>by_rule</h3>
+          <div v-if="byRuleEntries.length" class="mini-list">
+            <span v-for="[key, value] in byRuleEntries" :key="key">
+              <strong>{{ key }}</strong>
+              <em>{{ value }}</em>
+            </span>
+          </div>
+          <div v-else class="empty-inline">No rule summary</div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="report" class="tool-card">
+      <div class="card-head">
+        <div>
+          <h2>files_stats</h2>
+          <p>{{ filesStats.length }} files</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <div v-if="!filesStats.length" class="empty-state">No file stats</div>
+        <div v-else class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>file_path</th>
+                <th>lines</th>
+                <th>statements</th>
+                <th>functions</th>
+                <th>comments</th>
+                <th>bugs</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="file in filesStats" :key="asText(file.file_path)">
+                <td class="path-cell" :title="asText(file.file_path)">{{ asText(file.file_path) || '-' }}</td>
+                <td class="mono">{{ file.total_lines ?? 0 }}</td>
+                <td class="mono">{{ file.total_statements ?? 0 }}</td>
+                <td class="mono">{{ file.function_count ?? 0 }}</td>
+                <td class="mono">{{ file.comment_lines ?? 0 }}</td>
+                <td class="mono">{{ file.bug_count ?? file.bugs?.length ?? 0 }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -160,7 +227,7 @@
       </div>
     </div>
 
-    <details class="raw-json">
+    <details v-if="isDebug" class="raw-json">
       <summary>原始 JSON</summary>
       <pre>{{ prettyRaw }}</pre>
     </details>
@@ -179,6 +246,7 @@ const props = defineProps<{
 const keyword = ref("");
 const levelFilter = ref("");
 const ruleFilter = ref("");
+const isDebug = new URLSearchParams(window.location.search).get("debug") === "1";
 
 watch(
   () => props.report,
@@ -214,6 +282,32 @@ const filteredDiagnostics = computed(() => {
 const prettyRaw = computed(() =>
   props.report ? JSON.stringify(props.report.raw, null, 2) : "{}",
 );
+
+const reportBody = computed(() => props.report?.raw?.report || {});
+const rawSummary = computed(() => reportBody.value?.summary || {});
+const filesStats = computed<any[]>(() =>
+  Array.isArray(reportBody.value?.files_stats)
+    ? reportBody.value.files_stats
+    : [],
+);
+const byLevelEntries = computed<[string, number][]>(() =>
+  Object.entries(rawSummary.value?.by_level || {}).map(([key, value]) => [
+    key,
+    Number(value) || 0,
+  ]),
+);
+const byRuleEntries = computed<[string, number][]>(() =>
+  Object.entries(rawSummary.value?.by_rule || {}).map(([key, value]) => [
+    key,
+    Number(value) || 0,
+  ]),
+);
+
+function asText(value: unknown) {
+  if (typeof value === "string") return value;
+  if (value === undefined || value === null) return "";
+  return JSON.stringify(value);
+}
 
 function shortPath(path: string) {
   const parts = path.split(/[\\/]/).filter(Boolean);
