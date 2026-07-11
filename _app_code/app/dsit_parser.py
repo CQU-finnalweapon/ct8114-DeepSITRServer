@@ -640,6 +640,222 @@ def run_codetidy(
     )
 
 
+# ---------------------------------------------------------------------------
+# C/C++ 函数定义解析器
+# ---------------------------------------------------------------------------
+# 用于从源码中提取函数定位信息（函数名、起止行列号），
+# 供 codetidy 本地分析路径使用（DCAB HTTP 路径由 DCAB 服务端直接返回）。
+
+# 匹配函数定义签名: 返回类型 + 函数名 ( 参数列表 ) [{ 或 行尾]
+# 兼容指针返回、模板、命名空间前缀等常见 C/C++ 写法
+# { 可能在同一行或下一行，由后续逻辑处理
+_FUNC_SIGNATURE_RE = re.compile(
+    r"""(?mx)
+    ^
+    (?:[\w:]+\s+)*                  # 可选的命名空间/类前缀 和 返回类型
+    (?:
+        [\w:]+                      # 返回类型
+        (?:<[^>]*>)?               # 可选的模板参数
+        [\s*&]+                     # 分隔符
+    )*
+    (\w{2,})                        # 函数名 (至少2个字符)
+    \s*\([^)]*\)                    # 参数列表
+    \s*(?:\{|$)                     # { 或行尾
+    """
+)
+
+# 预处理器 / 关键字开头的行（非函数定义）
+_NON_FUNC_PREFIX_RE = re.compile(
+    r'^\s*(#|//|/\*|\*|typedef\b|enum\b|struct\b|union\b|class\b|namespace\b|extern\b|template\b|using\b)'
+)
+
+
+def _strip_c_comments_and_strings(text: str) -> str:
+    """移除 C/C++ 注释和字符串/字符字面量，返回等长占位空格."""
+    result: List[str] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        # 字符串字面量 "..."
+        if text[i] == '"' and (i == 0 or text[i - 1] != '\\'):
+            result.append(' ')
+            i += 1
+            while i < n:
+                if text[i] == '\\' and i + 1 < n:
+                    result.append(' ')
+                    i += 2
+                    continue
+                if text[i] == '"':
+                    result.append(' ')
+                    i += 1
+                    break
+                result.append(' ')
+                i += 1
+            continue
+        # 字符字面量 '...'
+        if text[i] == "'" and (i == 0 or text[i - 1] != '\\'):
+            result.append(' ')
+            i += 1
+            while i < n:
+                if text[i] == '\\' and i + 1 < n:
+                    result.append(' ')
+                    i += 2
+                    continue
+                if text[i] == "'":
+                    result.append(' ')
+                    i += 1
+                    break
+                result.append(' ')
+                i += 1
+            continue
+        # 单行注释 //
+        if text[i:i + 2] == '//':
+            while i < n and text[i] != '\n':
+                result.append(' ')
+                i += 1
+            continue
+        # 块注释 /* ... */
+        if text[i:i + 2] == '/*':
+            result.append(' ')
+            result.append(' ')
+            i += 2
+            while i < n:
+                if text[i:i + 2] == '*/':
+                    result.append(' ')
+                    result.append(' ')
+                    i += 2
+                    break
+                if text[i] == '\n':
+                    result.append('\n')
+                else:
+                    result.append(' ')
+                i += 1
+            continue
+        result.append(text[i])
+        i += 1
+    return ''.join(result)
+
+
+# --- 源码文件后缀 ---
+_CODE_SUFFIXES: frozenset[str] = frozenset({".c", ".cc", ".cpp", ".cxx", ".h", ".hpp", ".hxx"})
+
+
+def _collect_source_files_in_dir(workdir: Path, source_files: List[Path]) -> List[Path]:
+    """如果 source_files 中的文件不在 workdir 下，额外扫描 workdir 下所有 C 源文件."""
+    result = list(source_files)
+    existing = {f.resolve() for f in source_files}
+    try:
+        for p in workdir.rglob("*"):
+            if not p.is_file():
+                continue
+            if p.suffix.lower() not in _CODE_SUFFIXES:
+                continue
+            rp = p.resolve()
+            if rp in existing:
+                continue
+            result.append(p)
+            existing.add(rp)
+    except OSError:
+        pass
+    return result
+
+
+def _parse_functions_from_source(filepath: Path) -> List[DSITFunction]:
+    """从单个 C/C++ 源文件中提取函数定义定位信息."""
+    try:
+        raw_text = filepath.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+
+    # 步骤 1: 移除注释和字符串/字符字面量（用空格占位以保持行列号对齐）
+    clean_text = _strip_c_comments_and_strings(raw_text)
+    lines = clean_text.split('\n')
+    raw_lines = raw_text.split('\n')
+
+    # 步骤 2: 逐行扫描函数签名
+    functions: List[DSITFunction] = []
+    line_count = len(lines)
+
+    for line_idx in range(line_count):
+        line = lines[line_idx]
+
+        # 跳过明显不是函数定义的行
+        if _NON_FUNC_PREFIX_RE.match(line):
+            continue
+
+        # 搜索函数签名
+        m = _FUNC_SIGNATURE_RE.search(line)
+        if not m:
+            continue
+
+        func_name = m.group(1)
+        # 过滤掉已知关键字/类型名
+        if func_name in _C_KEYWORDS:
+            continue
+
+        # 查找 { 的位置：可能已被正则匹配（同行），也可能在下一行
+        brace_line_idx = line_idx
+        brace_col = line.rfind('{')
+        if brace_col < 0:
+            # { 不在当前行，检查下一行
+            if line_idx + 1 < line_count:
+                next_line = lines[line_idx + 1].strip()
+                if next_line == '{' or next_line.startswith('{'):
+                    brace_line_idx = line_idx + 1
+                    brace_col = lines[line_idx + 1].find('{')
+            if brace_col < 0:
+                continue
+
+        # 函数起始行 = 签名所在行, 起始列 = 行首第一个非空字符
+        func_start_line = line_idx + 1  # 1-based
+        try:
+            start_column = line.index(line.strip()[0]) + 1 if line.strip() else 1
+        except (ValueError, IndexError):
+            start_column = 1
+
+        # 步骤 3: 从 { 所在行开始匹配大括号，找到函数结束位置
+        brace_depth = 0
+        end_line = func_start_line
+        end_column = 1
+
+        for close_line_idx in range(brace_line_idx, line_count):
+            close_line = lines[close_line_idx]
+            for ch_idx, ch in enumerate(close_line):
+                if ch == '{':
+                    brace_depth += 1
+                elif ch == '}':
+                    brace_depth -= 1
+                    if brace_depth == 0:
+                        end_line = close_line_idx + 1
+                        end_column = ch_idx + 1
+                        break
+            if brace_depth == 0:
+                break
+
+        functions.append(DSITFunction(
+            name=func_name,
+            start_line=func_start_line,
+            start_column=start_column,
+            end_line=end_line,
+            end_column=end_column,
+        ))
+
+    return functions
+
+
+# 已知 C/C++ 关键字和类型名，用于过滤误匹配
+_C_KEYWORDS = frozenset({
+    "if", "else", "for", "while", "do", "switch", "case", "default",
+    "return", "break", "continue", "goto", "sizeof", "typeof",
+    "int", "char", "short", "long", "float", "double", "void",
+    "signed", "unsigned", "const", "volatile", "static", "extern",
+    "auto", "register", "typedef", "enum", "struct", "union",
+    "true", "false", "NULL", "nullptr", "bool", "wchar_t",
+    "int8_t", "uint8_t", "int16_t", "uint16_t", "int32_t", "uint32_t",
+    "int64_t", "uint64_t", "size_t", "ssize_t", "ptrdiff_t",
+})
+
+
 # 正则：解析 clang-tidy 风格的标准输出诊断行
 # 格式: <file>:<line>:<col>: <level>: <message> [checker-name]
 _DIAG_LINE_RE = re.compile(
@@ -816,6 +1032,14 @@ def analyze_with_codetidy(
     # 解析输出
     bugs = _parse_codetidy_output(proc.stdout, proc.stderr, source_files)
 
+    # 解析所有源文件的函数定义（定位信息）
+    all_source_files = _collect_source_files_in_dir(workdir, source_files)
+    file_functions: Dict[str, List[DSITFunction]] = {}
+    for sf in all_source_files:
+        fns = _parse_functions_from_source(sf)
+        if fns:
+            file_functions[str(sf)] = fns
+
     # 按文件分组
     file_bugs: Dict[str, List[DSITBug]] = {}
     for bug in bugs:
@@ -830,18 +1054,29 @@ def analyze_with_codetidy(
 
     for file_path, file_bug_list in sorted(file_bugs.items()):
         short_path = Path(file_path).name
+        # 查找对应文件的函数列表
+        fns = file_functions.get(file_path, [])
+        if not fns:
+            # 尝试按文件名匹配
+            for sf_path, sf_fns in file_functions.items():
+                if Path(sf_path).name == short_path:
+                    fns = sf_fns
+                    break
         report.files_stats.append(DSITFileStats(
             file_path=short_path,
             bugs=file_bug_list,
+            functions=fns,
         ))
 
-    # 如果某些源文件没有诊断，也加入（无 bug）
+    # 如果某些源文件没有诊断，也加入（无 bug，但可能有函数）
     analyzed_names = {Path(b.file_path).name for b in bugs}
-    for sf in source_files:
+    for sf in all_source_files:
         if sf.name not in analyzed_names:
+            fns = file_functions.get(str(sf), [])
             report.files_stats.append(DSITFileStats(
                 file_path=sf.name,
                 bugs=[],
+                functions=fns,
             ))
 
     return report
