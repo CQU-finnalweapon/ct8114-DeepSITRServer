@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from dsit_parser import DSITBug, DSITFileStats, DSITReport
+from dsit_parser import DSITBug, DSITFileStats, DSITFunction, DSITReport
 
 
 DEFAULT_RULE_IDS = [
@@ -226,6 +226,7 @@ def report_from_defect_list(
     report_id: str,
     project_name: str,
     project_path: str,
+    functions_map: Optional[Dict[str, List[Dict[str, Any]]]] = None,
 ) -> DSITReport:
     by_file: Dict[str, Dict[str, Any]] = {}
     for defect in defect_list:
@@ -263,7 +264,21 @@ def report_from_defect_list(
 
     report = DSITReport(report_id=report_id, project_name=project_name, project_path=project_path)
     for file_path, item in sorted(by_file.items()):
-        report.files_stats.append(_build_file_stats(file_path, item["source_path"], item["bugs"]))
+        file_functions = []
+        if functions_map:
+            raw_fns = functions_map.get(file_path) or functions_map.get(item["source_path"]) or []
+            if isinstance(raw_fns, list):
+                file_functions = [
+                    DSITFunction(
+                        name=str(fn.get("name", "")),
+                        start_line=int(fn.get("start_line", 0)),
+                        start_column=int(fn.get("start_column", 0)),
+                        end_line=int(fn.get("end_line", 0)),
+                        end_column=int(fn.get("end_column", 0)),
+                    )
+                    for fn in raw_fns if isinstance(fn, dict)
+                ]
+        report.files_stats.append(_build_file_stats(file_path, item["source_path"], item["bugs"], file_functions))
     return report
 
 
@@ -272,6 +287,7 @@ def report_from_xplusx_bugs(
     report_id: str,
     project_name: str,
     project_path: str,
+    functions_map: Optional[Dict[str, List[Dict[str, Any]]]] = None,
 ) -> DSITReport:
     by_file: Dict[str, Dict[str, Any]] = {}
     for item in bugs_raw:
@@ -304,7 +320,21 @@ def report_from_xplusx_bugs(
 
     report = DSITReport(report_id=report_id, project_name=project_name, project_path=project_path)
     for file_path, item in sorted(by_file.items()):
-        report.files_stats.append(_build_file_stats(file_path, item["source_path"], item["bugs"]))
+        file_functions = []
+        if functions_map:
+            raw_fns = functions_map.get(file_path) or functions_map.get(item["source_path"]) or []
+            if isinstance(raw_fns, list):
+                file_functions = [
+                    DSITFunction(
+                        name=str(fn.get("name", "")),
+                        start_line=int(fn.get("start_line", 0)),
+                        start_column=int(fn.get("start_column", 0)),
+                        end_line=int(fn.get("end_line", 0)),
+                        end_column=int(fn.get("end_column", 0)),
+                    )
+                    for fn in raw_fns if isinstance(fn, dict)
+                ]
+        report.files_stats.append(_build_file_stats(file_path, item["source_path"], item["bugs"], file_functions))
     return report
 
 
@@ -374,16 +404,23 @@ def _project_relative_path(file_path: str, project_path: str) -> str:
         return path.as_posix()
 
 
-def _build_file_stats(display_path: str, source_path: str, bugs: List[DSITBug]) -> DSITFileStats:
+def _build_file_stats(
+    display_path: str,
+    source_path: str,
+    bugs: List[DSITBug],
+    functions: Optional[List[DSITFunction]] = None,
+) -> DSITFileStats:
     stats = _lightweight_source_stats(source_path)
+    fn_count = len(functions) if functions else stats["function_count"]
     return DSITFileStats(
         file_path=display_path,
         total_lines=stats["total_lines"],
         total_statements=stats["total_statements"],
-        function_count=stats["function_count"],
+        function_count=fn_count,
         function_max_depth=0,
         comment_lines=stats["comment_lines"],
         bugs=bugs,
+        functions=functions or [],
     )
 
 

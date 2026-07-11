@@ -61,6 +61,7 @@ from dsit_parser import (
     CODETIDY_NOT_FOUND_MESSAGE,
     DSITBug,
     DSITFileStats,
+    DSITFunction,
     DSITReport,
     analyze_with_codetidy,
     find_codetidy_bin,
@@ -1109,11 +1110,12 @@ def _mock_analysis(target_files: List[Path], project_name: str) -> DSITReport:
     # 模拟针对每个文件生成 1~3 条诊断
     bugs: list = []
     mock_rules = [
-        ("GJB-R-1-8-2", "禁止使用 goto 语句", "Warning", "0", "naming"),
-        ("GJB-R-1-3-8", "分支语句必须使用大括号", "Error", "1", "logic"),
-        ("GJB-R-1-7-3", "禁止使用魔数，应定义为常量", "Warning", "0", "style"),
-        ("GJB-R-1-5-1", "函数圈复杂度不应超过 10", "Warning", "0", "style"),
-        ("GJB-R-1-7-7", "字符串操作应使用安全函数", "Error", "1", "security"),
+        # (rule_id, message, force, type_code, checker)
+        ("GJB-R-1-8-2", "禁止使用 goto 语句", "1", "2", "clang-analyzer-gjb.statement.Goto"),
+        ("GJB-R-1-3-8", "分支语句必须使用大括号", "1", "1", "clang-analyzer-gjb.branch.Brace"),
+        ("GJB-R-1-7-3", "禁止使用魔数，应定义为常量", "0", "2", "clang-analyzer-gjb.style.MagicNumber"),
+        ("GJB-R-1-5-1", "函数圈复杂度不应超过 10", "0", "2", "clang-analyzer-gjb.complexity.CycloCheck"),
+        ("GJB-R-1-7-7", "字符串操作应使用安全函数", "1", "1", "clang-analyzer-gjb.security.SafeString"),
     ]
 
     for f in target_files:
@@ -1122,33 +1124,58 @@ def _mock_analysis(target_files: List[Path], project_name: str) -> DSITReport:
         for i in range(num_bugs):
             rule = random.choice(mock_rules)
             bugs.append(DSITBug(
-                checker=f"mock-checker-{rule[0]}",
+                checker=rule[4],
                 file_path=fname,
                 line=random.randint(3, 80),
                 column=random.randint(1, 40),
                 message=f"[MOCK] {rule[1]}",
                 rule_id=rule[0],
-                force=rule[2],
-                type_code=rule[3],
+                force=rule[2],       # "1"=Required(强制规则), "0"=Advisory(推荐规则)
+                type_code=rule[3],   # "2"=warning, "1"=error
                 status="open",
             ))
 
-    # 文件统计
+    # 文件统计 + 模拟函数列表
     file_stats: list = []
+    mock_func_names = [
+        "main", "init_hardware", "process_data", "check_status",
+        "send_message", "calculate_checksum", "parse_input", "cleanup",
+    ]
     for f in target_files:
         lines = random.randint(20, 200)
         fbugs = [b for b in bugs if b.file_path == f.name]
+
+        # 为每个文件生成 2~5 个模拟函数（带定位信息）
+        num_fns = random.randint(2, min(5, lines // 10))
+        mock_functions = []
+        last_end = 0
+        for j in range(num_fns):
+            fn_name = random.choice(mock_func_names)
+            start_line = last_end + random.randint(1, 5)
+            end_line = start_line + random.randint(5, 30)
+            if end_line > lines:
+                end_line = lines
+            mock_functions.append(DSITFunction(
+                name=f"{fn_name}_{j+1}",
+                start_line=start_line,
+                start_column=1,
+                end_line=end_line,
+                end_column=1,
+            ))
+            last_end = end_line
+
         file_stats.append(DSITFileStats(
             file_path=str(f),
             total_lines=lines,
             total_statements=random.randint(5, lines // 2),
             total_declares=random.randint(1, 10),
-            function_count=random.randint(1, 8),
+            function_count=num_fns,
             function_max_lines=random.randint(5, 50),
             function_max_depth=random.randint(1, 6),
             comment_lines=random.randint(5, 30),
             code_size=lines * 40,
             bugs=fbugs,
+            functions=mock_functions,
         ))
 
     total_bugs = len(bugs)
@@ -1243,7 +1270,7 @@ async def analyze(
     if zip_uploads and len(files) != 1:
         raise HTTPException(status_code=400, detail="工程 zip 上传时请只选择一个 zip 文件")
 
-    requested_engine = (engine or "").strip().lower()
+    requested_engine = (engine or ANALYSIS_ENGINE).strip().lower()
     if requested_engine and requested_engine not in {"dcab_http", "codetidy"}:
         raise HTTPException(status_code=400, detail=f"unsupported engine: {engine!r}")
     use_codetidy = compatibility_mode or requested_engine == "codetidy"
@@ -2167,6 +2194,8 @@ def _poll_dcab_http_task(task: dict) -> dict:
         )
 
     defect_list = data.get("defect_list") if isinstance(data, dict) else None
+    # 新版 DCAB 输出中的函数列表: {"文件路径": [{"name":"...", "start_line":..., ...}]}
+    functions_map = data.get("functions") if isinstance(data, dict) and isinstance(data.get("functions"), dict) else None
     completed_with_null_defects = defect_list is None and _progress_info_complete(data)
     should_try_fallback = is_empty_check_response(data) or completed_with_null_defects
 
@@ -2225,6 +2254,7 @@ def _poll_dcab_http_task(task: dict) -> dict:
             report_id=request_id,
             project_name=project_name,
             project_path=dcab_project_path,
+            functions_map=functions_map,
         )
         report.project_path = project_path
         _complete_project_report_task(

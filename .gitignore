@@ -19,6 +19,13 @@ _app_code/app/DeepSITRServer
 # Node modules (if any in static)
 node_modules/
 
+# Test / mock temp files (local dev only)
+_app_code/app/test_main.c
+_app_code/app/test_utils.c
+_app_code/app/test_api.py
+_app_code/app/run_mock.py
+mock_uniportal/
+
 # OS files
 Thumbs.db
 .DS_Store

@@ -38,6 +38,16 @@ from typing import Any, Dict, List, Optional
 # ============================================================================
 
 @dataclass
+class DSITFunction:
+    """鍑芥暟瀹氫綅淇℃伅锛岀敱鏂扮増 DCAB 杈撳嚭鎻愪緵."""
+    name: str                      # 鍑芥暟鍚?
+    start_line: int = 0            # 璧峰琛屽彿
+    start_column: int = 0          # 璧峰鍒楀彿
+    end_line: int = 0              # 缁撴潫琛屽彿
+    end_column: int = 0            # 缁撴潫鍒楀彿
+
+
+@dataclass
 class DSITBug:
     """鍗曟潯璇婃柇缁撴灉锛屼笌鍓嶇 diag 鍗＄墖瀛楁瀵归綈."""
     checker: str           # 妫€鏌ュ櫒鍚嶇О, 濡?clang-analyzer-gjb.statement.CodeUnreachableBranch
@@ -46,13 +56,17 @@ class DSITBug:
     column: int            # 鍒楀彿
     message: str           # 璇婃柇娑堟伅锛堝惈瑙勫垯缂栧彿锛?
     rule_id: str           # 瑙勫垯缂栧彿, 濡?GJB-R-1-8-2
-    force: str             # 寮哄埗绾у埆: "1"=寮哄埗, "0"=鎺ㄨ崘
+    force: str             # 寮哄埗绾у埆: "1"=Required(寮哄埗瑙勫垯,鐩稿綋浜嶦rror), "0"=Advisory(鎺ㄨ崘瑙勫垯)
     type_code: str         # 绫诲瀷浠ｇ爜: "2"=warning, "1"=error
     status: str            # 鐘舵€?
 
     @property
     def level(self) -> str:
-        """鏄犲皠涓哄墠绔吋瀹圭殑绾у埆."""
+        """鏄犲皠涓哄墠绔吋瀹圭殑绾у埆.
+
+        Required(寮哄埗瑙勫垯) 鈫? Error 鈥? 鍙兘鏈夐€昏緫閿欒锛屼竴鑸姹傛敼姝?
+        Advisory(鎺ㄨ崘瑙勫垯)  鈫? Warning 鈥? 娼滃湪闂锛屼笉寮哄埗淇
+        """
         if self.force == "1":
             return "Error"
         return "Warning"
@@ -71,6 +85,7 @@ class DSITFileStats:
     comment_lines: int = 0
     code_size: int = 0
     bugs: List[DSITBug] = field(default_factory=list)
+    functions: List[DSITFunction] = field(default_factory=list)
 
 
 @dataclass
@@ -118,6 +133,19 @@ class DSITReport:
                     "type_code": bug.type_code,
                 })
 
+        # 鏀堕泦鎵€鏈夊嚱鏁板垪琛?
+        all_functions: List[Dict] = []
+        for fs in self.files_stats:
+            for fn in fs.functions:
+                all_functions.append({
+                    "name": fn.name,
+                    "file_path": _relative_report_path(fs.file_path, self.project_path),
+                    "start_line": fn.start_line,
+                    "start_column": fn.start_column,
+                    "end_line": fn.end_line,
+                    "end_column": fn.end_column,
+                })
+
         return {
             "total_bugs": self.total_bugs,
             "total_files": self.total_files,
@@ -126,6 +154,7 @@ class DSITReport:
             "by_file": by_file,
             "by_rule": by_rule,
             "bugs": all_bugs,
+            "functions": all_functions,
         }
 
     def to_dict(self) -> Dict[str, Any]:
@@ -143,6 +172,7 @@ class DSITReport:
                     "function_max_depth": fs.function_max_depth,
                     "comment_lines": fs.comment_lines,
                     "bug_count": len(fs.bugs),
+                    "function_count": fs.function_count,
                     "bugs": [
                         {
                             "checker": b.checker,
@@ -155,6 +185,16 @@ class DSITReport:
                             "force": b.force,
                         }
                         for b in fs.bugs
+                    ],
+                    "functions": [
+                        {
+                            "name": fn.name,
+                            "start_line": fn.start_line,
+                            "start_column": fn.start_column,
+                            "end_line": fn.end_line,
+                            "end_column": fn.end_column,
+                        }
+                        for fn in fs.functions
                     ],
                 }
                 for fs in self.files_stats
