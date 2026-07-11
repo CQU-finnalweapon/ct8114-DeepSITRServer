@@ -1,20 +1,20 @@
-﻿"""DeepSITRServer 杈撳嚭瑙ｆ瀽 + codetidy.exe 鍒嗘瀽寮曟搸妯″潡銆?
+﻿"""DeepSITRServer 输出解析 + codetidy.exe 分析引擎模块。
 
-鏈ā鍧楁槸 ct8114 鐨勬牳蹇冨垎鏋愬眰锛屾彁渚涗袱澶у姛鑳斤細
+本模块是 ct8114 的核心分析层，提供两大功能：
 
-A. DeepSITRServer 杈撳嚭瑙ｆ瀽锛堝吋瀹瑰凡鏈?DSIT 杈撳嚭鐩綍锛夛細
-    parse_xplusx_err(filepath) -> List[Dict]     瑙ｆ瀽 .xplusx.err JSON
-    parse_sta(filepath)        -> Dict           瑙ｆ瀽 .sta 鏂囦欢缁熻
-    parse_output_dir(dirpath)  -> DSITReport    閫掑綊鎵弿鏁翠釜杈撳嚭鐩綍
+A. DeepSITRServer 输出解析（兼容已有 DSIT 输出目录）：
+    parse_xplusx_err(filepath) -> List[Dict]     解析 .xplusx.err JSON
+    parse_sta(filepath)        -> Dict           解析 .sta 文件统计
+    parse_output_dir(dirpath)  -> DSITReport     递归扫描整个输出目录
 
-B. codetidy.exe 瀹炴椂鍒嗘瀽锛堟浛浠?clang-tidy锛屼綔涓哄敮涓€鍒嗘瀽寮曟搸锛夛細
-    analyze_with_codetidy()    -> DSITReport    杩愯 codetidy.exe 鍒嗘瀽婧愮爜骞惰繑鍥炴姤鍛?
-    run_codetidy()             -> CompletedProcess  搴曞眰 codetidy.exe 璋冪敤
+B. codetidy.exe 实时分析（替代 clang-tidy，作为唯一分析引擎）：
+    analyze_with_codetidy()    -> DSITReport     运行 codetidy.exe 分析源码并返回报告
+    run_codetidy()             -> CompletedProcess  底层 codetidy.exe 调用
 
-鏁版嵁妯″瀷锛?
-    DSITReport  鈹€ 涓€娆″垎鏋愮殑瀹屾暣鎶ュ憡锛堢粺璁?+ 鏂囦欢鏄庣粏 + 璇婃柇姹囨€伙級
-    DSITBug     鈹€ 鍗曟潯璇婃柇缁撴灉
-    DSITFileStats 鈹€ 鍗曟枃浠剁粺璁′俊鎭?
+数据模型：
+    DSITReport   ─ 一次分析的完整报告（统计 + 文件明细 + 诊断汇总）
+    DSITBug      ─ 单条诊断结果
+    DSITFileStats ─ 单文件统计信息
 """
 
 from __future__ import annotations
@@ -34,38 +34,38 @@ from typing import Any, Dict, List, Optional
 
 
 # ============================================================================
-# 鏁版嵁妯″瀷
+# 数据模型
 # ============================================================================
 
 @dataclass
 class DSITFunction:
-    """鍑芥暟瀹氫綅淇℃伅锛岀敱鏂扮増 DCAB 杈撳嚭鎻愪緵."""
-    name: str                      # 鍑芥暟鍚?
-    start_line: int = 0            # 璧峰琛屽彿
-    start_column: int = 0          # 璧峰鍒楀彿
-    end_line: int = 0              # 缁撴潫琛屽彿
-    end_column: int = 0            # 缁撴潫鍒楀彿
+    """函数定位信息，由新版 DCAB 输出提供."""
+    name: str                      # 函数名
+    start_line: int = 0            # 起始行号
+    start_column: int = 0          # 起始列号
+    end_line: int = 0              # 结束行号
+    end_column: int = 0            # 结束列号
 
 
 @dataclass
 class DSITBug:
-    """鍗曟潯璇婃柇缁撴灉锛屼笌鍓嶇 diag 鍗＄墖瀛楁瀵归綈."""
-    checker: str           # 妫€鏌ュ櫒鍚嶇О, 濡?clang-analyzer-gjb.statement.CodeUnreachableBranch
-    file_path: str         # 婧愭枃浠惰矾寰?
-    line: int              # 琛屽彿
-    column: int            # 鍒楀彿
-    message: str           # 璇婃柇娑堟伅锛堝惈瑙勫垯缂栧彿锛?
-    rule_id: str           # 瑙勫垯缂栧彿, 濡?GJB-R-1-8-2
-    force: str             # 寮哄埗绾у埆: "1"=Required(寮哄埗瑙勫垯,鐩稿綋浜嶦rror), "0"=Advisory(鎺ㄨ崘瑙勫垯)
-    type_code: str         # 绫诲瀷浠ｇ爜: "2"=warning, "1"=error
-    status: str            # 鐘舵€?
+    """单条诊断结果，与前端 diag 卡片字段对齐."""
+    checker: str           # 检查器名称, 如 clang-analyzer-gjb.statement.CodeUnreachableBranch
+    file_path: str         # 源文件路径
+    line: int              # 行号
+    column: int            # 列号
+    message: str           # 诊断消息（含规则编号）
+    rule_id: str           # 规则编号, 如 GJB-R-1-8-2
+    force: str             # 强制级别: "1"=Required(强制规则,相当于Error), "0"=Advisory(推荐规则)
+    type_code: str         # 类型代码: "2"=warning, "1"=error
+    status: str            # 状态
 
     @property
     def level(self) -> str:
-        """鏄犲皠涓哄墠绔吋瀹圭殑绾у埆.
+        """映射为前端兼容的级别.
 
-        Required(寮哄埗瑙勫垯) 鈫? Error 鈥? 鍙兘鏈夐€昏緫閿欒锛屼竴鑸姹傛敼姝?
-        Advisory(鎺ㄨ崘瑙勫垯)  鈫? Warning 鈥? 娼滃湪闂锛屼笉寮哄埗淇
+        Required(强制规则) → Error — 可能有逻辑错误，一般要求改正
+        Advisory(推荐规则)  → Warning — 潜在问题，不强制修复
         """
         if self.force == "1":
             return "Error"
@@ -74,8 +74,8 @@ class DSITBug:
 
 @dataclass
 class DSITFileStats:
-    """鍗曟枃浠剁粺璁′俊鎭?"""
-    file_path: str                    # 婧愭枃浠剁浉瀵?缁濆璺緞
+    """单文件统计信息."""
+    file_path: str                    # 源文件相对/绝对路径
     total_lines: int = 0
     total_statements: int = 0
     total_declares: int = 0
@@ -90,10 +90,10 @@ class DSITFileStats:
 
 @dataclass
 class DSITReport:
-    """涓€娆?DeepSITRServer 鍒嗘瀽鐨勫畬鏁存姤鍛?"""
+    """一次 DeepSITRServer 分析的完整报告."""
     report_id: str
-    project_name: str                  # 椤圭洰鍚嶇О
-    project_path: str                  # 鍘熷椤圭洰璺緞
+    project_name: str                  # 项目名称
+    project_path: str                  # 原始项目路径
     files_stats: List[DSITFileStats] = field(default_factory=list)
 
     @property
@@ -105,7 +105,7 @@ class DSITReport:
         return len(self.files_stats)
 
     def summary(self) -> Dict[str, Any]:
-        """鐢熸垚缁欏墠绔睍绀虹殑鑱氬悎鎽樿."""
+        """生成给前端展示的聚合摘要."""
         by_checker: Dict[str, int] = {}
         by_level: Dict[str, int] = {}
         by_file: Dict[str, int] = {}
@@ -133,7 +133,7 @@ class DSITReport:
                     "type_code": bug.type_code,
                 })
 
-        # 鏀堕泦鎵€鏈夊嚱鏁板垪琛?
+        # 收集所有函数列表
         all_functions: List[Dict] = []
         for fs in self.files_stats:
             for fn in fs.functions:
@@ -158,7 +158,7 @@ class DSITReport:
         }
 
     def to_dict(self) -> Dict[str, Any]:
-        """瀹屾暣鎶ュ憡搴忓垪鍖栦负 dict."""
+        """完整报告序列化为 dict."""
         return {
             "report_id": self.report_id,
             "project_name": self.project_name,
@@ -226,11 +226,11 @@ def _relative_report_path(file_path: str, project_path: str) -> str:
 
 
 # ============================================================================
-# 瑙ｆ瀽鍣ㄥ嚱鏁?
+# 解析器函数
 # ============================================================================
 
 def parse_xplusx_err(filepath: str | Path) -> List[Dict[str, Any]]:
-    """瑙ｆ瀽 .xplusx.err JSON 鏂囦欢锛岃繑鍥?bug 鍒楄〃."""
+    """解析 .xplusx.err JSON 文件，返回 bug 列表."""
     path = Path(filepath)
     if not path.exists():
         return []
@@ -273,11 +273,11 @@ def parse_xplusx_err(filepath: str | Path) -> List[Dict[str, Any]]:
 
 
 def _extract_rule_id(bug: Dict) -> str:
-    """浠?bug 璁板綍涓彁鍙?GJB/MISRA 瑙勫垯缂栧彿."""
+    """从 bug 记录中提取 GJB/MISRA 规则编号."""
     standard = bug.get("standard", "")
     if standard:
         std = standard.strip()
-        # 鎻愬彇瑙勫垯缂栧彿閮ㄥ垎, 濡?"GJB-R-1-8-2 : Prohibit ..." 鈫?"GJB-R-1-8-2"
+        # 提取规则编号部分, 如 "GJB-R-1-8-2 : Prohibit ..." → "GJB-R-1-8-2"
         match = re.match(r'(GJB-[AR]-\d+-\d+-\d+|MISRA[^:\s]*[A-Z]?-\d+[^:\s]*)', std)
         if match:
             return match.group(1)
@@ -290,7 +290,7 @@ def _extract_rule_id(bug: Dict) -> str:
 
 
 def parse_sta(filepath: str | Path) -> Dict[str, int]:
-    """瑙ｆ瀽 .sta 鏂囨湰鏂囦欢锛岃繑鍥炵粺璁″瓧鍏?"""
+    """解析 .sta 文本文件，返回统计字典."""
     path = Path(filepath)
     if not path.exists():
         return {}
@@ -318,7 +318,7 @@ def parse_sta(filepath: str | Path) -> Dict[str, int]:
 
 
 def parse_rst(filepath: str | Path) -> Dict[str, str]:
-    """瑙ｆ瀽 .rst XML 鏂囦欢锛岃繑鍥為」鐩厓鏁版嵁."""
+    """解析 .rst XML 文件，返回项目元数据."""
     path = Path(filepath)
     if not path.exists():
         return {}
@@ -338,7 +338,7 @@ def parse_rst(filepath: str | Path) -> Dict[str, str]:
 
 
 def _format_xml_time(el: ET.Element) -> str:
-    """鏍煎紡鍖?XML 鏃堕棿鍏冪礌."""
+    """格式化 XML 时间元素."""
     y = el.get("year", "")
     m = el.get("month", "")
     d = el.get("day", "")
@@ -352,28 +352,28 @@ def parse_output_dir(
     dirpath: str | Path,
     report_id: str = "",
 ) -> DSITReport:
-    """閫掑綊鎵弿 DeepSITRServer 杈撳嚭鐩綍锛岀敓鎴愬畬鏁存姤鍛?
+    """递归扫描 DeepSITRServer 输出目录，生成完整报告。
 
-    鐩綍缁撴瀯绾﹀畾锛圖eepSITRServer 鍏稿瀷甯冨眬锛?:
+    目录结构约定（DeepSITRServer 典型布局）:
 
         output_dir/
-        鈹溾攢鈹€ file1.cpp.xplusx.err   鈫?JSON 璇婃柇
-        鈹溾攢鈹€ file1.cpp.sta           鈫?鏂囦欢缁熻
-        鈹溾攢鈹€ file1.cpp.cgp           鈫?璋冪敤鍥撅紙鏆備笉瑙ｆ瀽锛?
-        鈹溾攢鈹€ file1.cpp.err           鈫?鏂囨湰鏍煎紡璇婃柇
-        鈹溾攢鈹€ file1.cpp.cgf           鈫?妫€鏌ュ櫒閰嶇疆
-        鈹溾攢鈹€ file2.cpp.xplusx.err
-        鈹溾攢鈹€ ...
-        鈹斺攢鈹€ output.rst              鈫?椤圭洰绾у厓鏁版嵁锛堝彲閫夛級
+        ├── file1.cpp.xplusx.err   → JSON 诊断
+        ├── file1.cpp.sta           → 文件统计
+        ├── file1.cpp.cgp           → 调用图（暂不解析）
+        ├── file1.cpp.err           → 文本格式诊断
+        ├── file1.cpp.cgf           → 检查器配置
+        ├── file2.cpp.xplusx.err
+        ├── ...
+        └── output.rst              → 项目级元数据（可选）
 
-    鐗规畩澶勭悊锛欴eepSITRServer 鐨勮緭鍑虹洰褰曞彲鑳藉寘鍚涓瓙鐩綍
-    锛堝 SACarCam/, StdDOC/, Test2/锛夛紝閫掑綊鎵弿鎵€鏈夋枃浠躲€?
+    特殊处理：DeepSITRServer 的输出目录可能包含多个子目录
+    （如 SACarCam/, StdDOC/, Test2/），递归扫描所有文件。
     """
     root = Path(dirpath)
     if not root.is_dir():
         return DSITReport(report_id=report_id, project_name=root.name, project_path=str(root))
 
-    # 鏀堕泦鎵€鏈?.xplusx.err 鏂囦欢
+    # 收集所有 .xplusx.err 文件
     xplusx_files: Dict[str, Path] = {}
     sta_files: Dict[str, Path] = {}
     rst_files: List[Path] = []
@@ -383,7 +383,7 @@ def parse_output_dir(
             continue
         name = filepath.name.lower()
         if name.endswith(".xplusx.err"):
-            # key = 鍘绘帀 .xplusx.err 鍚庣殑鍩虹鍚?
+            # key = 去掉 .xplusx.err 后的基础名
             base = filepath.name[:-len(".xplusx.err")]
             xplusx_files[base] = filepath
         elif name.endswith(".sta"):
@@ -392,25 +392,25 @@ def parse_output_dir(
         elif name.endswith(".rst"):
             rst_files.append(filepath)
 
-    # 璇诲彇椤圭洰鍏冩暟鎹?
+    # 读取项目元数据
     project_name = root.name
     project_path = str(root)
     if rst_files:
         meta = parse_rst(rst_files[0])
         project_path = meta.get("project_path", str(root))
-        # 浠庤矾寰勪腑鎻愬彇椤圭洰鍚?
+        # 从路径中提取项目名
         pp = meta.get("project_path", "")
         if pp:
             project_name = Path(pp).name or root.name
 
-    # 鏋勫缓鎶ュ憡
+    # 构建报告
     report = DSITReport(
         report_id=report_id,
         project_name=project_name,
         project_path=project_path,
     )
 
-    # 閬嶅巻鎵€鏈夋壘鍒扮殑 xplusx 鏂囦欢
+    # 遍历所有找到的 xplusx 文件
     for base, xplusx_path in sorted(xplusx_files.items()):
         bugs_raw = parse_xplusx_err(xplusx_path)
         stats = parse_sta(sta_files[base]) if base in sta_files else {}
@@ -430,9 +430,9 @@ def parse_output_dir(
             for b in bugs_raw
         ]
 
-        # file_path 鍙?bugs 涓殑璺緞锛屽惁鍒欑敤 base 浣滀负鏄剧ず鍚?
+        # file_path 取 bugs 中的路径，否则用 base 作为显示名
         display_path = bugs[0].file_path if bugs else str(xplusx_path)
-        # 鍙繚鐣欐枃浠跺悕閮ㄥ垎渚夸簬灞曠ず
+        # 只保留文件名部分便于展示
         short_path = Path(display_path).name or base
 
         report.files_stats.append(DSITFileStats(
@@ -452,19 +452,19 @@ def parse_output_dir(
 
 
 # ============================================================================
-# codetidy.exe 瀹炴椂鍒嗘瀽寮曟搸锛堟浛浠?clang-tidy锛屼綔涓哄敮涓€鍒嗘瀽寮曟搸锛?
+# codetidy.exe 实时分析引擎（替代 clang-tidy，作为唯一分析引擎）
 # ============================================================================
 # ╔════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
-# ║  DeepSITRServer / codetidy.exe 路径配置                                  ║
-# ║                                                                          ║
-# ║  🎯 推荐方式: 设置 DEEPSITR_ROOT 环境变量                                  ║
-# ║      指向 DeepSITRServer 安装目录即可，程序会自动搜索 core/codetidy.exe     ║
-# ║      PowerShell: $env:DEEPSITR_ROOT="E:\path\to\DeepSITRServer"          ║
-# ║      Linux:      export DEEPSITR_ROOT=/opt/DeepSITRServer                 ║
-# ║                                                                          ║
-# ║  🔧 高级覆盖: 设置 CODETIDY_BIN 环境变量直接指定 codetidy.exe 的完整路径    ║
-# ║                                                                          ║
-# ║  📌 搜索优先级: DEEPSITR_ROOT → CODETIDY_BIN → 自动递归搜索                ║
+# ║  DeepSITRServer / codetidy.exe 路径配置                                                                          ║
+# ║                                                                                                                  ║
+# ║  🎯 推荐方式: 设置 DEEPSITR_ROOT 环境变量                                                                         ║
+# ║      指向 DeepSITRServer 安装目录即可，程序会自动搜索 core/codetidy.exe                                            ║
+# ║      PowerShell: $env:DEEPSITR_ROOT="E:\path\to\DeepSITRServer"                                                  ║
+# ║      Linux:      export DEEPSITR_ROOT=/opt/DeepSITRServer                                                        ║
+# ║                                                                                                                  ║
+# ║  🔧 高级覆盖: 设置 CODETIDY_BIN 环境变量直接指定 codetidy.exe 的完整路径                                           ║
+# ║                                                                                                                  ║
+# ║  📌 搜索优先级: DEEPSITR_ROOT → CODETIDY_BIN → 自动递归搜索                                                       ║
 # ╚═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
 # ============================================================================
 
@@ -483,9 +483,9 @@ _CODETIDY_TIMEOUT = int(os.environ.get("CODETIDY_TIMEOUT", "300"))
 
 
 CODETIDY_NOT_FOUND_MESSAGE = (
-    "\u540e\u7aef\u5206\u6790\u7a0b\u5e8f\u8def\u5f84\u672a\u914d\u7f6e\u6216\u4e0d\u5b58\u5728\uff0c"
-    "\u8bf7\u8bbe\u7f6e DEEPSITR_ROOT \u6216 CODETIDY_BIN \u73af\u5883\u53d8\u91cf\uff0c"
-    "\u6216\u5c06 codetidy.exe \u653e\u5230\u9879\u76ee\u76ee\u5f55\u4e0b\u7684 DeepSITRServer/core/ \u4e2d"
+    "后端分析程序路径未配置或不存在，"
+    "请设置 DEEPSITR_ROOT 或 CODETIDY_BIN 环境变量，"
+    "或将 codetidy.exe 放到项目目录下的 DeepSITRServer/core/ 中"
 )
 
 
@@ -580,7 +580,7 @@ def find_codetidy_bin() -> Optional[Path]:
 
 
 def _find_codetidy() -> Path:
-    """鏌ユ壘 codetidy.exe 鍙墽琛屾枃浠惰矾寰?"""
+    """查找 codetidy.exe 可执行文件路径."""
     codetidy = find_codetidy_bin()
     if codetidy:
         return codetidy
@@ -598,23 +598,23 @@ def run_codetidy(
     extra_args: Optional[List[str]] = None,
     timeout: int = 0,
 ) -> subprocess.CompletedProcess:
-    """瀵逛竴缁勬簮鏂囦欢杩愯 codetidy.exe銆?
+    """对一组源文件运行 codetidy.exe。
 
     Args:
-        source_files: 寰呭垎鏋愮殑婧愭枃浠惰矾寰勫垪琛?
-        workdir: 宸ヤ綔鐩綍锛坈odetidy 鍦ㄦ鐩綍涓嬭繍琛岋級
-        checks: 鍚敤鐨勬鏌ヨ鍒欙紙涓虹┖鍒欎娇鐢ㄩ粯璁?GJB 瑙勫垯锛?
-        extra_args: 棰濆鐨勭紪璇戝櫒鍙傛暟锛堝 -std=c++11 -I./include锛?
-        timeout: 瓒呮椂绉掓暟锛? 浣跨敤榛樿鍊硷級
+        source_files: 待分析的源文件路径列表
+        workdir: 工作目录（codetidy 在此目录下运行）
+        checks: 启用的检查规则（为空则使用默认 GJB 规则）
+        extra_args: 额外的编译器参数（如 -std=c++11 -I./include）
+        timeout: 超时秒数（0 使用默认值）
 
     Returns:
-        subprocess.CompletedProcess 瀵硅薄
+        subprocess.CompletedProcess 对象
     """
     codetidy = _find_codetidy()
     timeout = timeout or _CODETIDY_TIMEOUT
     effective_checks = checks or _CODETIDY_CHECKS
 
-    # 鏋勫缓鍛戒护: codetidy.exe <files> -checks=<...> -- <compiler-flags>
+    # 构建命令: codetidy.exe <files> -checks=<...> -- <compiler-flags>
     cmd = [
         str(codetidy),
         *[str(f) for f in source_files],
@@ -640,8 +640,8 @@ def run_codetidy(
     )
 
 
-# 姝ｅ垯锛氳В鏋?clang-tidy 椋庢牸鐨勬爣鍑嗚緭鍑鸿瘖鏂
-# 鏍煎紡: <file>:<line>:<col>: <level>: <message> [checker-name]
+# 正则：解析 clang-tidy 风格的标准输出诊断行
+# 格式: <file>:<line>:<col>: <level>: <message> [checker-name]
 _DIAG_LINE_RE = re.compile(
     r"^(.+?):(\d+):(\d+):\s+(warning|error|note):\s+(.+?)(?:\s+\[(.+?)\])?\s*$"
 )
@@ -652,15 +652,15 @@ def _parse_codetidy_output(
     stderr: str,
     source_files: List[Path],
 ) -> List[DSITBug]:
-    """瑙ｆ瀽 codetidy.exe 鐨?stdout/stderr 杈撳嚭锛屾彁鍙栬瘖鏂垪琛ㄣ€?
+    """解析 codetidy.exe 的 stdout/stderr 输出，提取诊断列表。
 
-    鍏煎 clang-tidy 鏍囧噯杈撳嚭鏍煎紡锛屽皢姣忔潯璇婃柇鏄犲皠涓?DSITBug銆?
+    兼容 clang-tidy 标准输出格式，将每条诊断映射为 DSITBug。
     """
     bugs: List[DSITBug] = []
-    # 鍚堝苟 stdout 鍜?stderr 杩涜瑙ｆ瀽
+    # 合并 stdout 和 stderr 进行解析
     combined = (stdout + "\n" + stderr).splitlines()
 
-    # 寤虹珛鏂囦欢鍚?鈫?瀹屾暣璺緞鐨勫揩閫熸槧灏?
+    # 建立文件名 → 完整路径的快速映射
     file_map: Dict[str, str] = {}
     for sf in source_files:
         file_map[sf.name] = str(sf)
@@ -688,22 +688,22 @@ def _parse_codetidy_output(
         message = m.group(5).strip()
         checker = (m.group(6) or "").strip()
 
-        # 瑙ｆ瀽鏂囦欢璺緞锛氫紭鍏堢敤瀹屾暣璺緞鍖归厤
+        # 解析文件路径：优先用完整路径匹配
         file_path = file_ref
         if file_ref in file_map:
             file_path = file_map[file_ref]
         else:
-            # 灏濊瘯鎸夋枃浠跺悕鍖归厤
+            # 尝试按文件名匹配
             for sf in source_files:
                 if sf.name == file_ref or str(sf).endswith(file_ref):
                     file_path = str(sf)
                     break
 
-        # 鏄犲皠绾у埆
+        # 映射级别
         if level_str == "error":
             force = "1"
         elif level_str == "warning":
-            force = "1"  # GJB 涓?warning 涔熺畻寮哄埗
+            force = "1"  # GJB 中 warning 也算强制
         else:
             force = "0"
 
@@ -725,13 +725,13 @@ def _parse_codetidy_output(
 
 
 def _extract_rule_id_from_checker(checker: str) -> str:
-    """浠?checker 鍚嶇О涓帹瀵?GJB 瑙勫垯缂栧彿.
+    """从 checker 名称中推导 GJB 规则编号.
 
-    渚嬪: clang-analyzer-gjb.statement.CodeUnreachableBranch 鈫?GJB-statement-CodeUnreachableBranch
+    例如: clang-analyzer-gjb.statement.CodeUnreachableBranch → GJB-statement-CodeUnreachableBranch
     """
     if not checker:
         return ""
-    # 鎻愬彇 gjb 鎴?gjb05 鍚庨潰鐨勯儴鍒?
+    # 提取 gjb 或 gjb05 后面的部分
     m = re.search(r'gjb\d*\.(.+)$', checker, re.IGNORECASE)
     if m:
         return f"GJB-{m.group(1)}"
@@ -739,7 +739,7 @@ def _extract_rule_id_from_checker(checker: str) -> str:
 
 
 def _extract_rule_id_from_message(message: str) -> str:
-    """浠庤瘖鏂秷鎭腑鎻愬彇 GJB/MISRA 瑙勫垯缂栧彿."""
+    """从诊断消息中提取 GJB/MISRA 规则编号."""
     if not message:
         return ""
     m = re.search(r'(GJB-[AR]-\d+-\d+-\d+|MISRA[^:\s]*[A-Z]?-\d+[^:\s]*)', message)
@@ -757,20 +757,20 @@ def analyze_with_codetidy(
     timeout: int = 0,
     report_id: str = "",
 ) -> DSITReport:
-    """浣跨敤 codetidy.exe 鍒嗘瀽婧愭枃浠跺苟杩斿洖 DSITReport銆?
+    """使用 codetidy.exe 分析源文件并返回 DSITReport。
 
-    杩欐槸 ct8114 鐨勬牳蹇冨垎鏋愬叆鍙ｏ紝鏇夸唬浜嗗師鏉ョ殑 clang-tidy + fixes_parser 娴佺▼銆?
+    这是 ct8114 的核心分析入口，替代了原来的 clang-tidy + fixes_parser 流程。
 
     Args:
-        source_files: 寰呭垎鏋愮殑 C/C++ 婧愭枃浠惰矾寰勫垪琛?
-        project_name: 椤圭洰鍚嶇О锛堢敤浜庢姤鍛婂睍绀猴級
-        checks: 鍚敤鐨勬鏌ヨ鍒欙紙榛樿浣跨敤 GJB 瑙勫垯锛?
-        extra_args: 缂栬瘧鍣ㄩ澶栧弬鏁?
-        timeout: 瓒呮椂绉掓暟
-        report_id: 鎶ュ憡 ID锛堣嚜鍔ㄧ敓鎴愶級
+        source_files: 待分析的 C/C++ 源文件路径列表
+        project_name: 项目名称（用于报告展示）
+        checks: 启用的检查规则（默认使用 GJB 规则）
+        extra_args: 编译器额外参数
+        timeout: 超时秒数
+        report_id: 报告 ID（自动生成）
 
     Returns:
-        DSITReport 瀹屾暣鎶ュ憡瀵硅薄
+        DSITReport 完整报告对象
     """
     if not source_files:
         return DSITReport(
@@ -779,10 +779,10 @@ def analyze_with_codetidy(
             project_path="",
         )
 
-    # 纭畾宸ヤ綔鐩綍锛氫娇鐢ㄧ涓€涓簮鏂囦欢鐨勭埗鐩綍
+    # 确定工作目录：使用第一个源文件的父目录
     workdir = source_files[0].parent.resolve()
 
-    # 鏀堕泦 include 鐩綍
+    # 收集 include 目录
     include_dirs = sorted({
         str(p.parent.resolve())
         for p in source_files
@@ -804,8 +804,8 @@ def analyze_with_codetidy(
         )
     except FileNotFoundError as e:
         raise FileNotFoundError(
-            f"鏈壘鍒?codetidy.exe銆傝纭 DeepSITRServer 宸查儴缃诧紝"
-            f"鎴栬缃?CODETIDY_BIN 鐜鍙橀噺銆俓n{ e}"
+            f"未找到 codetidy.exe。请确认 DeepSITRServer 已部署，"
+            f"或设置 CODETIDY_BIN 环境变量。\n{ e}"
         ) from e
     except subprocess.TimeoutExpired as e:
         raise subprocess.TimeoutExpired(
@@ -813,15 +813,15 @@ def analyze_with_codetidy(
             output=e.output, stderr=e.stderr,
         ) from e
 
-    # 瑙ｆ瀽杈撳嚭
+    # 解析输出
     bugs = _parse_codetidy_output(proc.stdout, proc.stderr, source_files)
 
-    # 鎸夋枃浠跺垎缁?
+    # 按文件分组
     file_bugs: Dict[str, List[DSITBug]] = {}
     for bug in bugs:
         file_bugs.setdefault(bug.file_path, []).append(bug)
 
-    # 鏋勫缓鎶ュ憡
+    # 构建报告
     report = DSITReport(
         report_id=report_id or f"codetidy_{uuid.uuid4().hex[:12]}",
         project_name=project_name or workdir.name,
@@ -835,7 +835,7 @@ def analyze_with_codetidy(
             bugs=file_bug_list,
         ))
 
-    # 濡傛灉鏌愪簺婧愭枃浠舵病鏈夎瘖鏂紝涔熷姞鍏ワ紙鏃?bug锛?
+    # 如果某些源文件没有诊断，也加入（无 bug）
     analyzed_names = {Path(b.file_path).name for b in bugs}
     for sf in source_files:
         if sf.name not in analyzed_names:
@@ -848,7 +848,7 @@ def analyze_with_codetidy(
 
 
 # ============================================================================
-# CLI 娴嬭瘯鍏ュ彛
+# CLI 测试入口
 # ============================================================================
 
 if __name__ == "__main__":
@@ -868,9 +868,9 @@ if __name__ == "__main__":
         report = parse_output_dir(target, report_id="cli_test")
 
     print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
-    print(f"\n=== 鎽樿 ===")
+    print(f"\n=== 摘要 ===")
     s = report.summary()
-    print(f"  鏂囦欢鏁? {report.total_files}")
-    print(f"  璇婃柇鎬绘暟: {report.total_bugs}")
-    print(f"  鎸夌骇鍒? {s['by_level']}")
-    print(f"  鎸夎鍒? {s['by_rule']}")
+    print(f"  文件数: {report.total_files}")
+    print(f"  诊断总数: {report.total_bugs}")
+    print(f"  按级别: {s['by_level']}")
+    print(f"  按规则: {s['by_rule']}")
