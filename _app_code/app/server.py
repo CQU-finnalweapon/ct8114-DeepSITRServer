@@ -862,7 +862,18 @@ def _ct8114_output_dir(
     item_root: Path,
     dcab_source_root: Optional[Path] = None,
 ) -> Path:
-    return _find_actual_project_dir(item_root, dcab_source_root) / 'ct8114'
+    """返回 ct8114 在共享卷中的写回目录（与项目源码目录平级）.
+
+    目录结构:
+        {item_root}/
+          ├── {project_name}/     # 项目源码目录
+          ├── ct8114/             # ★ ct8114 工具输出目录
+          │   ├── last_report.json
+          │   └── meta.json
+          ├── configuration-test-case-generate/
+          └── document-validator/
+    """
+    return item_root / 'ct8114'
 
 
 def _safe_extract_zip(zip_path: Path, extract_dir: Path) -> None:
@@ -1047,7 +1058,7 @@ def _find_last_report_file(project_path: Path, project_id: str) -> Optional[Path
     """按优先级查找历史报告文件.
 
     优先级:
-      1. {actual_project_dir}/ct8114/last_report.json (新写回路径)
+      1. {project_path}/ct8114/last_report.json (新写回路径，与源码目录平级)
       2. {project_path}/_ct8114/last_report.json (旧写回路径)
       3. REPORTS_DIR/{project_id}/last_report.json (本地报告)
     """
@@ -1953,7 +1964,7 @@ def _write_back_to_uniportal(
 ) -> dict:
     """将分析报告写回 UniPortal 共享卷项目目录.
 
-    已有项目重扫和直接上传入库都写入 {actual_project_dir}/ct8114/。
+    已有项目重扫和直接上传入库都写入 {item_root}/ct8114/（与项目源码目录平级）。
 
     这是 ct8114 子工具与 UniPortal 一体化平台双向通信的关键:
     分析结果写回共享卷后, UniPortal 可在项目详情页直接展示.
@@ -2520,7 +2531,7 @@ def get_project_last_report(project_id: str) -> JSONResponse:
     """读取项目上次分析结果.
 
     查找优先级:
-      1. {actual_project_dir}/ct8114/last_report.json (新写回路径)
+      1. {project_root}/ct8114/last_report.json (新写回路径，与源码目录平级)
       2. {project_root}/_ct8114/last_report.json (旧写回路径)
       3. REPORTS_DIR/{project_id}/last_report.json (本地报告)
 
@@ -2542,7 +2553,7 @@ def get_project_last_report(project_id: str) -> JSONResponse:
     report = data.get('report') if isinstance(data.get('report'), dict) else None
     if report is not None and 'project_name' in report:
         actual_project_dir = _find_actual_project_dir(root)
-        new_meta = _read_json_dict(actual_project_dir / 'ct8114' / 'meta.json')
+        new_meta = _read_json_dict(_ct8114_output_dir(root) / 'meta.json')
         legacy_meta = _read_json_dict(root / 'meta.json')
         report['project_name'] = _resolve_report_project_name(
             root,

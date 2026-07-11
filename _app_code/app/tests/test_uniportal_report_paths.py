@@ -19,7 +19,7 @@ class UniPortalReportPathTests(unittest.TestCase):
             self.assertEqual(actual, source_root.parent.resolve())
             self.assertEqual(
                 server._ct8114_output_dir(item_root, source_root),
-                source_root.parent.resolve() / 'ct8114',
+                item_root.resolve() / 'ct8114',
             )
 
     def test_actual_project_dir_ignores_tool_directories(self):
@@ -72,10 +72,11 @@ class UniPortalReportPathTests(unittest.TestCase):
             base = Path(tmp)
             item_root = base / 'item'
             project_dir = item_root / 'BusinessProject'
-            output_dir = project_dir / 'ct8114'
+            output_dir = item_root / 'ct8114'
             legacy_dir = item_root / '_ct8114'
             local_dir = base / 'reports' / 'project-id'
             output_dir.mkdir(parents=True)
+            project_dir.mkdir(parents=True)
             legacy_dir.mkdir()
             local_dir.mkdir(parents=True)
             new_report = output_dir / 'last_report.json'
@@ -161,7 +162,7 @@ class UniPortalReportPathTests(unittest.TestCase):
                 existing_project=True,
             )
 
-            output_dir = source_root.parent / 'ct8114'
+            output_dir = item_root / 'ct8114'
             self.assertEqual(Path(result['report_path']), output_dir / 'last_report.json')
             meta = json.loads((output_dir / 'meta.json').read_text(encoding='utf-8'))
             self.assertEqual(meta['project_name'], 'MEMS项目')
@@ -195,11 +196,11 @@ class UniPortalReportPathTests(unittest.TestCase):
                 existing_project=True,
             )
 
-            meta_path = source_root.parent / 'ct8114' / 'meta.json'
+            meta_path = item_root / 'ct8114' / 'meta.json'
             meta = json.loads(meta_path.read_text(encoding='utf-8'))
             self.assertEqual(meta['project_name'], 'MEMS陀螺软件-new')
 
-            report_path = source_root.parent / 'ct8114' / 'last_report.json'
+            report_path = item_root / 'ct8114' / 'last_report.json'
             written = json.loads(report_path.read_text(encoding='utf-8'))
             self.assertEqual(written['report']['project_name'], source_root.parent.name)
             self.assertFalse(
@@ -211,8 +212,9 @@ class UniPortalReportPathTests(unittest.TestCase):
             project_id = 'fd236878-9793-4c05-a3b0-9df1121a53b1'
             item_root = Path(tmp) / project_id
             actual_project_dir = item_root / 'MEMS-project-new'
-            output_dir = actual_project_dir / 'ct8114'
+            output_dir = item_root / 'ct8114'
             output_dir.mkdir(parents=True)
+            actual_project_dir.mkdir(parents=True)
             (output_dir / 'meta.json').write_text(
                 json.dumps({'project_name': 'MEMS-project-new'}),
                 encoding='utf-8',
