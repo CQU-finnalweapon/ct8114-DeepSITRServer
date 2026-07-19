@@ -252,7 +252,7 @@ def report_from_defect_list(
             column=_to_int(loc.get("column"), -1),
             message=message,
             rule_id=rule_id,
-            force=str(defect.get("force") or "0"),
+            force=_derive_force(rule_id, str(defect.get("force") or "0")),
             type_code=str(first.get("type") or defect.get("type") or "0"),
             status=str(defect.get("status") or "0"),
         )
@@ -298,9 +298,9 @@ def report_from_xplusx_bugs(
         file_path = _project_relative_path(source_path, project_path)
         message = str(item.get("message") or "")
         standard = str(item.get("standard") or "")
-        force = str(item.get("force") or "0")
         checker = str(item.get("checker") or "")
         rule_id = _normalize_rule_id(standard, checker, message)
+        force = _derive_force(rule_id, str(item.get("force") or "0"))
         bug = DSITBug(
             checker=checker,
             file_path=file_path,
@@ -364,6 +364,28 @@ def load_recent_xplusx_bugs_with_files(
 def load_recent_xplusx_bugs(workdir: str | Path, since: float = 0) -> List[Dict[str, Any]]:
     bugs, _ = load_recent_xplusx_bugs_with_files(workdir, since)
     return bugs
+
+
+def _derive_force(rule_id: str, dcab_force: str) -> str:
+    """根据规则 ID 推导强制级别，弥补 DCAB 未正确返回 force 字段的问题。
+
+    GJB 8114 规则体系中：
+    - GJB-R-*（Required）→ force="1" → Error
+    - GJB-A-*（Advisory）→ force="0" → Warning
+    - MISRA *:R-*（Required）→ force="1" → Error
+    """
+    if dcab_force == "1":
+        return "1"
+    if not rule_id:
+        return dcab_force or "0"
+    rid = rule_id.upper()
+    # GJB Required 规则: GJB-R-*
+    if re.search(r'\bGJB[-:]R\b', rid):
+        return "1"
+    # MISRA Required 规则: MISRA*:R-*
+    if re.search(r'MISRA[^:]*:R[-]', rid):
+        return "1"
+    return dcab_force or "0"
 
 
 def _normalize_rule_id(*values: Any) -> str:
