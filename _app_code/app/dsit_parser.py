@@ -901,6 +901,12 @@ def _parse_codetidy_output(
         except (ValueError, TypeError):
             col_num = -1
         level_str = m.group(4)      # warning / error / note
+
+        # 跳过 note 级别 — 这些是 clang-tidy 的上下文补充信息
+        #（调用栈追踪、分支假设等），不是真正的规则违规诊断
+        if level_str == "note":
+            continue
+
         message = m.group(5).strip()
         checker = (m.group(6) or "").strip()
 

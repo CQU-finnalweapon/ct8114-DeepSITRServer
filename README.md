@@ -8,13 +8,19 @@
 
 | 版本     | 日期       | 说明                                                   |
 | -------- | ---------- | ------------------------------------------------------ |
-| **v5.1** | 2026-07-11 | 新 DCAB 集成：函数列表定位、Required/Advisory 强制级别 |
+| **v6.2** | 2026-07-19 | 修复 codetidy note 行误判为 Warning 的问题              |
+| v6.1     | 2026-07-18 | 写回路径改为 item_root/ct8114/，修复中文乱码           |
+| v5.1     | 2026-07-11 | 新 DCAB 集成：函数列表定位、Required/Advisory 强制级别 |
 | v5.0     | 2026-07    | 初始 DCAB 集成，codetidy 引擎替代 clang-tidy           |
 | v4.x     | 2025       | 基于 clang-tidy + GJB 插件方案                         |
 
 ---
 
-## v5.1 新特性
+## v6.2 修复
+
+- **codetidy note 行过滤**：codetidy 输出的 `note` 级别行（clang-tidy 上下文补充）不再被当作 Warning 诊断。修复前 9 行输出中有 4 条 note 噪音，修复后仅保留 5 条真实违规。
+
+## v6.1 新特性
 
 ### 函数列表与定位
 
@@ -60,7 +66,7 @@ DCAB 新版规则区分两种强制级别：
 ## 项目结构
 
 ```
-ct8114-docker-v5/
+ct8114-docker-v6.1/
 ├── _app_code/
 │   ├── app/
 │   │   ├── server.py            # FastAPI 主服务
@@ -118,10 +124,10 @@ Mock 模式使用内置模拟数据，可验证完整前后端流程。
 
 ```bash
 # 导入镜像
-docker load -i ct8114-docker-v5.tar
+docker load -i ct8114-docker-v6.1.tar
 
 # 运行容器
-docker run -d -p 8000:8000 ct8114:v5.1
+docker run -d -p 8000:8000 ct8114:v6.1
 ```
 
 ---
