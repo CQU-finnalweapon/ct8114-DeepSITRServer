@@ -366,6 +366,67 @@ def load_recent_xplusx_bugs(workdir: str | Path, since: float = 0) -> List[Dict[
     return bugs
 
 
+def _parse_cgp_functions(project_dir: str) -> Dict[str, List[Dict[str, Any]]]:
+    """从新版 DCAB 的 .xplusx.cgp 文件中提取函数定位信息。
+
+    新版 DCAB（2026-07-09+）在分析完成后生成 .xplusx.cgp 文件，
+    包含 JSON 格式的调用图/函数定位数据。当 DCAB HTTP 响应的
+    ``functions`` 字段为空时，以此作为 fallback。
+
+    Returns:
+        {"文件路径": [{"name":"...", "start_line":..., ...}]}
+    """
+    import glob as glob_module
+    result: Dict[str, List[Dict[str, Any]]] = {}
+    cgp_pattern = os.path.join(project_dir, "**", "*.xplusx.cgp")
+    for cgp_path in glob_module.glob(cgp_pattern, recursive=True):
+        try:
+            with open(cgp_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+        calls = data.get("calls") if isinstance(data, dict) else None
+        if not isinstance(calls, list):
+            continue
+        funcs: List[Dict[str, Any]] = []
+        for call in calls:
+            if not isinstance(call, dict):
+                continue
+            node = call.get("node") if isinstance(call, dict) else None
+            if not isinstance(node, dict):
+                continue
+            name = str(node.get("call_name") or "").strip()
+            if not name:
+                continue
+            start_loc = node.get("callee_start_location") or {}
+            end_loc = node.get("callee_end_location") or {}
+            funcs.append({
+                "name": name,
+                "start_line": int(start_loc.get("line", 0)),
+                "start_column": int(start_loc.get("column", 0)),
+                "end_line": int(end_loc.get("line", 0)),
+                "end_column": int(end_loc.get("column", 0)),
+            })
+        if funcs:
+            # 从 cgp 文件路径推导源文件相对路径
+            # 例如: /opt/dcab/project/src/control.c.xplusx.cgp → src/control.c
+            base = os.path.basename(cgp_path)
+            source_name = base.replace(".xplusx.cgp", "")
+            cgp_dir = os.path.dirname(cgp_path)
+            # 尝试保留相对于 project_dir 的路径结构
+            try:
+                rel_dir = os.path.relpath(cgp_dir, project_dir)
+                if rel_dir == ".":
+                    source_path = source_name
+                else:
+                    source_path = os.path.join(rel_dir, source_name).replace("\\", "/")
+            except ValueError:
+                source_path = source_name
+            if source_path:
+                result[source_path] = funcs
+    return result
+
+
 def _derive_force(rule_id: str, dcab_force: str) -> str:
     """根据规则 ID 推导强制级别，弥补 DCAB 未正确返回 force 字段的问题。
 

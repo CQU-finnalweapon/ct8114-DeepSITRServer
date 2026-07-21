@@ -80,6 +80,7 @@ from dcab_client import (
     report_from_defect_list,
     report_from_xplusx_bugs,
     start_progress,
+    _parse_cgp_functions,
 )
 from routers_dsit import router as dsit_router
 
@@ -2207,6 +2208,13 @@ def _poll_dcab_http_task(task: dict) -> dict:
     defect_list = data.get("defect_list") if isinstance(data, dict) else None
     # 新版 DCAB 输出中的函数列表: {"文件路径": [{"name":"...", "start_line":..., ...}]}
     functions_map = data.get("functions") if isinstance(data, dict) and isinstance(data.get("functions"), dict) else None
+    # Fallback: 当 DCAB HTTP 响应不包含 functions 字段时，从 .xplusx.cgp 文件解析
+    if not functions_map:
+        for cgp_dir in (dcab_project_path, "/opt/dcab/project"):
+            if cgp_dir:
+                functions_map = _parse_cgp_functions(str(cgp_dir)) or None
+                if functions_map:
+                    break
     completed_with_null_defects = defect_list is None and _progress_info_complete(data)
     should_try_fallback = is_empty_check_response(data) or completed_with_null_defects
 
