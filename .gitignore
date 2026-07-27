@@ -19,3 +19,8 @@ _reports/
 _tasks/
 .DS_Store
 Thumbs.db
+
+# External runtime files, not stored in this source repository
+DeepSITRServer/
+ct8114-docker-*.tar
+ct8114-docker-*.tar.gz

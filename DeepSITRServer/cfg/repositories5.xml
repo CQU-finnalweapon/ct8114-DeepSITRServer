@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<repositories>
-  <repositories name="C++ generic frameworks and libraries" path="framework" icon="" enable="1">
-    <repository name="Boost" path="boost" icon="" url="https://www.boost.org/" git="https://github.com/boostorg/boost.git" enable="1">A large collection of generic C++ libraries</repository>
-  </repositories>
-  <repositories name="静态代码分析" path="CodeAnalysis" icon="" enable="1">
-    <repository name="cppcheck" path="cppcheck" icon="" enable="1">静态C/C++代码分析工具</repository>
-  </repositories>
-</repositories>

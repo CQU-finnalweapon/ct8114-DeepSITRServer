@@ -1,10 +1,28 @@
-# CT8114 静态分析工具 v7.2
+# CT8114 / DCAB 静态分析工具 v7.2
 
-本仓库用于 CT8114 静态分析工具 v7.2 的源码、规则配置、前端构建产物和部署文件管理。
+本仓库用于 CT8114 / DCAB 静态分析工具 v7.2 的源码、前端代码、前端静态构建产物、测试文件和部署说明管理。
 
-Docker 镜像文件 `ct8114-docker-v7.2.tar` 体积较大，不纳入普通 Git 仓库。如需直接运行工具，请使用单独提供的镜像交付包。
+## 重要说明
 
-## 一、版本说明
+本仓库 **不包含完整 DeepSITRServer / DCAB 运行环境**。
+
+完整运行所需的底层分析引擎、二进制文件、运行库和完整规则目录已经封装在单独提供的 Docker 镜像中：
+
+```text
+ct8114-docker-v7.2.tar
+```
+
+因此，仅克隆本仓库不能直接完成完整工具运行。运行前需要先加载单独提供的 Docker 镜像包。
+
+本仓库主要用于：
+
+- 源码统一管理
+- 前端与后端 wrapper 代码维护
+- 部署配置与使用说明维护
+- AtomGit 自动拉取与归档
+- 后续版本迭代管理
+
+## 一、版本信息
 
 当前版本：
 
@@ -67,11 +85,11 @@ v7.2 版本主要支持以下功能：
 - 导出 JSON 原始结果
 - 打印PDF报告
 
-PDF 和 JSON 均基于当前页面正在显示的分析结果生成，不会重新读取 `last_report.json`，也不会默认导出最近一次结果。
+PDF 和 JSON 均基于当前页面正在显示的分析结果生成。
 
 ## 三、仓库内容
 
-仓库主要目录结构如下：
+仓库主要结构如下：
 
 ```text
 .
@@ -84,12 +102,9 @@ PDF 和 JSON 均基于当前页面正在显示的分析结果生成，不会重�
 ├── fixes_parser.py
 ├── requirements.txt
 ├── start.sh
-├── dockerfile
 ├── docker-compose.yml
 ├── OUTPUT_SPEC.md
 ├── 静态分析工具用户手册.md
-├── DeepSITRServer/
-│   └── cfg/
 ├── frontend/
 │   └── src/
 ├── static/
@@ -100,7 +115,7 @@ PDF 和 JSON 均基于当前页面正在显示的分析结果生成，不会重�
 └── RELEASE_NOTES-v7.2.md
 ```
 
-其中：
+说明：
 
 ```text
 frontend/
@@ -115,20 +130,21 @@ static/
 为当前版本已构建完成的前端静态资源，最终镜像中直接使用该目录。
 
 ```text
-DeepSITRServer/cfg/
-```
-
-为规则配置目录，包含 GJB-8114、GJB-5369、CWE-C、MISRA-2008、MISRA-2012 等规则配置文件。
-
-```text
 tests/
 ```
 
 为规则集加载、报告路径、结果保存等相关测试。
 
+本仓库不包含：
+
+```text
+DeepSITRServer/
+ct8114-docker-v7.2.tar
+```
+
 ## 四、直接运行方式
 
-本仓库不包含 Docker 镜像 tar 包。运行前需要先获取单独提供的镜像文件：
+运行前需要先获取单独提供的 Docker 镜像文件：
 
 ```text
 ct8114-docker-v7.2.tar
@@ -138,6 +154,12 @@ ct8114-docker-v7.2.tar
 
 ```cmd
 docker load -i ct8114-docker-v7.2.tar
+```
+
+创建项目库共享卷：
+
+```cmd
+docker volume create uniportal_storage
 ```
 
 启动服务：
@@ -178,7 +200,7 @@ ct8114:v7.2
 8003:8000
 ```
 
-默认数据卷用于保存项目库、任务、报告和上传文件。项目库数据位于容器内：
+项目库数据位于容器内：
 
 ```text
 /data/uniportal
@@ -258,31 +280,34 @@ static
 
 当前仓库已经包含 v7.2 对应的 `static` 构建产物。
 
-## 八、测试说明
+## 八、运行边界说明
 
-后端测试文件位于：
+本仓库不是完整可构建镜像仓库。
 
-```text
-tests/
+若仅拉取本仓库并直接执行：
+
+```cmd
+docker compose up -d
 ```
 
-主要包括：
+在本机没有 `ct8114:v7.2` 镜像的情况下，服务无法启动。
 
-```text
-test_rule_sets.py
-test_uniportal_report_paths.py
+完整运行流程必须包括：
+
+```cmd
+docker load -i ct8114-docker-v7.2.tar
+docker volume create uniportal_storage
+docker compose up -d
 ```
 
-可用于验证规则集加载、规则过滤、报告路径和按规则集保存结果等逻辑。
+## 九、交付说明
 
-## 九、说明
+本仓库用于源码维护和 AtomGit 自动同步。
 
-本仓库用于源码维护和部署文件管理，不包含 Docker 镜像 tar 包。
-
-镜像文件：
+完整运行镜像文件：
 
 ```text
 ct8114-docker-v7.2.tar
 ```
 
-请通过交付附件、网盘或指定共享目录获取。
+请通过交付附件、网盘、Release 附件或指定共享目录单独获取。
