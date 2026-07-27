@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<standards>
+    <standard name="JSF(联合攻击战斗机) C++" enable="0" abbreviation="jsf" simple_name="JSF" checker="jsf" custom="0" sort="1" expand="0" serial_format="%3-%4">
+        <package name="C++ 规范" enable="1" expand="0">
+            <section name="Code Size and Complexity" enable="1" checker="code" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-3" enable="1" level="1" checker="" description="All functions shall have a cyclomatic complexity number of 20 or less."/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-1" enable="1" level="0" checker="" description="Any one function (or method) will contain no more than 200 logical source lines of code (L-SLOCs)."/>
+                </rules>
+            </section>
+            <section name="Environment" enable="1" checker="environment" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-8" enable="1" level="1" checker="" description="All code shall conform to ISO/IEC 14882:2002(E) standard C++."/>
+                    <rule name="R-14" enable="1" level="1" checker="" description="Literal suffixes shall use uppercase rather than lowercase letters." expand="0"/>
+                    <rule name="R-15" enable="1" level="1" checker="" description="Provision shall be made for run-time checking (defensive programming)." expand="0"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-9" enable="1" level="0" checker="" description="Only those characters specified in the C++ basic source character set will be used" expand="0"/>
+                    <rule name="A-11" enable="1" level="0" checker="" description="Trigraphs will not be used." expand="0"/>
+                    <rule name="A-12" enable="1" level="0" checker="" description="The following digraphs will not be used: <%, %>, <:, :>, %:, %:%:." expand="0"/>
+                    <rule name="A-13" enable="1" level="0" checker="" description="Multi-byte characters and wide string literals will not be used." expand="0"/>
+                </rules>
+            </section>
+            <section name="Libraries" enable="1" checker="libraries" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-17" enable="1" level="1" checker="" description="The error indicator errno shall not be used." expand="0"/>
+                    <rule name="R-18" enable="1" level="1" checker="" description="The macro offsetof, in library <stddef.h>, shall not be used." expand="0"/>
+                    <rule name="R-19" enable="1" level="1" checker="" description="<locale.h> and the setlocale function shall not be used." expand="0"/>
+                    <rule name="R-20" enable="1" level="1" checker="" description="The setjmp macro and the longjmp function shall not be used." expand="0"/>
+                    <rule name="R-21" enable="1" level="1" checker="" description="The signal handling facilities of <signal.h> shall not be used." expand="0"/>
+                    <rule name="R-22" enable="1" level="1" checker="" description="The input/output library <stdio.h> shall not be used." expand="0"/>
+                    <rule name="R-23" enable="1" level="1" checker="" description="The library functions atof, atoi and atol from library <stdlib.h> shall not be used." expand="0"/>
+                    <rule name="R-24" enable="1" level="1" checker="" description="The library functions abort, exit, getenv and system from library <stdlib.h> shall not be used." expand="0"/>
+                    <rule name="R-25" enable="1" level="1" checker="" description="The time handling functions of library <time.h> shall not be used." expand="0"/>
+                </rules>
+            </section>
+            <section name="Pre-Processing Directives" enable="1" checker="preprocessing" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-26" enable="1" level="1" checker="" description="Only the following preprocessor directives shall be used: #ifndef, #define, #endif, #include."/>
+                    <rule name="R-29" enable="1" level="1" checker="" description="The #define preprocessor directive shall not be used to create inline macros. Inline functions shall be used instead."/>
+                    <rule name="R-30" enable="1" level="1" checker="" description="The #define preprocessor directive shall not be used to define constant values. Instead, the const qualifier shall be applied to variable declarations to specify constant values."/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-27" enable="1" level="0" checker="" description="#ifndef, #define and #endif will be used to prevent multiple inclusions of the same header file. Other techniques to prevent the multiple inclusions of header files will not be used." expand="0"/>
+                    <rule name="A-28" enable="1" level="0" checker="" description="The #ifndef and #endif preprocessor directives will only be used as defined in AV Rule 27 to prevent multiple inclusions of the same header file." expand="0"/>
+                    <rule name="A-31" enable="1" level="0" checker="" description="The #define preprocessor directive will only be used as part of the technique to prevent multiple inclusions of the same header file." expand="0"/>
+                    <rule name="A-32" enable="1" level="0" checker="" description="The #include preprocessor directive will only be used to include header (*.h) files." expand="0"/>
+                </rules>
+            </section>
+            <section name="Header Files" enable="1" checker="header" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-33" enable="1" level="1" checker="external" description="The #include directive shall use the <filename.h> notation to include header files." expand="0"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-35" enable="1" level="0" checker="" description="A header file will contain a mechanism that prevents multiple inclusions of itself."/>
+                    <rule name="A-39" enable="1" level="0" checker="" description="Header files (*.h) will not contain non-const variable definitions or function definitions."/>
+                </rules>
+            </section>
+            <section name="Style" enable="1" checker="style" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-40" enable="1" level="1" checker="" description="Every implementation file shall include the header files that uniquely define the inline functions, types, and templates used." expand="0"/>
+                    <rule name="R-43" enable="1" level="1" checker="" description="Tabs should be avoided." expand="0"/>
+                    <rule name="R-52" enable="1" level="1" checker="" description="Identifiers for constant and enumerator values shall be lowercase." expand="0"/>
+                    <rule name="R-59" enable="1" level="1" checker="" description="The statements forming the body of an if, else if, else, while, do ... while or for statement shall always be enclosed in braces, even if the braces form an empty block." expand="0"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-41" enable="1" level="0" checker="" description="Source lines will be kept to a length of 120 characters or less." expand="0"/>
+                    <rule name="A-42" enable="1" level="0" checker="" description="Each expression-statement will be on a separate line."/>
+                    <rule name="A-44" enable="1" level="0" checker="" description="All indentations will be at least two spaces and be consistent within the same source file."/>
+                    <rule name="A-46" enable="1" level="0" checker="" description="User-specified identifiers (internal and external) will not rely on significance of more than 64 characters."/>
+                    <rule name="A-47" enable="1" level="0" checker="" description="Identifiers will not begin with the underscore character '_'."/>
+                    <rule name="A-48" enable="1" level="0" checker="" description="Identifiers will not differ by:Only a mixture of case The presence/absence of the underscore character The interchange of the letter 'O'; with the number '0' or the letter 'D' The interchange of the letter 'I'; with the number '1' or the letter 'l' The interchange of the letter 'S' with the number '5' The interchange of the letter 'Z' with the number 2 The interchange of the letter 'n' with the letter 'h'"/>
+                    <rule name="A-50" enable="1" level="0" checker="" description="The first word of the name of a class, structure, namespace, enumeration, or type created with typedef will begin with an uppercase letter. All others letters will be lowercase."/>
+                    <rule name="A-51" enable="1" level="0" checker="" description="All letters contained in function and variables names will be composed entirely of lowercase letters."/>
+                    <rule name="A-53" enable="1" level="0" checker="" description="Header files will always have file name extension of &quot;.h&quot;."/>
+                    <rule name="A-53.1" enable="1" level="0" checker="" description="The following character sequences shall not appear in header file names: ', \, /*, //, or &quot;.&quot;"/>
+                    <rule name="A-54" enable="1" level="0" checker="" description="Implementation files will always have a file name extension of &quot;.cpp&quot;."/>
+                    <rule name="A-57" enable="1" level="0" checker="" description="The public, protected, and private sections of a class will be declared in that order."/>
+                    <rule name="A-58" enable="1" level="0" checker="" description="When declaring and defining functions with more than two parameters, the leading parenthesis and the first argument will be written on the same line as the function name. Each additional argument will be written on a separate line (with the closing parenthesis directly after the last argument)."/>
+                    <rule name="A-60" enable="1" level="0" checker="" description="Braces (&quot;{}&quot;) which enclose a block will be placed in the same column, on separate lines directly before and after the block."/>
+                    <rule name="A-61" enable="1" level="0" checker="" description="Braces (&quot;{}&quot;) which enclose a block will have nothing else on the line except comments."/>
+                    <rule name="A-62" enable="1" level="0" checker="" description="The dereference operator ‘*’ and the address-of operator ‘&’ will be directly connected with the type-specifier."/>
+                    <rule name="A-63" enable="1" level="0" checker="" description="Spaces will not be used around ‘.’ or ‘->’, nor between unary operators and operands."/>
+                </rules>                
+            </section>
+            <section name="Classes" enable="1" checker="classes" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-67" enable="1" level="1" checker="" description="Public and protected data should only be used in structs - not classes." expand="0"/>
+                    <rule name="R-68" enable="1" level="1" checker="" description="Unneeded implicitly generated member functions shall be explicitly disallowed." expand="0"/>
+                    <rule name="R-71" enable="1" level="1" checker="" description="A class’s virtual functions shall not be invoked from its destructor or any of its constructors." expand="0"/>
+                    <rule name="R-75" enable="1" level="1" checker="" description="Members of the initialization list shall be listed in the order in which they are declared in the class." expand="0"/>
+                    <rule name="R-76" enable="1" level="1" checker="" description="A copy constructor and an assignment operator shall be declared for classes that contain pointers to data items or nontrivial destructors." expand="0"/>
+                    <rule name="R-77" enable="1" level="1" checker="" description="The definition of a member function shall not contain default arguments that produce a signature identical to that of the implicitly-declared copy constructor for the corresponding class/structure." expand="0"/>
+                    <rule name="R-78" enable="1" level="1" checker="" description="All base classes with a virtual function shall define a virtual destructor." expand="0"/>
+                    <rule name="R-79" enable="1" level="1" checker="" description="All resources acquired by a class shall be released by the class’s destructor." expand="0"/>
+                    <rule name="R-81" enable="1" level="1" checker="" description="The assignment operator shall handle self-assignment correctly" expand="0"/>
+                    <rule name="R-82" enable="1" level="1" checker="" description="An assignment operator shall return a reference to *this." expand="0"/>
+                    <rule name="R-83" enable="1" level="1" checker="" description="An assignment operator shall assign all data members and bases that affect the class invariant (a data element representing a cache, for example, would not need to be copied)." expand="0"/>
+                    <rule name="R-88" enable="1" level="1" checker="" description="Multiple inheritance shall only be allowed in the following restricted form: n interfaces plus m private implementations, plus at most one protected implementation." expand="0"/>
+                    <rule name="R-88.1" enable="1" level="1" checker="" description="A stateful virtual base shall be explicitly declared in each derived class that accesses it." expand="0"/>
+                    <rule name="R-89" enable="1" level="1" checker="" description="A base class shall not be both virtual and nonvirtual in the same hierarchy." expand="0"/>
+                    <rule name="R-94" enable="1" level="1" checker="" description="An inherited nonvirtual function shall not be redefined in a derived class." expand="0"/>
+                    <rule name="R-95" enable="1" level="1" checker="" description="An inherited default parameter shall never be redefined." expand="0"/>
+                    <rule name="R-96" enable="1" level="1" checker="" description="Arrays shall not be treated polymorphically." expand="0"/>
+                    <rule name="R-97" enable="1" level="1" checker="" description="Arrays shall not be used in interface." expand="0"/>
+                    <rule name="R-97.1" enable="1" level="1" checker="" description="Neither operand of an equality operator (== or !=) shall be a pointer to a virtual member function." expand="0"/>
+                </rules>
+            </section>
+            <section name="Namespaces" enable="1" checker="namespaces" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-100" enable="1" level="1" checker="" description="Elements from a namespace should be selected as follows:1.using declaration or explicit qualification for few (approximately five) names,2.using directive for many names." expand="0"/>
+                </rules>
+            </section>
+            <section name="Templates" enable="1" checker="templates" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-101" enable="1" level="1" checker="" description="Templates shall be reviewed as follows:1.with respect to the template in isolation considering assumptions or requirements placed on its arguments.2.with respect to all functions instantiated by actual arguments."/>
+                    <rule name="R-102" enable="1" level="1" checker="" description="Template tests shall be created to cover all actual template instantiations." expand="0"/>
+                    <rule name="R-103" enable="1" level="1" checker="" description="Constraint checks should be applied to template arguments." expand="0"/>
+                    <rule name="R-105" enable="1" level="1" checker="" description="A template definition’s dependence on its instantiation contexts should be minimized." expand="0"/>
+                    <rule name="R-106" enable="1" level="1" checker="" description="Specializations for pointer types should be made where appropriate." expand="0"/>
+                </rules>
+            </section>
+            <section name="Functions" enable="1" checker="functions" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-112" enable="1" level="1" checker="" description="Function return values should not obscure resource ownership." expand="0"/>
+                    <rule name="R-118.1" enable="1" level="1" checker="" description="Arguments should be passed via pointers if NULL values are possible, An object should be passed as const T* if its value should not be modified." expand="0"/>
+                    <rule name="R-118.2" enable="1" level="1" checker="" description="Arguments should be passed via pointers if NULL values are possible, An object should be passed as T* if its value may be modified." expand="0"/>
+                    <rule name="R-120" enable="1" level="1" checker="" description="Overloaded operations or methods should form families that use the same semantics, share the same name, have the same purpose, and that are differentiated by formal parameters." expand="0"/>
+                    <rule name="R-123" enable="1" level="1" checker="" description="The number of accessor and mutator functions should be minimized." expand="0"/>
+                    <rule name="R-124" enable="1" level="1" checker="" description="Trivial forwarding functions should be inlined." expand="0"/>
+                    <rule name="R-125" enable="1" level="1" checker="" description="Unnecessary temporary objects should be avoided." expand="0"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-115" enable="1" level="0" checker="" description="If a function returns error information, then that error information will be tested."/>
+                </rules>
+            </section>            
+            <section name="Comments" enable="1" checker="comments" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-129" enable="1" level="1" checker="" description="Comments in header files should describe the externally visible behavior of the functions or classes being documented." expand="0"/>
+                    <rule name="R-130" enable="1" level="1" checker="" description="The purpose of every line of executable code should be explained by a comment, although one comment may describe more than one line of code." expand="0"/>
+                    <rule name="R-134" enable="1" level="1" checker="" description="Assumptions (limitations) made by functions should be documented in the function’s preamble." expand="0"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-128" enable="1" level="0" checker="" description="Comments that document actions or sources (e.g. tables, figures, paragraphs, etc.) outside of the file being documented will not be allowed." expand="0"/>
+                    <rule name="A-131" enable="1" level="0" checker="" description="One should avoid stating in comments what is better stated in code (i.e. do not simply repeat what is in the code)." expand="0"/>
+                    <rule name="A-132" enable="1" level="0" checker="" description="Each variable declaration, typedef, enumeration value, and structure member will be commented." expand="0"/>
+                </rules>
+            </section>
+            <section name="Initialization" enable="1" checker="initialization" expand="0">
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-143" enable="1" level="0" checker="" description="Variables will not be introduced until they can be initialized with meaningful values.(See also AV Rule 136, AV Rule 142, and AV Rule 73 concerning declaration scope, initialization before use, and default constructors respectively.)" expand="0"/>
+                </rules>
+            </section>
+            <section name="Types" enable="1" checker="types" expand="0">
+                 <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-146" enable="1" level="1" checker="" description="Floating point implementations shall comply with a defined floating point standard. The standard that will be used is the ANSI®/IEEE® Std 754 [1]." expand="0"/>
+                </rules>
+            </section>
+            <section name="Unions and Bit Fields" enable="1" checker="bitfield" expand="0">
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-155" enable="1" level="0" checker="" description="Bit-fields will not be used to pack data into a word for the sole purpose of saving space."/>
+                </rules>
+            </section>
+            <section name="Operators" enable="1" checker="operators" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-167" enable="1" level="1" checker="" description="The implementation of integer division in the chosen compiler shall be determined, documented and taken into account."/>
+                </rules>
+            </section>
+            <section name="Type Conversions" enable="1" checker="conversions" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-183" enable="1" level="1" checker="" description="Every possible measure should be taken to avoid type casting." expand="0"/>
+                </rules>
+            </section>
+            <section name="Expressions" enable="1" checker="expressions" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-204" enable="1" level="1" checker="" description="A single operation with side-effects shall only be used in the following contexts:1.by itself 2.the right-hand side of an assignment 3.a condition 4.the only argument expression with a side-effect in a function call 5.condition of a loop 6.switch condition 7. single part of a chained operation"/>
+                </rules>
+            </section>
+            <section name="Memory Allocation" enable="1" checker="memory" expand="0">
+               <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-207" enable="1" level="0" checker="" description="Unencapsulated global data will be avoided."/>
+                </rules>
+            </section>
+            <section name="Portable Code" enable="1" checker="protable" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-210" enable="1" level="1" checker="" description="Algorithms shall not make assumptions concerning how data is represented in memory (e.g. big endian vs. little endian, base class subobject ordering in derived classes, nonstatic data member ordering across access specifiers, etc.)."/>
+                    <rule name="R-210.1" enable="1" level="1" checker="" description="Algorithms shall not make assumptions concerning the order of allocation of nonstatic data members separated by an access specifier."/>
+                    <rule name="R-211" enable="1" level="1" checker="" description="Algorithms shall not assume that shorts, ints, longs, floats, doubles or long doubles begin at particular addresses."/>
+                    <rule name="R-212" enable="1" level="1" checker="" description="Underflow or overflow functioning shall not be depended on in any special way."/>
+                    <rule name="R-214" enable="1" level="1" checker="" description="Assuming that non-local static objects, in separate translation units, are initialized in a special order shall not be done."/>
+                </rules>
+            </section>
+            <section name="Efficiency Considerations" enable="1" checker="efficiency" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-216" enable="1" level="1" checker="" description="Programmers should not attempt to prematurely optimize code."/>
+                </rules>
+            </section>
+            <section name="Miscellaneous" enable="1" checker="miscellaneous" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-217" enable="1" level="1" checker="" description="Compile-time and link-time errors should be preferred over run-time errors." expand="0"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-218" enable="1" level="1" checker="" description="Compiler warning levels will be set in compliance with project policies." expand="0"/>
+                </rules>
+            </section>
+            <section name="Testing" enable="1" checker="testing" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-219" enable="1" level="1" checker="" description="All tests applied to a base class interface shall be applied to all derived class interfaces as well. If the derived class poses stronger postconditions/invariants, then the new postconditions /invariants shall be substituted in the derived class tests."/>
+                    <rule name="R-220" enable="1" level="1" checker="" description="Structural coverage algorithms shall be applied against flattened classes."/>
+                    <rule name="R-221" enable="1" level="1" checker="" description="Structural coverage of a class within an inheritance hierarchy containing virtual functions shall include testing every possible resolution for each set of identical polymorphic references."/>
+                </rules>
+            </section>            
+        </package>
+    </standard>
+</standards>

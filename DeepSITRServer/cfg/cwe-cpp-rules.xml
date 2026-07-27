@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<standards>
+    <standard name="CWE-C++(Common Weakness Enumeration)" abbreviation="CWE-CPP" enable="0" checker="cwecpp" custom="0" sort="2" expand="1">
+        <package name="C++ Guidelines" abbreviation="C++" enable="0" expand="0">
+            <section name="General Guidelines" enable="1" checker="common" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-14" enable="1" level="1" checker="" description="Compiler Removal of Code to Clear Buffers"/>
+                    <rule name="R-20" enable="1" level="1" checker="" description="Improper Input Validation"/>
+                    <rule name="R-78" enable="1" level="1" checker="" description="Improper Neutralization of Special Elements used in an OS Command (&apos;OS Command Injection&apos;)"/>
+                    <rule name="R-88" enable="1" level="1" checker="" description="Improper Neutralization of Argument Delimiters in a Command (&apos;Argument Injection&apos;)"/>
+                    <rule name="R-119" enable="1" level="1" checker="" description="Improper Restriction of Operations within the Bounds of a Memory Buffer"/>
+                    <rule name="R-120" enable="1" level="1" checker="" description="Buffer Copy without Checking Size of Input (&apos;Classic Buffer Overflow&apos;)"/>
+                    <rule name="R-121" enable="1" level="1" checker="" description="Stack-based Buffer Overflow"/>
+                    <rule name="R-122" enable="1" level="1" checker="" description="Heap-based Buffer Overflow"/>
+                    <rule name="R-124" enable="1" level="1" checker="" description="Buffer Underwrite (&apos;Buffer Underflow&apos;)"/>
+                    <rule name="R-125" enable="1" level="1" checker="" description="Out-of-bounds Read"/>
+                    <rule name="R-126" enable="1" level="1" checker="" description="Buffer Over-read"/>
+                    <rule name="R-127" enable="1" level="1" checker="" description="Buffer Under-read"/>
+                    <rule name="R-128" enable="1" level="1" checker="" description="Wrap-around Error"/>
+                    <rule name="R-129" enable="1" level="1" checker="" description="Improper Validation of Array Index"/>
+                    <rule name="R-130" enable="1" level="1" checker="" description="Improper Handling of Length Parameter Inconsistency"/>
+                    <rule name="R-131" enable="1" level="1" checker="" description="Incorrect Calculation of Buffer Size"/>
+                    <rule name="R-134" enable="1" level="1" checker="" description="Use of Externally-Controlled Format String"/>
+                    <rule name="R-135" enable="1" level="1" checker="" description="Incorrect Calculation of Multi-Byte String Length"/>
+                    <rule name="R-170" enable="1" level="1" checker="" description="Improper Null Termination"/>
+                    <rule name="R-176" enable="1" level="1" checker="" description="Improper Handling of Unicode Encoding"/>
+                    <rule name="R-187" enable="1" level="1" checker="" description="Partial String Comparison"/>
+                    <rule name="R-188" enable="1" level="1" checker="" description="Reliance on Data/Memory Layout"/>
+                    <rule name="R-190" enable="1" level="1" checker="" description="Integer Overflow or Wraparound"/>
+                    <rule name="R-191" enable="1" level="1" checker="" description="Integer Underflow (Wrap or Wraparound)"/>
+                    <rule name="R-192" enable="1" level="1" checker="" description="Integer Coercion Error"/>
+                    <rule name="R-193" enable="1" level="1" checker="" description="Off-by-one Error"/>
+                    <rule name="R-194" enable="1" level="1" checker="" description="Unexpected Sign Extension"/>
+                    <rule name="R-195" enable="1" level="1" checker="" description="Signed to Unsigned Conversion Error"/>
+                    <rule name="R-196" enable="1" level="1" checker="" description="Unsigned to Signed Conversion Error"/>
+                    <rule name="R-197" enable="1" level="1" checker="" description="Numeric Truncation Error"/>
+                    <rule name="R-233" enable="1" level="1" checker="" description="Improper Handling of Parameters"/>
+                    <rule name="R-234" enable="1" level="1" checker="" description="Failure to Handle Missing Parameter"/>
+                    <rule name="R-242" enable="1" level="1" checker="" description="Use of Inherently Dangerous Function"/>
+                    <rule name="R-243" enable="1" level="1" checker="" description="Creation of chroot Jail Without Changing Working Directory"/>
+                    <rule name="R-244" enable="1" level="1" checker="" description="Improper Clearing of Heap Memory Before Release (&apos;Heap Inspection&apos;)"/>
+                    <rule name="R-248" enable="1" level="1" checker="" description="Uncaught Exception"/>
+                    <rule name="R-250" enable="1" level="1" checker="" description="Execution with Unnecessary Privileges"/>
+                    <rule name="R-252" enable="1" level="1" checker="" description="Execution with Unnecessary Privileges"/>
+                    <rule name="R-273" enable="1" level="1" checker="" description="Improper Check for Dropped PrivilegesImproper Check for Dropped Privileges"/>
+                    <rule name="R-327" enable="1" level="1" checker="" description="Use of a Broken or Risky Cryptographic Algorithm"/>
+                    <rule name="R-338" enable="1" level="1" checker="" description="Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)"/>
+                    <rule name="R-364" enable="1" level="1" checker="" description="Signal Handler Race Condition"/>
+                    <rule name="R-365" enable="1" level="1" checker="" description="Race Condition in Switch"/>
+                    <rule name="R-366" enable="1" level="1" checker="" description="Race Condition within a Thread"/>
+                    <rule name="R-369" enable="1" level="1" checker="" description="Divide By Zero"/>
+                    <rule name="R-374" enable="1" level="1" checker="" description="Passing Mutable Objects to an Untrusted Method"/>
+                    <rule name="R-375" enable="1" level="1" checker="" description="Returning a Mutable Object to an Untrusted Caller"/>
+                    <rule name="R-391" enable="1" level="1" checker="" description="Unchecked Error Condition"/>
+                    <rule name="R-396" enable="1" level="1" checker="" description="Declaration of Catch for Generic Exception"/>
+                    <rule name="R-397" enable="1" level="1" checker="" description="Declaration of Throws for Generic Exception"/>
+                    <rule name="R-401" enable="1" level="1" checker="" description="Missing Release of Memory after Effective Lifetime"/>
+                    <rule name="R-415" enable="1" level="1" checker="" description="Double Free"/>
+                    <rule name="R-416" enable="1" level="1" checker="" description="Use After Free"/>
+                    <rule name="R-456" enable="1" level="1" checker="" description="Missing Initialization of a Variable"/>
+                    <rule name="R-457" enable="1" level="1" checker="" description="Use of Uninitialized Variable"/>
+                    <rule name="R-460" enable="1" level="1" checker="" description="Improper Cleanup on Thrown Exception"/>
+                    <rule name="R-462" enable="1" level="1" checker="" description="Duplicate Key in Associative List (Alist)"/>
+                    <rule name="R-463" enable="1" level="1" checker="" description="Deletion of Data Structure Sentinel"/>
+                    <rule name="R-464" enable="1" level="1" checker="" description="Addition of Data Structure Sentinel"/>
+                    <rule name="R-466" enable="1" level="1" checker="" description="Return of Pointer Value Outside of Expected Range"/>
+                    <rule name="R-467" enable="1" level="1" checker="sizeof-pointer" description="Use of sizeof() on a Pointer Type" expand="0"/>
+                    <rule name="R-468" enable="1" level="1" checker="" description="Incorrect Pointer Scaling"/>
+                    <rule name="R-469" enable="1" level="1" checker="" description="Use of Pointer Subtraction to Determine Size"/>
+                    <rule name="R-474" enable="1" level="1" checker="" description="Use of Function with Inconsistent Implementations"/>
+                    <rule name="R-475" enable="1" level="1" checker="" description="Undefined Behavior for Input to API"/>
+                    <rule name="R-476" enable="1" level="1" checker="" description="NULL Pointer Dereference"/>
+                    <rule name="R-478" enable="1" level="1" checker="switch-default" description="Missing Default Case in Switch Statement" expand="0"/>
+                    <rule name="R-479" enable="1" level="1" checker="" description="Signal Handler Use of a Non-reentrant Function"/>
+                    <rule name="R-480" enable="1" level="1" checker="use-incorrect-operator" description="Use of Incorrect Operator" expand="0"/>
+                    <rule name="R-481" enable="1" level="1" checker="condition-assignment" description="Assigning instead of Comparing" expand="0"/>
+                    <rule name="R-482" enable="1" level="1" checker="compare-instead-assign" description="Comparing instead of Assigning" expand="0"/>
+                    <rule name="R-483" enable="1" level="1" checker="" description="Incorrect Block Delimitation"/>
+                    <rule name="R-484" enable="1" level="1" checker="" description="Omitted Break Statement in Switch"/>
+                    <rule name="R-493" enable="1" level="1" checker="" description="Critical Public Variable Without Final Modifier"/>
+                    <rule name="R-495" enable="1" level="1" checker="" description="Private Data Structure Returned From A Public Method"/>
+                    <rule name="R-496" enable="1" level="1" checker="" description="Public Data Assigned to Private Array-Typed Field"/>
+                    <rule name="R-498" enable="1" level="1" checker="" description="Cloneable Class Containing Sensitive Information"/>
+                    <rule name="R-500" enable="1" level="1" checker="" description="Public Static Field Not Marked Final"/>
+                    <rule name="R-543" enable="1" level="1" checker="" description="Use of Singleton Pattern Without Synchronization in a Multithreaded Context"/>
+                    <rule name="R-547" enable="1" level="1" checker="" description="Use of Hard-coded, Security-relevant Constants"/>
+                    <rule name="R-558" enable="1" level="1" checker="" description="Use of getlogin() in Multithreaded Application"/>
+                    <rule name="R-560" enable="1" level="1" checker="" description="Use of umask() with chmod-style Argument"/>
+                    <rule name="R-561" enable="1" level="1" checker="" description="Dead Code"/>
+                    <rule name="R-562" enable="1" level="1" checker="return-local-variable" description="Return of Stack Variable Address" expand="0"/>
+                    <rule name="R-563" enable="1" level="1" checker="" description="Assignment to Variable without Use"/>
+                    <rule name="R-570" enable="1" level="1" checker="" description="Expression is Always False"/>
+                    <rule name="R-571" enable="1" level="1" checker="" description="Expression is Always True"/>
+                    <rule name="R-587" enable="1" level="1" checker="assign-pointer-fixed-address" description="Assignment of a Fixed Address to a Pointer" expand="0"/>
+                    <rule name="R-588" enable="1" level="1" checker="" description="Attempt to Access Child of a Non-structure Pointer"/>
+                    <rule name="R-597" enable="1" level="1" checker="" description="Use of Wrong Operator in String Comparison"/>
+                    <rule name="R-628" enable="1" level="1" checker="" description="Function Call with Incorrectly Specified Arguments"/>
+                    <rule name="R-665" enable="1" level="1" checker="" description="Improper Control of a Resource Through its Lifetime"/>
+                    <rule name="R-670" enable="1" level="1" checker="" description="Always-Incorrect Control Flow Implementation"/>
+                    <rule name="R-674" enable="1" level="1" checker="" description="Uncontrolled Recursion"/>
+                    <rule name="R-676" enable="1" level="1" checker="" description="Use of Potentially Dangerous Function"/>
+                    <rule name="R-680" enable="1" level="1" checker="" description="Integer Overflow to Buffer Overflow"/>
+                    <rule name="R-681" enable="1" level="1" checker="" description="Incorrect Conversion between Numeric Types"/>
+                    <rule name="R-682" enable="1" level="1" checker="" description="Incorrect Calculation"/>
+                    <rule name="R-685" enable="1" level="1" checker="" description="Function Call With Incorrect Number of Arguments"/>
+                    <rule name="R-686" enable="1" level="1" checker="" description="Function Call With Incorrect Argument Type"/>
+                    <rule name="R-690" enable="1" level="1" checker="" description="Unchecked Return Value to NULL Pointer Dereference"/>
+                    <rule name="R-696" enable="1" level="1" checker="" description="Incorrect Behavior Order"/>
+                    <rule name="R-697" enable="1" level="1" checker="" description="Incorrect Comparison"/>
+                    <rule name="R-704" enable="1" level="1" checker="" description="Incorrect Type Conversion or Cast"/>
+                    <rule name="R-705" enable="1" level="1" checker="" description="Incorrect Control Flow Scoping"/>
+                    <rule name="R-733" enable="1" level="1" checker="" description="Compiler Optimization Removal or Modification of Security-critical Code"/>
+                    <rule name="R-758" enable="1" level="1" checker="" description="Reliance on Undefined, Unspecified, or Implementation-Defined Behavior"/>
+                    <rule name="R-762" enable="1" level="1" checker="" description="Mismatched Memory Management Routines"/>
+                    <rule name="R-766" enable="1" level="1" checker="critical-data-declared-public" description="Critical Data Element Declared Public" expand="0"/>
+                    <rule name="R-767" enable="1" level="1" checker="" description="Access to Critical Private Variable via Public Method"/>
+                    <rule name="R-768" enable="1" level="1" checker="" description="Incorrect Short Circuit Evaluation"/>
+                    <rule name="R-781" enable="1" level="1" checker="" description="Improper Address Validation in IOCTL with METHOD_NEITHER I/O Control Code"/>
+                    <rule name="R-782" enable="1" level="1" checker="" description="Exposed IOCTL with Insufficient Access Control"/>
+                    <rule name="R-783" enable="1" level="1" checker="" description="Operator Precedence Logic Error"/>
+                    <rule name="R-785" enable="1" level="1" checker="" description="Use of Path Manipulation Function without Maximum-sized Buffer"/>
+                    <rule name="R-786" enable="1" level="1" checker="" description="Access of Memory Location Before Start of Buffer"/>
+                    <rule name="R-787" enable="1" level="1" checker="" description="Out-of-bounds Write"/>
+                    <rule name="R-788" enable="1" level="1" checker="" description="Access of Memory Location After End of Buffer"/>
+                    <rule name="R-789" enable="1" level="1" checker="" description="Memory Allocation with Excessive Size Value"/>
+                    <rule name="R-805" enable="1" level="1" checker="" description="Buffer Access with Incorrect Length Value"/>
+                    <rule name="R-806" enable="1" level="1" checker="" description="Buffer Access Using Size of Source Buffer"/>
+                    <rule name="R-823" enable="1" level="1" checker="" description="Use of Out-of-range Pointer Offset"/>
+                    <rule name="R-824" enable="1" level="1" checker="" description="Access of Uninitialized Pointer"/>
+                    <rule name="R-835" enable="1" level="1" checker="" description="Loop with Unreachable Exit Condition"/>
+                    <rule name="R-839" enable="1" level="1" checker="" description="Numeric Range Comparison Without Minimum Check"/>
+                    <rule name="R-843" enable="1" level="1" checker="" description="Access of Resource Using Incompatible Type (&apos;Type Confusion&apos;)"/>
+                    <rule name="R-908" enable="1" level="1" checker="" description="Use of Uninitialized Resource"/>
+                    <rule name="R-909" enable="1" level="1" checker="" description="Missing Initialization of Resource"/>
+                    <rule name="R-910" enable="1" level="1" checker="" description="Use of Expired File Descriptor"/>
+                    <rule name="R-911" enable="1" level="1" checker="" description="Improper Update of Reference Count"/>
+                    <rule name="R-1325" enable="1" level="1" checker="" description="Improperly Controlled Sequential Memory Allocation"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0"/>
+            </section>
+        </package>
+    </standard>
+</standards>

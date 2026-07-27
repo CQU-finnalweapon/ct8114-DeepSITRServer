@@ -1,0 +1,77 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<rules>
+    <standards>
+        <standard id="gjb" path="gjb8114-rules-zh_CN.xml" hide="0">
+            <rule_detail path="gjb8114-rule-details-zh_CN.json"/>
+        </standard>
+        <standard id="gjb05" path="gjb5369-rules-zh_CN.xml" hide="0">
+            <rule_detail path="gjb5369-rule-details-zh_CN.json"/>
+        </standard>
+        <standard id="misra08" path="misra2008-rules-zh_CN.xml" hide="0"/>
+        <standard id="misra" path="misra2012-rules-zh_CN.xml" hide="0">
+            <rule_detail path="misra2012-rule-details-zh_CN.json"/>
+        </standard>
+        <standard id="cwec" path="cwe-c-rules-zh_CN.xml" hide="0"/>
+        <standard id="cwecpp" path="cwe-cpp-rules-zh_CN.xml" hide="0"/>
+        <standard id="cert" path="cert-rules-zh_CN.xml" hide="0"/>
+        <standard id="jsf" path="jsf-rules-zh_CN.xml" hide="0"/>
+        <standard id="autosar" path="autosar-rules-zh_CN.xml" hide="0"/>
+        <standard id="fkfg" path="fkfg-rules-zh_CN.xml" hide="0"/>
+    </standards>
+    <configures>
+        <configure name="缺省规则配置" description="" default="0">
+            <standard id="gjb" enable="1" expand="0"/>
+            <standard id="gjb05" enable="0" expand="0"/>
+            <standard id="misra23" enable="1" expand="0"/>
+            <standard id="misra" enable="0" expand="0"/>
+            <standard id="misra08" enable="0" expand="0"/>
+            <standard id="cwec" enable="0" expand="0"/>
+            <standard id="cwecpp" enable="0" expand="0"/>
+            <standard id="autosar" enable="0" expand="0"/>
+            <standard id="jsf" enable="0" expand="0"/>
+            <standard id="autosar" enable="0" expand="0"/>
+        </configure>
+        <configure name="军标规则配置" description="" default="0">
+            <standard id="gjb" enable="1" expand="1"/>
+            <standard id="gjb05" enable="0" expand="0"/>
+            <standard id="misra23" enable="1" expand="0"/>
+            <standard id="misra" enable="0" expand="0"/>
+            <standard id="misra08" enable="0" expand="0"/>
+            <standard id="cwec" enable="0" expand="0"/>
+            <standard id="cwecpp" enable="0" expand="0"/>
+            <standard id="autosar" enable="0" expand="0"/>
+            <standard id="jsf" enable="0" expand="0"/>
+            <standard id="autosar" enable="0" expand="0"/>
+        </configure>
+        <configure name="Test Config" description="" default="1">
+            <standard id="gjb" enable="1" expand="0">
+                <package name="C和C++共用准则" enable="1" expand="0">
+                    <section name="声明定义" enable="1" expand="0">
+                        <rules name="强制标准" enable="1" expand="0">R-1-1-1</rules>
+                    </section>
+                    <section name="语句使用" enable="1" expand="0">
+                        <rules name="强制标准" enable="1" expand="0">R-1-8-2</rules>
+                    </section>
+                </package>
+            </standard>
+            <standard id="gjb05" enable="0" expand="0"/>
+            <standard id="misra08" enable="0" expand="0"/>
+            <standard id="misra" enable="0" expand="0"/>
+            <standard id="cwec" enable="0" expand="0">
+                <package name="C准则" enable="0" expand="0"/>
+            </standard>
+            <standard id="cwecpp" enable="0" expand="1"/>
+            <standard id="cert" enable="0" expand="0"/>
+            <standard id="jsf" enable="0" expand="0"/>
+            <standard id="autosar" enable="0" expand="0"/>
+            <standard id="fkfg" enable="0" expand="1">
+                <package name="C++ 规范" enable="1" expand="1">
+                    <section name="自定义规则" enable="1" expand="1">
+                        <rules name="Required" enable="1" expand="1"/>
+                    </section>
+                </package>
+                <package name="C 规范" enable="0" expand="0"/>
+            </standard>
+        </configure>
+    </configures>
+</rules>

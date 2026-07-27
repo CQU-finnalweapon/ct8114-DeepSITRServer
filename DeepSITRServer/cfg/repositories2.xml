@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<repositories>
+  <repositories name="C++通用框架和库" path="framework" icon="" enable="1">
+    <repository name="Boost" path="boost" icon="" enable="1"></repository>大量通用 C++ 库的集合</repositories>
+  <repositories name="静态代码分析" path="CodeAnalysis" icon="" enable="1">
+    <repository name="cppcheck" path="cppcheck" icon="" enable="1">静态C/C++代码分析工具</repository>
+  </repositories>
+</repositories>
+

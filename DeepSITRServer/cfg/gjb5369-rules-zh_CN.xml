@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<standards>
+    <standard name="GJB(国家军用标准) 5369-2005" abbreviation="GJB-5369" custom="0" enable="1" expand="1" checker="gjb05" serial_format="%3-4-%1-%2-%4">
+        <package name="C准则" abbreviation="C" enable="1" expand="0">
+            <section name="声明定义" enable="1" expand="0" checker="declaration">
+                <rules name="强制标准" enable="1" expand="0" type="required">
+                    <rule name="R-4-1-1-1" enable="1" expand="0" level="1" checker="function-name" description="函数名禁止被重用"/>
+                    <rule name="R-4-1-1-2" enable="1" expand="0" level="1" checker="label-name" description="标号名禁止被重用"/>
+                    <rule name="R-4-1-1-3" enable="1" expand="0" level="1" checker="anonymous-record" description="禁止在结构体定义中含有空域"/>
+                    <rule name="R-4-1-1-4" enable="1" expand="0" level="1" checker="label-duplication" description="禁止声明多重标号"/>
+                    <rule name="R-4-1-1-5" enable="1" expand="0" level="1" checker="function-declare-type" description="参数必须使用类型声明"/>
+                    <rule name="R-4-1-1-6" enable="1" expand="0" level="1" checker="function-declare-no-argument" description="在函数声明中必须对参数说明"/>
+                    <rule name="R-4-1-1-7" enable="1" expand="0" level="1" checker="function-parameter-no-name" description="禁止函数参数只有类型没有标识符"/>
+                    <rule name="R-4-1-1-8" enable="1" expand="0" level="1" checker="function-variadic" description="禁止在函数参数表中使用省略号"/>
+                    <rule name="R-4-1-1-9" enable="1" expand="0" level="1" checker="variable-definition-keywords" description="禁止重新定义使用 C 或 C++的关键字"/>
+                    <rule name="R-4-1-1-10" enable="1" expand="0" level="1" checker="function-no-argument" description="禁止函数中的参数表为空"/>
+                    <rule name="R-4-1-1-11" enable="1" expand="0" level="1" checker="macro-with-number-sign-once" description="禁止在同一个宏中使用多个#或##"/>
+                    <rule name="R-4-1-1-12" enable="1" expand="0" level="1" checker="macro-avoid-no-function-like" description="禁止定义不象函数的宏"/>
+                    <rule name="R-4-1-1-13" enable="1" expand="0" level="1" checker="macro-name-keywords" description="禁止在宏中包含不允许的项"/>
+                    <rule name="R-4-1-1-14" enable="1" expand="0" level="1" checker="macro-name-reserved-words" description="禁止重定义保留字"/>
+                    <rule name="R-4-1-1-15" enable="1" expand="0" level="1" checker="compute-char-variable" description="字符型变量必须明确定义是有符号还是无符号"/>
+                    <rule name="R-4-1-1-16" enable="1" expand="0" level="1" checker="name-duplication" description="禁止对一个名字重新定义"/>
+                    <rule name="R-4-1-1-17" enable="1" expand="0" level="1" checker="typedef-duplication" description="用typedef自定义的类型禁止被重新定义"/>
+                    <rule name="R-4-1-1-18" enable="1" expand="0" level="1" checker="preprocess-if-else-pair" description="禁止在同一个文件中有#if而没有#endif"/>
+                    <rule name="R-4-1-1-19" enable="1" expand="0" level="1" checker="array-declaration-no-size" description="禁止数组没有边界限定"/>
+                    <rule name="R-4-1-1-20" enable="1" expand="0" level="1" checker="include-path" description="禁止在#include&lt;……&gt;中使用绝对路径名"/>
+                    <rule name="R-4-1-1-21" enable="1" expand="0" level="1" checker="struct-define-incomplete" description="禁止结构声明不完整"/>
+                    <rule name="R-4-1-1-22" enable="1" expand="0" level="1" checker="function-declare-definition" description="禁止参数的声明形式上不一致"/>
+                </rules>
+                <rules name="推荐标准" enable="1" expand="0" type="advisory">
+                    <rule name="A-4-1-2-1" enable="1" expand="0" level="0" checker="typedef-builtin-type" description="建议使用typedef在统一的变量声明头文件中对基本变量类型重新定义"/>
+                    <rule name="A-4-1-2-2" enable="1" expand="0" level="0" checker="function-argument-function-pointer" description="避免将过程定义为参数"/>
+                    <rule name="A-4-1-2-3" enable="1" expand="0" level="0" checker="too-many-argument" description="函数中避免使用过多的参数 建议不要超过 20个"/>
+                    <rule name="A-4-1-2-4" enable="1" expand="0" level="0" checker="beware-bit-field" description="在结构体定义中谨慎使用位域"/>
+                    <rule name="A-4-1-2-5" enable="1" expand="0" level="0" checker="single-define-inside-function" description="避免在一个程序块中单独使用#define"/>
+                    <rule name="A-4-1-2-6" enable="1" expand="0" level="0" checker="single-undef-inside-function" description="避免在一个程序块中单独使用#undef"/>
+                    <rule name="A-4-1-2-7" enable="1" expand="0" level="0" checker="beware-pragma" description="谨慎使用#pragma"/>
+                    <rule name="A-4-1-2-8" enable="1" expand="0" level="0" checker="beware-union" description="谨慎使用联合 (union) 的声明"/>
+                    <rule name="A-4-1-2-9" enable="1" expand="0" level="0" checker="record-no-name" description="在结构体中谨慎使用无名位域"/>
+                </rules>
+            </section>
+            <section name="版面书写" enable="1" expand="0" checker="layout">
+                <rules name="强制标准" enable="1" expand="0" type="required">
+                    <rule name="R-4-2-1-1" enable="1" expand="0" level="1" checker="function-without-brace" description="函数体必须用大括号括起来"/>
+                    <rule name="R-4-2-1-2" enable="1" expand="0" level="1" checker="brace-around-loop" description="循环体必须用大括号括起来"/>
+                    <rule name="R-4-2-1-3" enable="1" expand="0" level="1" checker="braces-if-else-if-else" description="then/else 中的语句必须用大括号括起来"/>
+                    <rule name="R-4-2-1-4" enable="1" expand="0" level="1" checker="logic-expression-paren" description="逻辑表达式的连接必须使用括号"/>
+                    <rule name="R-4-2-1-5" enable="1" expand="0" level="1" checker="code-before-headers" description="禁止在头文件前有可执行代码"/>
+                    <rule name="R-4-2-1-6" enable="1" expand="0" level="1" checker="macro-function-like-argument-parent" description="宏参数必须用括号括起来"/>
+                    <rule name="R-4-2-1-7" enable="1" expand="0" level="1" checker="embed-pure-asm" description="嵌入汇编程序的过程必须是纯汇编程序"/>
+                    <rule name="R-4-2-1-8" enable="1" expand="0" level="1" checker="include-name" description="头文件名禁止使用&quot;‘&quot;、&quot;\&quot;和 &quot;/*&quot;等字符"/>
+                    <rule name="R-4-2-1-9" enable="1" expand="0" level="1" checker="string-array-backslash-ending" description="禁止字符串中单独使用&quot;\&quot;，字符串的终出必须使用&quot;\0&quot;"/>
+                    <rule name="R-4-2-1-10" enable="1" expand="0" level="1" checker="main-declaraton" description="main 必须定义为 int main (void) 或int main (int，char*[]) 的形式"/>
+                </rules>
+                <rules name="推荐标准" enable="1" expand="0" type="advisory">
+                    <rule name="A-4-2-2-1" enable="1" expand="0" level="0" checker="file-size" description="建议一个文件中的程序总行不超过 2000 行"/>
+                    <rule name="A-4-2-2-2" enable="1" expand="0" level="0" checker="function-size" description="建议一个过程或函数中的程序总行不超过200 行"/>
+                </rules>
+            </section>
+            <section name="分支控制类" enable="1" expand="0" checker="branch">
+                <rules name="强制标准" enable="1" expand="0" type="required">
+                    <rule name="R-4-3-1-1" enable="1" expand="0" checker="if-empty" description="禁止条件判别成立时相应分支无执行语名"/>
+                    <rule name="R-4-3-1-2" enable="1" expand="0" checker="ifelse-ifelse" description="在if...else if语句中必须使用 else 分支"/>
+                    <rule name="R-4-3-1-3" enable="1" expand="0" checker="else-empty" description="禁止条件判别的 else 分支无可执行语句"/>
+                    <rule name="R-4-3-1-4" enable="1" expand="0" checker="switch-default" description="在 switch 语句中必须有 default 语句"/>
+                    <rule name="R-4-3-1-5" enable="1" expand="0" checker="switch-empty" description="禁止使用空 switch 语句"/>
+                    <rule name="R-4-3-1-6" enable="1" expand="0" checker="switch-only-default" description="禁止 switch 语句中只包含 default 语句"/>
+                    <rule name="R-4-3-1-7" enable="1" expand="0" checker="switch-case-end" description="禁止 switch 的 case 语句不是由 break终止"/>
+                    <rule name="R-4-3-1-8" enable="1" expand="0" checker="switch-case-empty" description="禁止 switch 的 case 语句中无任何可执行语句"/>
+                </rules>
+            </section>
+            <section name="指针使用类" enable="1" expand="0" checker="pointer">
+                <rules name="强制标准" enable="1" expand="0" type="required">
+                    <rule name="R-4-4-1-1" enable="1" expand="0" checker="argument-assign-pointer-process" description="禁止将参数指针赋值给过程指针"/>
+                    <rule name="R-4-4-1-2" enable="1" expand="0" checker="level" description="禁止指针的指针超过两级"/>
+                    <rule name="R-4-4-1-3" enable="1" expand="0" checker="function-assign-to-pointer" description="禁止将过程声明为指针类型"/>
+                </rules>
+                <rules name="推荐标准" enable="1" expand="0" type="advisory">
+                    <rule name="A-4-4-2-1" enable="1" expand="0" level="0" checker="compare" description="谨慎使用指针的逻辑比较"/>
+                    <rule name="A-4-4-2-2" enable="1" expand="0" level="0" checker="arithmetic" description="谨慎对指针进行代数运算"/>
+                </rules>
+            </section>
+            <section name="跳转控制" enable="1" expand="0" checker="jump">
+                <rules name="强制标准" enable="1" expand="0" type="required">
+                    <rule name="R-4-5-1-1" enable="1" expand="0" checker="jump-from-function" description="禁止直接从过程中跳出"/>
+                    <rule name="R-4-5-1-2" enable="1" expand="0" checker="avoid-goto" description="禁止使用 goto 语句"/>
+                </rules>
+                <rules name="推荐标准" enable="1" expand="0" type="advisory">
+                    <rule name="A-4-5-2-1" enable="1" expand="0" level="0" checker="setjmplongjmp" description="避免使用setjmp/longjmp"/>
+                </rules>
+            </section>
+            <section name="运算处理" enable="1" expand="0" checker="computing">
+                <rules name="强制标准" enable="1" expand="0" type="required">
+                    <rule name="R-4-6-1-1" enable="1" expand="0" checker="condition-assignment" description="禁止在非赋值表达式中 出现赋值操作符"/>
+                    <rule name="R-4-6-1-2" enable="1" expand="0" checker="array-out-of-bound" description="数组的使用必须保证不会出现越界"/>
+                    <rule name="R-4-6-1-3" enable="1" expand="0" checker="bitwise-signed-integer" description="禁止对有符号类型进行移位运算"/>
+                    <rule name="R-4-6-1-4" enable="1" expand="0" checker="bitwise-too-many-shift" description="对变量进行移位运算必须保证不会产生溢出"/>
+                    <rule name="R-4-6-1-5" enable="1" expand="0" checker="unsigned-assign-negative" description="禁止给无符号变量赋负值"/>
+                    <rule name="R-4-6-1-6" enable="1" expand="0" checker="signed-field-bit-count" description="有符号类型的位长度必须大于等于两位"/>
+                    <rule name="R-4-6-1-7" enable="1" expand="0" checker="bit-field-sign" description="位的定义必须是有符号整数或无符号整数"/>
+                    <rule name="R-4-6-1-8" enable="1" expand="0" checker="assign-literal-type" description="禁止给变量赋的值与变量的类型不一致"/>
+                    <rule name="R-4-6-1-9" enable="1" expand="0" checker="assign-type" description="赋值类型必须匹配"/>
+                    <rule name="R-4-6-1-10" enable="1" expand="0" checker="array-index-integer" description="数组下标必须是整型数"/>
+                    <rule name="R-4-6-1-11" enable="1" expand="0" checker="logical-negation-literal" description="禁止对常数值做逻辑非的运算"/>
+                    <rule name="R-4-6-1-12" enable="1" expand="0" checker="bitwise-signed-type" description="禁止对有符号类型使用位运算"/>
+                    <rule name="R-4-6-1-13" enable="1" expand="0" checker="enum-usable-range" description="禁止对枚举类型的越限使用"/>
+                    <rule name="R-4-6-1-14" enable="1" expand="0" checker="variable-value-range" description="变量的使用禁止超出所定义的范围"/>
+                    <rule name="R-4-6-1-15" enable="1" expand="0" checker="logic-mix-assign" description="禁止在逻辑表达式中使用赋值操作符"/>
+                    <rule name="R-4-6-1-16" enable="1" expand="0" checker="logic-and-or-max-assign" description="禁止赋值操作符与&quot;&amp;&amp;&quot;或&quot;||&quot;连用"/>
+                    <rule name="R-4-6-1-17" enable="1" expand="0" checker="bitwise-operation-mix-bool-variable" description="禁止位操作符带有布尔型的操作数"/>
+                    <rule name="R-4-6-1-18" enable="1" expand="0" checker="bitwise-operation-mix-bool-literal" description="禁止位操作符作用 于布尔值"/>
+                </rules>
+                <rules name="推荐标准" enable="1" expand="0" type="advisory">
+                    <rule name="A-4-6-2-1" enable="1" expand="0" checker="avoid-comma-operator" description="避免使用逗号操作符"/>
+                    <rule name="A-4-6-2-2" enable="1" expand="0" checker="sizeof-assignment" description="谨防长度操作符sizeof的副作用"/>
+                    <rule name="A-4-6-2-3" enable="1" expand="0" checker="beware-hybrid-operation-type" description="谨慎使用不同类型变量的混合运算"/>
+                    <rule name="A-4-6-2-4" enable="1" expand="0" checker="code-unreachable-by-design" description="避免由于设计的原因导致某些代码不能执行"/>
+                </rules>
+            </section>
+            <section name="过程调用类" enable="1" expand="0" checker="function">
+                <rules name="强制标准" enable="1" expand="0" type="required">
+                    <rule name="R-4-7-1-1" enable="1" expand="0" checker="parameter-argument-count" description="实参与形参的个数必须一致"/>
+                    <rule name="R-4-7-1-2" enable="1" expand="0" checker="main-file-function-usage" description="主过程所在文件中禁止有未被该文件中任何过程调用的子过程"/>
+                    <rule name="R-4-7-1-3" enable="1" expand="0" checker="static-usage" description="static 类型的过程在所在文件中必须被调用"/>
+                    <rule name="R-4-7-1-4" enable="1" expand="0" checker="avoid-libraries" description="禁止使用被禁用的过程、函数、文件或名称"/>
+                    <rule name="R-4-7-1-5" enable="1" expand="0" checker="extern-forbidden-file" description="在不能使用 extem 的文件中禁止使用 extern"/>
+                    <rule name="R-4-7-1-6" enable="1" expand="0" checker="expression-with-order-related-function" description="禁止同一个表达式中调用多个相关函数"/>
+                    <rule name="R-4-7-1-7" enable="1" expand="0" checker="expression-with-void-call" description="禁止 void 类型的过程用在表达式中使用"/>
+                    <rule name="R-4-7-1-8" enable="1" expand="0" checker="argument-void-type" description="禁止 void 类型的变量作为参数进行传递"/>
+                    <rule name="R-4-7-1-9" enable="1" expand="0" checker="parameter-argument-type" description="禁止实参和形参类型不一致"/>
+                    <rule name="R-4-7-1-10" enable="1" expand="0" checker="parameter-type" description="函数和原形参数类型必须一致"/>
+                </rules>
+                <rules name="推荐标准" enable="1" expand="0" type="advisory">
+                    <rule name="A-4-7-2-1" enable="1" expand="0" checker="argment-unused" description="避免过程参数在过程调用中未被使用"/>
+                    <rule name="A-4-7-2-2" enable="1" expand="0" checker="used-call-address" description="避免以非调用方式使用函数"/>
+                    <rule name="A-4-7-2-3" enable="1" expand="0" checker="abort-exit" description="谨慎使用 abort，exit 等函数"/>
+                </rules>
+            </section>
+            <section name="语句使用" enable="1" expand="0" checker="statement">
+                <rules name="强制标准" enable="1" expand="0" type="required">
+                    <rule name="R-4-8-1-1" enable="1" expand="0" checker="variable-name-letter-l-or-o" description="禁止单独使用小写字母&quot;l&quot;或大写字母&quot;O&quot;作为变量名"/>
+                    <rule name="R-4-8-1-2" enable="1" expand="0" checker="trigraphs" description="禁止三字母的使用"/>
+                    <rule name="R-4-8-1-3" enable="1" expand="0" checker="octal-literal-comment" description="使用的八进制数必须加以注释"/>
+                </rules>
+                <rules name="推荐标准" enable="1" expand="0" type="advisory">
+                    <rule name="A-4-8-2-1" enable="1" expand="0" checker="avoid-operator-plus-assign-minus-assign" description="避免使用&quot;+=&quot;或&quot;-=&quot;操作符"/>
+                    <rule name="A-4-8-2-2" enable="1" expand="0" checker="operator-increment-decrement" description="谨慎使用&quot;++&quot;或&quot;--&quot;操作符"/>
+                    <rule name="A-4-8-2-3" enable="1" expand="0" checker="multi-continue" description="避免使用 continue 语句"/>
+                    <rule name="A-4-8-2-4" enable="1" expand="0" checker="beware-conditional-operator" description="谨慎使用三重表达式"/>
+                    <rule name="A-4-8-2-5" enable="1" expand="0" checker="dead-code" description="避免使用不起作用的语句"/>
+                    <rule name="A-4-8-2-6" enable="1" expand="0" checker="avoid-null-stmt" description="避免使用空语句"/>
+                    <rule name="A-4-8-2-7" enable="1" expand="0" checker="register-variable" description="谨慎使用寄存器变量"/>
+                    <rule name="A-4-8-2-8" enable="1" expand="0" checker="function-cstyle" description="避免使用老的参数表的定义形式"/>
+                </rules>
+            </section>
+            <section name="调用返回类" enable="1" expand="0" checker="returnx">
+                <rules name="强制标准" enable="1" expand="0" type="required">
+                    <rule name="R-4-9-1-1" enable="1" expand="0" checker="function-has-return" description="函数必须有返回语旬"/>
+                    <rule name="R-4-9-1-2" enable="1" expand="0" checker="function-void-return-value" description="禁止void类型的过程中的return语名带有返回值"/>
+                    <rule name="R-4-9-1-3" enable="1" expand="0" checker="function-return-with-value" description="有返回值的函数中 return 必须带有返回值"/>
+                    <rule name="R-4-9-1-4" enable="1" expand="0" checker="function-return-correct-type" description="函数返回类型必须一致"/>
+                    <rule name="R-4-9-1-5" enable="1" expand="0" checker="function-return-type" description="函数和原型返回类型必须一致"/>
+                </rules>
+            </section>
+            <section name="程序注释类" enable="1" expand="0" checker="comment">
+                <rules name="强制标准" enable="1" expand="0" type="required">
+                    <rule name="R-4-10-1-1" enable="1" expand="0" checker="nested-comment" description="禁止使用嵌套的注释"/>
+                </rules>
+                <rules name="推荐标准" enable="1" expand="0" type="advisory">
+                    <rule name="A-4-10-2-1" enable="1" expand="0" checker="comments-no-analyze" description="避免使用不加以分析的注释"/>
+                    <rule name="A-4-10-2-2" enable="1" expand="0" checker="single-line-comment" description="建议使用单行注释"/>
+                </rules>
+            </section>
+            <section name="循环控制类" enable="1" expand="0" checker="loop">
+                <rules name="强制标准" enable="1" expand="0" type="required">
+                    <rule name="R-4-11-1-1" enable="1" expand="0" checker="for-condition-variable" description="禁让使用不合适的循环变量类型"/>
+                    <rule name="R-4-11-1-2" enable="1" expand="0" checker="for-condition-local" description="循环变量必须是局部声明的"/>
+                </rules>
+                <rules name="推荐标准" enable="1" expand="0" type="advisory">
+                    <rule name="A-4-11-2-1" enable="1" expand="0" checker="infinite-loop-usage" description="谨慎使用无限循环语句"/>
+                    <rule name="A-4-11-2-2" enable="1" expand="0" checker="multi-break" description="避免在循环中使用 break 语句"/>
+                    <rule name="A-4-11-2-3" enable="1" expand="0" checker="beware-no-control-loop-condition" description="谨慎使用无法控制的循环条件"/>
+                </rules>
+            </section>
+            <section name="类型转换类" enable="1" expand="0" checker="cast">
+                <rules name="强制标准" enable="1" expand="0" type="required">
+                    <rule name="R-4-12-1-1" enable="1" expand="0" checker="force-cast-pointer" description="禁止对指针变量使用强制类型转换赋值"/>
+                </rules>
+                <rules name="推荐标准" enable="1" expand="0" type="advisory">
+                    <rule name="A-4-12-2-1" enable="1" expand="0" checker="beware-pointer-cast-other-type" description="谨慎使用其它类型变量给指针赋值"/>
+                    <rule name="A-4-12-2-2" enable="1" expand="0" checker="no-effect" description="避免使用不必要的类型转换"/>
+                    <rule name="A-4-12-2-3" enable="1" expand="0" checker="conditional-operator-type" description="注意三重表达式中的类型匹配"/>
+                </rules>
+            </section>
+            <section name="初始化类" enable="1" expand="0" checker="initialization">
+                <rules name="强制标准" enable="1" expand="0" type="required">
+                    <rule name="R-4-13-1-1" enable="1" expand="0" checker="enum-field-initialization" description="枚举元素的初始化必须完整"/>
+                    <rule name="R-4-13-1-2" enable="1" expand="0" checker="record-field-init-type" description="结构体变量初始化的类型必须一致"/>
+                    <rule name="R-4-13-1-3" enable="1" expand="0" checker="record-initialization-struct" description="结构体变量初始化的嵌套结构必须与定义的相一致"/>
+                    <rule name="R-4-13-1-4" enable="1" expand="0" static="1" checker="UnassignedVariable" description="变量使用前必须被赋过值"/>
+                </rules>
+            </section>
+            <section name="比较判断类" enable="1" expand="0" checker="compare">
+                <rules name="强制标准" enable="1" expand="0" type="required">
+                    <rule name="R-4-14-1-1" enable="1" expand="0" checker="floats-equal-compare" description="禁止对实数类型的量做是否相等的比较"/>
+                    <rule name="R-4-14-1-2" enable="1" expand="0" checker="logic-conditon-type" description="禁止逻辑判别的表达式不是逻辑表达式"/>
+                    <rule name="R-4-14-1-3" enable="1" expand="0" checker="switch-bool-variable" description="switch 语句中的表达式禁止是逻辑表达式"/>
+                </rules>
+                <rules name="推荐标准" enable="1" expand="0" type="advisory">
+                    <rule name="A-4-14-2-1" enable="1" expand="0" checker="simplify-logic-expression" description="建议逻辑表达式采用显式的表达"/>
+                </rules>
+            </section>
+            <section name="名称、符号与变量使用类" enable="1" expand="0" checker="variable">
+                <rules name="强制标准" enable="1" expand="0" type="required">
+                    <rule name="R-4-15-1-1" enable="1" expand="0" checker="enum-field-name" description="禁止枚举类型中的元素名与已有的变量名同名"/>
+                    <rule name="R-4-15-1-2" enable="1" expand="0" checker="global-local" description="禁止局部变量与全局变量同名"/>
+                    <rule name="R-4-15-1-3" enable="1" expand="0" checker="global-argument-name" description="禁止形参名与全局变量名同名"/>
+                    <rule name="R-4-15-1-4" enable="1" expand="0" checker="function-argument-identifier-name" description="禁止形参名与类型或标识符同名"/>
+                    <rule name="R-4-15-1-5" enable="1" expand="0" checker="name-inside-function" description="禁止在内部块中重定义已有的变量名"/>
+                    <rule name="R-4-15-1-6" enable="1" expand="0" checker="complicate-volatile-expression" description="禁止复杂表达式中使用volatile 类型的变量"/>
+                </rules>
+                <rules name="推荐标准" enable="1" expand="0" type="advisory">
+                    <rule name="A-4-15-2-1" enable="1" expand="0" checker="string-charset-ansi" description="在源程序中谨慎使用非标准字符"/>
+                    <rule name="A-4-15-2-2" enable="1" expand="0" checker="macro-with-number-sign" description="在宏中谨慎使用”##“或”#“"/>
+                </rules>
+            </section>
+        </package>
+    </standard>
+</standards>

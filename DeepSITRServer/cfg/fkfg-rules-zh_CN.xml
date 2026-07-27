@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<standards>
+    <standard name="飞管飞控安全规则集自定义" enable="0" abbreviation="飞管飞控" simple_name="FKFJ" checker="fkfg" custom="1" sort="1" expand="0">
+        <package name="C++ 规范" enable="1" expand="0">
+            <section name="自定义规则" enable="1" checker="code" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-1-1" enable="1" level="1" checker="check-class-member-buffer-size" description="写入类成员数组前，检查类成员数组大小"/>
+                    <rule name="R-1-2" enable="1" level="1" checker="check-stack-buffer-size" description="写入堆栈数组前，检查堆栈数组大小"/>
+                </rules>
+            </section>
+        </package>
+        <package name="C 规范" enable="1" expand="0">
+            <section name="自定义规则" enable="1" checker="code" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-2-1" enable="1" level="1" checker="" description="All functions shall have a cyclomatic complexity number of 20 or less."/>
+                </rules>
+            </section>
+        </package>
+
+    </standard>
+</standards>

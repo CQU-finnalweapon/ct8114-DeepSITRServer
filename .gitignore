@@ -1,31 +1,21 @@
-# OCI blobs (too large for git, ~500MB each)
-blobs/
-
-# Temporary extraction artifacts from Docker image
-_inspect.py
-_app_code/opt/
-_app_code/tmp/
-_app_code/var/
-
-# Python cache
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.cache/
 __pycache__/
 *.pyc
 *.pyo
-
-# Compiled binaries from Docker image
-_app_code/app/codetidy
-_app_code/app/DeepSITRServer
-
-# Node modules (if any in static)
-node_modules/
-
-# Test / mock temp files (local dev only)
-_app_code/app/test_main.c
-_app_code/app/test_utils.c
-_app_code/app/test_api.py
-_app_code/app/run_mock.py
-mock_uniportal/
-
-# OS files
-Thumbs.db
+*.log
+*.tmp
+*.tar
+*.tar.gz
+*.zip
+*.rar
+local_workspaces/
+workspaces/
+uploads/
+_reports/
+_tasks/
 .DS_Store
+Thumbs.db

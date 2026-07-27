@@ -1,0 +1,173 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<title>航空表单</title>
+		<style type="text/css">
+		/* CSS Document */
+body,h1,h2,h3,h4,h5,h6,hr,p,blockquote,dl,dt,dd,ul,ol,li,pre,form,fieldset,legend,button,input,textarea,th,td{    font-weight: inherit;
+    font-style: inherit;
+    font-size: 100%;
+    padding:0; margin:0;/*transition:0.2s;-webkit-transition:0.2s;-moz-transition: 0.2s;-o-transition: 0.2s;-ms-transition: 0.2s;*/}
+body,button,input,select,textarea{padding:0; margin:0; outline:none;}
+button,input,select,textarea{background:transparent;}
+table{border-collapse:collapse;border-spacing:0;border-color:#FF0000}
+ul,li{ margin:0px; padding:0px; list-style:none; }
+*{ margin:0; padding:0;}
+em,i{ font-style:normal; font-weight:normal;}
+ul,ol{ list-style-type:none;}
+li{ vertical-align:top;}
+img{vertical-align:top; border:0;}
+
+body,html{margin:0;padding:0;width:100%;}
+h1,h2,h3,h4,h5,h6,p{font-weight:normal;}
+body{
+    font-weight: inherit;
+    font-style: inherit;
+    font-size: 14px;
+    font-family: "微软雅黑","PingFang SC", "Microsoft YaHei",Helvetica,"Helvetica Neue",Tahoma,Arial,sans-serif;
+    padding:0;
+    color:#5d5c5c;
+    margin:0;
+    word-wrap: break-word;
+    /* overflow: hidden; */
+    background-color: #f8f9fb;
+    /* overflow-x: hidden; */
+    }
+/*Firefox下input button内文字不能垂直居中及安卓手机按钮文字不垂直居中*/
+input[type="reset"]::-moz-focus-inner, 
+input[type="button"]::-moz-focus-inner, 
+input[type="submit"]::-moz-focus-inner, 
+input[type="file"] > input[type="button"]::-moz-focus-inner{ 
+border:none;padding:0; 
+} 
+/*清除浮动*/
+.clearfix:after{content:"."; display:block; height:0; clear:both; overflow:hidden;}
+.clearfix{zoom:1;}
+.clear{ clear:both; margin:0; padding:0;}
+/*placeholder设置颜色*/
+::-webkit-input-placeholder{color:#c1c1c1;}
+::-moz-placeholder {color:#c1c1c1;}
+:-moz-placeholder {color:#c1c1c1;}
+:-ms-input-placeholder{color:#c1c1c1;}
+
+a,input[type="button"],button,img{outline: none;transition:0.2s;-webkit-transition:0.2s;-moz-transition: 0.2s;-o-transition: 0.2s;-ms-transition: 0.2s; cursor:pointer;}
+a{color: #333;text-decoration: none;}
+a:hover,a:focus{color:#fba900; }
+
+/*航空表单*/
+.air-wrap{width:580px;margin:40px auto;box-shadow: 0 0 18px rgba(221,221,221,0.75);border-top:2px #12c8f5 solid;padding:10px 100px;background:#fff;}
+
+.air-title{text-align: center;font-size:24px;color:#53b3db;padding:26px 0;}
+.air-title.border-b{border-bottom:1px #e1e1e1 solid;margin-bottom:20px;}
+
+.air-table table{border:1.5px #c8c8c8 solid;border-collapse: collapse;}
+.air-table table th{text-align: center;font-size: 16px;color:#069bc0;border:1.5px #c8c8c8 solid;padding:10px;border-collapse: collapse;}
+.air-table table td{border:1.5px #c8c8c8 solid;padding:10px;border-collapse: collapse;}
+
+.air-list{padding:20px 0;s}
+.air-list ul{}
+.air-list ul li{width:50%;float:left;}
+.air-list ul li em{display: inline-block;vertical-align: top;width:34px;height:34px;background:url('../images/a-icon1.png') no-repeat center;}
+.air-list ul li em.a-icon1{}
+.air-list ul li em.a-icon2{background-image:url('../images/a-icon2.png');}
+.air-list ul li em.a-icon3{background-image:url('../images/a-icon3.png');}
+.air-list ul li em.a-icon4{background-image:url('../images/a-icon4.png');}
+
+.air-list ul li span{display: inline-block;vertical-align: top;text-overflow:ellipsis; white-space:nowrap;line-height: 34px;}
+.air-list ul li i{display: inline-block;vertical-align: top;text-overflow:ellipsis; white-space:nowrap;line-height: 34px;color:#e21616;}
+		</style>
+	</head>
+	<body>
+		<div class="air-wrap"  style="width: 660px;">
+			<div class="air-title border-b">代码复杂度评审结果</div>
+			<div class="air-table">
+				<table style="width: 100%;">
+					<thead>
+						<tr>
+							<th width="33.33%">项目名称</th>
+							<th width="33.33%">评分</th>
+							<th>备注</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td align="center">总代码行数</td>
+							<td align="center">%1</td>
+							<td>&nbsp;</td>
+						</tr>
+						<tr>
+							<td align="center">有效代码行数</td>
+							<td align="center">%2</td>
+							<td>&nbsp;</td>
+						</tr>
+						<tr>
+							<td align="center">注释率</td>
+							<td align="center">%3</td>
+							<td>&nbsp;</td>
+						</tr>
+						<tr>
+							<td align="center">总模块数</td>
+							<td align="center">%4</td>
+							<td>&nbsp;</td>
+						</tr>
+						<tr>
+							<td align="center">圈复杂度&gt;10的模块数</td>
+							<td align="center">%5</td>
+							<td>&nbsp;</td>
+						</tr>
+						<tr>
+							<td align="center">基本圈复杂度&gt;3的模块数</td>
+							<td align="center">%6</td>
+							<td>&nbsp;</td>
+						</tr>
+						<tr>
+							<td align="center">扇出&gt;7的模块数</td>
+							<td align="center">%7</td>
+							<td>&nbsp;</td>
+						</tr>
+						<tr>
+							<td align="center">扇出&gt;7的模块数</td>
+							<td align="center">%8</td>
+							<td>&nbsp;</td>
+						</tr>
+						<tr>
+							<td align="center">200的模块数</td>
+							<td align="center">%9</td>
+							<td>&nbsp;</td>
+						</tr>
+						<tr>
+							<td align="center">最大模块的代码规模</td>
+							<td align="center">%10</td>
+							<td>&nbsp;</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+			<div class="air-title">代码规则检查结果</div>
+			<div class="air-table">
+				<table style="width: 100%;">
+					<thead>
+						<tr>
+							<th>序号</th>
+							<th>违背规则</th>
+							<th>违背规则内容</th>
+							<th>违背行数</th>
+						</tr>
+					</thead>
+					<tbody>
+						%15
+					</tbody>
+				</table>
+			</div>
+			<div class="air-list">
+				<ul class="clearfix">
+					<li><em class="a-icon1"></em><span>规则违背率：</span><i>%11</i></li>
+					<li><em class="a-icon2"></em><span>代码评价：</span><i>%12</i></li>
+					<li><em class="a-icon3"></em><span>软件或目录名称：</span><i>%14</i></li>
+					<li><em class="a-icon4"></em><span>检查时间：</span><i>%13</i></li>
+				</ul>
+			</div>
+		</div>
+	</body>
+</html>

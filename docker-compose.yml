@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  app:
+    image: ct8114:v7.2
+    container_name: ct8114-v72
+
+    ports:
+      - "8003:8000"
+
+    volumes:
+      - uniportal_storage:/data/uniportal
+      - ct8114_local:/app/local_workspaces
+      - ct8114_tasks:/app/workspaces/_tasks
+      - ct8114_reports:/app/workspaces/_reports
+      - ct8114_uploads:/app/workspaces/uploads
+
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+
+      - UNIPORTAL_STORAGE_PATH=/data/uniportal
+      - UNIPORTAL_WRITABLE=true
+
+      - LOCAL_WORKSPACES_DIR=/app/local_workspaces
+      - TASKS_DIR=/app/workspaces/_tasks
+      - REPORTS_DIR=/app/workspaces/_reports
+      - UPLOADS_DIR=/app/workspaces/uploads
+
+      - ANALYSIS_ENGINE=dcab_http
+      - DCAB_BASE_URL=http://127.0.0.1:8080
+      - DCAB_START_PATH=/start_progress
+      - DCAB_CHECK_PATH=/check_progress
+      - DCAB_REQUEST_TIMEOUT=15
+
+      - DCAB_RULE_IDS=ALL
+
+      - ENABLE_PROJECT_DELETE=false
+
+      - CODETIDY_BIN=/opt/dcab/core/codetidy
+      - DEEPSITR_WORKDIR=
+
+    restart: unless-stopped
+
+volumes:
+  uniportal_storage:
+    external: true
+
+  ct8114_local:
+    driver: local
+
+  ct8114_tasks:
+    driver: local
+
+  ct8114_reports:
+    driver: local
+
+  ct8114_uploads:
+    driver: local

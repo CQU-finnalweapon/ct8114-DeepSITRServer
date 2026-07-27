@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<standards>
+    <standard name="CERT" enable="0" abbreviation="cert" simple_name="CERT" checker="cert" custom="0" sort="1" expand="0" serial_format="%3-%2-%4">
+        <package name="C++ Guidelines" enable="1" expand="0">
+            <section name="A standard C environment" enable="1" checker="environment" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-1-1" enable="1" level="1" checker="" description="程序不应违反标准C语言语法和约束，也不应超过实现的编译限制"/>
+                    <rule name="R-1-3" enable="1" level="1" checker="" description="不应出现未定义或关键的未规定行为"/>
+                    <rule name="R-1-4" enable="1" level="1" checker="avoid-emergent-language-features" description="不应使用紧急语言特性"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-1-2" enable="1" level="0" checker="" description="不应使用语言扩展"/>
+                </rules>
+            </section>
+            <section name="Unused code" enable="1" checker="unused" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-2-1" enable="1" level="1" checker="" description="项目不应包含不可达的代码"/>
+                    <rule name="R-2-2" enable="1" level="1" checker="dead-code" description="不应有无用代码" expand="0"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-2-3" enable="1" level="0" checker="nested-comment" description="项目不应包含未使用的类型声明" expand="0"/>
+                    <rule name="A-2-4" enable="1" level="0" checker="tag-usage" description="项目不应包含未使用的标记声明" expand="0"/>
+                    <rule name="A-2-5" enable="1" level="0" checker="macro-usage" description="项目不应包含未使用的宏声明" expand="0"/>
+                    <rule name="A-2-6" enable="1" level="0" checker="label-usage" description="函数不应包含未使用的标签声明" expand="0"/>
+                    <rule name="A-2-7" enable="1" level="0" checker="function-argment" description="函数中不应有未使用的参数" expand="0"/>
+                </rules>
+            </section>
+            <section name="Comments" enable="1" checker="comments" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-3-1" enable="1" level="1" checker="nested-comment" description="不应在注释中使用字符序列\/*和\/\/" expand="0"/>
+                    <rule name="R-3-2" enable="1" level="1" checker="line-spacing-comment" description="在\/\/注释中不应使用行合并 " expand="0"/>
+                </rules>
+            </section>
+            <section name="Character sets and lexical conventions" enable="1" checker="character" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-4-1" enable="1" level="1" checker="octal-constant" description="八进制和十六进制转义序列应终止 "/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-4-2" enable="1" level="0" checker="string-trigraphs" description="不应使用三字符组" expand="0"/>
+                </rules>
+            </section>
+            <section name="Identifiers" enable="1" checker="identifier" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-5-1" enable="1" level="1" checker="external" description="外部标识符应是独特的" expand="0"/>
+                    <rule name="R-5-2" enable="1" level="1" checker="same-scope" description="在同一作用域和命名空间中声明的标识符应是独特的"/>
+                    <rule name="R-5-3" enable="1" level="1" checker="name-inside-function" description="在内层作用域中声明的标识符不应隐藏在外层作用域中声明的标识符" expand="0"/>
+                    <rule name="R-5-4" enable="1" level="1" checker="macro-identifier" description="宏标识符应是独特的" expand="0"/>
+                    <rule name="R-5-5" enable="1" level="1" checker="macro-distinct-identifier" description="标识符应不同于宏名称" expand="0"/>
+                    <rule name="R-5-6" enable="1" level="1" checker="variable-typedef-name" description="typedef名称应是唯一标识符" expand="0"/>
+                    <rule name="R-5-7" enable="1" level="1" checker="variable-tag-name" description="标记名称应是唯一标识符" expand="0"/>
+                    <rule name="R-5-8" enable="1" level="1" checker="" description="定义具有外部链接的对象或函数的标识符应是唯一的"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-5-9" enable="1" level="0" checker="" description="定义具有内部链接的对象或函数的标识符应"/>
+                </rules>
+            </section>
+            <section name="Types" enable="1" checker="type" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-6-1" enable="1" level="1" checker="bit-field-sign" description="只能用适当的类型声明位字段" expand="0"/>
+                    <rule name="R-6-2" enable="1" level="1" checker="signed-field-bit-count" description="单位命名的位字段不应是有符号整型" expand="0"/>
+                </rules>
+            </section>
+            <section name="Literals and constants" enable="1" checker="constants" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-7-1" enable="1" level="1" checker="avoid-octal-constants" description="不应使用八进制常量" expand="0"/>
+                    <rule name="R-7-2" enable="1" level="1" checker="recommend-type-suffix" description="应在以无符号整型表示的所有整数常量后面加上&quot;u&quot;或&quot;U&quot;" expand="0"/>
+                    <rule name="R-7-3" enable="1" level="1" checker="value-literal-suffix-letter-l" description="不应在后缀文字中使用小写字母&quot;l&quot;" expand="0"/>
+                    <rule name="R-7-4" enable="1" level="1" checker="string-literal-cast" description="除非对象的类型是&quot;指向常量限定字符的指针&quot;，否则不应将字符串赋给对象" expand="0"/>
+                </rules>
+            </section>
+            <section name="Declarations and definitions" enable="1" checker="declaration" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-8-1" enable="1" level="1" checker="type-declare" description="应明确规定类型"/>
+                    <rule name="R-8-2" enable="1" level="1" checker="function-parameter-argument-count" description="函数类型应为带有命名的参数的原型形式" expand="0"/>
+                    <rule name="R-8-3" enable="1" level="1" checker="" description="对象或函数的所有声明都应使用相同的名称和类型限定符"/>
+                    <rule name="R-8-4" enable="1" level="1" checker="" description="在定义了具有外部链接的对象或函数时，兼容声明应是可见的"/>
+                    <rule name="R-8-5" enable="1" level="1" checker="" description="外部对象或函数只能在单个文件中声明一次"/>
+                    <rule name="R-8-6" enable="1" level="1" checker="external-identifier-definition" description="具有外部链接的标识符应仅有一个外部定义"/>
+                    <rule name="R-8-8" enable="1" level="1" checker="static-storage-consistent" description="应在所有具有内部链接的对象和函数的声明中使用静态存储类说明符" expand="0"/>
+                    <rule name="R-8-10" enable="1" level="1" checker="" description="应使用静态存储类声明内联函数"/>
+                    <rule name="R-8-12" enable="1" level="1" checker="enum-field-initialization" description="在枚举成员列表中，隐式指定的枚举常量的值应是唯一的" expand="0"/>
+                    <rule name="R-8-14" enable="1" level="1" checker="qualifier-restrict" description="不能使用 restrict 限定符"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-8-7" enable="1" level="0" checker="" description="若函数和对象仅在一个编译单元中引用，则不应使用外部链接来定义它们"/>
+                    <rule name="A-8-9" enable="1" level="0" checker="" description="若对象的标识符只出现在单个函数中，则应在块作用域内定义该对象"/>
+                    <rule name="A-8-11" enable="1" level="0" checker="exteral-array-size-specified" description="当声明带有外部链接的数组时，应显式指定其大小"/>
+                    <rule name="A-8-13" enable="1" level="0" checker="pointer-reference-const" description="指针应尽可能指向以常量限定的类型"/>
+                </rules>
+            </section>
+            <section name="Initialization" enable="1" checker="initialization" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-9-1" enable="1" level="1" checker="" description="具有自动存储期的对象的值在设置之前不应读取"/>
+                    <rule name="R-9-2" enable="1" level="1" checker="struct-array-initialize-brace-match" description="聚合或联合的初始值设定项应使用大括号括起来" expand="0"/>
+                    <rule name="R-9-3" enable="1" level="1" checker="array-partial-initialized" description="数组不应部分初始化 " expand="0"/>
+                    <rule name="R-9-4" enable="1" level="1" checker="" description="对象的元素不应被初始化多次"/>
+                    <rule name="R-9-5" enable="1" level="1" checker="array-declaration-no-size" description="若指定的初始值设定项用于初始化数组对象，则应明确指定数组的大小"/>
+                </rules>
+            </section>
+            <section name="The essential type model" enable="1" checker="casting" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-10-1" enable="1" level="1" checker="operand-essential-type" description="操作数不应是不适当的基本类型"/>
+                    <rule name="R-10-2" enable="1" level="1" checker="char-type-add-sub" description="本质上是字符型的表达式不应不适当地用于加减运算"/>
+                    <rule name="R-10-3" enable="1" level="1" checker="long-cast-short-integer" description="表达式的值不应赋给具有较窄基本类型或不同基本类型的对象" expand="0"/>
+                    <rule name="R-10-4" enable="1" level="1" checker="double-cast-float" description="进行常规算术转换的运算符的两个操作数应具有相同的基本类型" expand="0"/>
+                    <rule name="R-10-5" enable="1" level="1" checker="" description="表达式的值不应转换为不适当的基本类型"/>
+                    <rule name="R-10-7" enable="1" level="1" checker="" description="若使用复合表达式作为在其中进行常规算术转换的运算符的一个操作数，则另一个操作数不应具有更宽的基本类型"/>
+                    <rule name="R-10-8" enable="1" level="1" checker="" description="复合表达式的值不应转换为不同的基本类型或较宽的基本类型"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-10-6" enable="1" level="0" checker="" description="复合表达式的值不应赋给具有较宽基本类型的对象"/>
+                </rules>
+            </section>
+            <section name="Pointer type conversions" enable="1" checker="casting" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-11-1" enable="1" level="1" checker="function-pointer-cast-other" description="不应在函数的指针与任何其他类型之间进行转换"/>
+                    <rule name="R-11-2" enable="1" level="1" checker="incomplete-pointer-cast-other" description="不应在不完整类型的指针与任何其他类型之间进行转换"/>
+                    <rule name="R-11-3" enable="1" level="1" checker="object-pointer-cast-other" description="不应在某种对象类型的指针与另一种对象类型的指针之间进行转换"/>
+                    <rule name="R-11-6" enable="1" level="1" checker="void-pointer-cast-arithmetic-type" description="不应在空类型的指针与算术类型之间进行强制转换"/>
+                    <rule name="R-11-7" enable="1" level="1" checker="object-pointer-cast-arithmetic-type" description="不应在对象的指针与非整数运算类型之间进行强制转换"/>
+                    <rule name="R-11-8" enable="1" level="1" checker="remove-const-volatile" description="强制转换不应从指针所指向的类型去除任何const或volatile限定符"/>
+                    <rule name="R-11-9" enable="1" level="1" checker="empty-pointer-use-null" description="宏NULL应是整数空指针常量的唯一允许形式"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-11-4" enable="1" level="0" checker="object-pointer-cast-integer" description="不应在对象的指针与整数类型之间进行转换"/>
+                    <rule name="A-11-5" enable="1" level="0" checker="void-pointer-cast-other-pointer" description="不应执行从空类型的指针到对象的指针的转换"/>
+                </rules>
+            </section>
+            <section name="Expressions" enable="1" checker="expression" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-12-2" enable="1" level="1" checker="bitwise-too-many-shift" description="移位运算符的右操作数应比操作数的基本类型的位宽小0到1" expand="0"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-12-1" enable="1" level="0" checker="logic-expression-paren" description="表达式中的运算符的优先级应显式设置" expand="0"/>
+                    <rule name="A-12-3" enable="1" level="0" checker="avoid-comma-operator" description="不应使用逗号运算符" expand="0"/>
+                    <rule name="A-12-4" enable="1" level="0" checker="" description="常量表达式的计算不应导致无符号整数的回绕"/>
+                </rules>
+            </section>
+            <section name="Side effects" enable="1" checker="computing" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="M-13-6" enable="1" level="1" checker="sizeof-side-effect" description="sizeof运算符的操作数不应包含任何具有潜在副作用的表达式" expand="0"/>
+                </rules>
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-13-1" enable="1" level="1" checker="" description="初始值设定项列表不应包含持久的副作用"/>
+                    <rule name="R-13-2" enable="1" level="1" checker="" description="在所有允许的计算命令下，表达式的值及其持久副作用应相同"/>
+                    <rule name="R-13-5" enable="1" level="1" checker="logic-expression" description="逻辑&amp;&amp;或||运算符的右操作数不应包含持久的副作用 " expand="0"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-13-3" enable="1" level="0" checker="operator-increment-decrement" description="除了由递增或递减运算符引起的副作用外，包含递增（++）、递减（--）运算符的完整表达式应没有其它潜在的副作用" expand="0"/>
+                    <rule name="A-13-4" enable="1" level="0" checker="condition-assignment" description="不应使用赋值运算符的结果" expand="0"/>
+                </rules>
+            </section>
+            <section name="Control statement expressions" enable="1" checker="control" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-14-1" enable="1" level="1" checker="loop-counter-float-type" description="循环计数器本质上不应是浮点型的" expand="0"/>
+                    <rule name="R-14-2" enable="1" level="1" checker="for-condition-integer" description="for循环应具有良好的结构" expand="0"/>
+                    <rule name="R-14-3" enable="1" level="1" checker="expression-invariant" description="控制表达式不应是不变的"/>
+                    <rule name="R-14-4" enable="1" level="1" checker="condition-bool" description="if语句的控制表达式和iteration语句的控制表达式应在本质上是布尔型的"/>
+                </rules>
+            </section>
+            <section name="Control Flow" enable="1" checker="control" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-15-2" enable="1" level="1" checker="goto-back" description="goto语句应跳转到在同一函数中稍后声明的标签"/>
+                    <rule name="R-15-3" enable="1" level="1" checker="goto-range" description="goto语句引用的任何标签都应在同一个块中声明，或者在包含goto语句的任何块中声明"/>
+                    <rule name="R-15-6" enable="1" level="1" checker="brace-around-loop" description="iteration语句或selection语句的主体应是复合语句"/>
+                    <rule name="R-15-7" enable="1" level="1" checker="braces-if-else-if-else" description="所有if … else if构造应以else语句终止"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-15-1" enable="1" level="0" checker="avoid-goto" description="不应使用goto语句"/>
+                    <rule name="A-15-4" enable="1" level="0" checker="multi-break" description="用于终止任何迭代语句的break或goto语句不应超过一个"/>
+                    <rule name="A-15-5" enable="1" level="0" checker="function-single-point-exit" description="函数应在结尾处有单个出口点"/>
+                </rules>
+            </section>
+            <section name="Switch statements" enable="1" checker="branch" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-16-1" enable="1" level="1" checker="" description="所有switch语句应具有良好的结构"/>
+                    <rule name="R-16-2" enable="1" level="1" checker="switch-case-level" description="只有在最紧密封闭的复合语句是分支语句的主体时，才能使用switch标签" expand="0"/>
+                    <rule name="R-16-3" enable="1" level="1" checker="switch-case-end" description="应使用无条件中断语句终止每个switch子句" expand="0"/>
+                    <rule name="R-16-4" enable="1" level="1" checker="switch-has-default" description="每个switch语句都应有一个default标签" expand="0"/>
+                    <rule name="R-16-5" enable="1" level="1" checker="switch-final-default" description="default标签应作为switch语句的第一个或最后一个switch标签出现" expand="0"/>
+                    <rule name="R-16-6" enable="1" level="1" checker="switch-one-case" description="每个switch语句应至少有两个switch子句" expand="0"/>
+                    <rule name="R-16-7" enable="1" level="1" checker="switch-bool-variable" description="switch表达式本质上不应是布尔型" expand="0"/>
+                </rules>
+            </section>
+            <section name="Functions" enable="1" checker="function" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="M-17-3" enable="1" level="1" checker="unresolved" description="不应隐式地声明函数" expand="0"/>
+                    <rule name="M-17-4" enable="1" level="1" checker="" description="具有非空返回类型的函数的所有退出路径都应有一个带有表达式的显式返回语句"/>
+                    <rule name="M-17-6" enable="1" level="1" checker="" description="数组参数的声明在[ ]之间不应包含静态关键字"/>
+                </rules>
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-17-1" enable="1" level="1" checker="variadic" description="不应使用&lt;stdarg.h&gt;的特性" expand="0"/>
+                    <rule name="R-17-2" enable="1" level="1" checker="function-no-recursion" description="函数不应直接或间接地调用自身"/>
+                    <rule name="R-17-7" enable="1" level="1" checker="return-value-unused" description="应使用具有非空返回类型的函数返回的值" expand="0"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-17-5" enable="1" level="0" checker="" description="与被声明为具有数组类型的参数相对应的函数参数应具有适当数量的元素"/>
+                    <rule name="A-17-8" enable="1" level="0" checker="function-argument-modify" description="不应修改函数参数" expand="0"/>
+                </rules>
+            </section>
+            <section name="Pointers and arrays" enable="1" checker="pointer" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-18-1" enable="1" level="1" checker="" description="由对指针操作数进行的算术运算产生的指针应寻址与该指针操作数相同的数组的元素"/>
+                    <rule name="R-18-2" enable="1" level="1" checker="subtraction-same-array" description="指针之间的减法只能应用于寻址同一数组的元素的指针" expand="0"/>
+                    <rule name="R-18-3" enable="1" level="1" checker="relational-same-array" description="不应对指针类型的对象应用关系运算符&gt;、&gt;=、&lt;和&lt;=，除非它们指向同一个对象" expand="0"/>
+                    <rule name="R-18-5" enable="1" level="1" checker="level" description="声明不应包含超过两级的指针嵌套" expand="0"/>
+                    <rule name="R-18-6" enable="1" level="1" checker="" description="不应将具有自动存储特性的对象的地址复制到在该对象不再存在后持续存在的另一个对象中"/>
+                    <rule name="R-18-7" enable="1" level="1" checker="member-array-size" description="不应声明柔性数组成员" expand="0"/>
+                    <rule name="R-18-8" enable="1" level="1" checker="array-variable-length" description="不应使用变长数组类型" expand="0"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-18-4" enable="1" level="0" checker="pointer-arithmetic" description="不应对指针类型的表达式应用+、-、+=和-=运算符"/>
+                </rules>
+            </section>
+            <section name="Overlapping storage" enable="1" checker="overlapping" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="M-19-1" enable="1" level="1" checker="" description="不应将对象分配或复制给重叠对象"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-19-2" enable="1" level="0" checker="union" description="不应使用union关键字" expand="0"/>
+                </rules>
+            </section>
+            <section name="Preprocessing directives" enable="1" checker="preprocess" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-20-2" enable="1" level="1" checker="include-name" description="在头文件名中不应出现&apos;、&quot;或\\字符和\/*或\/\/字符序列" expand="0"/>
+                    <rule name="R-20-3" enable="1" level="1" checker="include-filename" description="#include指令后面应跟有&lt;文件名&gt;或&quot;文件名&quot;序列" expand="0"/>
+                    <rule name="R-20-4" enable="1" level="1" checker="macro-name-keywords" description="不能使用与关键字相同的名称定义宏" expand="0"/>
+                    <rule name="R-20-6" enable="1" level="1" checker="macro-argument-preprocess-directive" description="在宏参数中不应出现看起来像预处理指令的标记" expand="0"/>
+                    <rule name="R-20-7" enable="1" level="1" checker="macro-parameter-parentheses" description="由宏参数扩展产生的表达式应包含在括号中"/>
+                    <rule name="R-20-8" enable="1" level="1" checker="" description="#if或#elif预处理指令的控制表达式的计算结果应为0或1"/>
+                    <rule name="R-20-9" enable="1" level="1" checker="" description="在#if或#elif预处理指令的控制表达式中使用的所有标识符在计算前都应是#define的"/>
+                    <rule name="R-20-11" enable="1" level="1" checker="" description="紧跟在#运算符之后的宏参数不应紧跟在##运算符之后"/>
+                    <rule name="R-20-12" enable="1" level="1" checker="macro-with-number-sign" description="用作本身将被进一步宏替换处理的#或##运算符的操作数的宏参数只能用作这些运算符的操作数" expand="0"/>
+                    <rule name="R-20-13" enable="1" level="1" checker="" description="第一个标记是#的行应是有效的预处理指令"/>
+                    <rule name="R-20-14" enable="1" level="1" checker="" description="所有#else、#elif和#endif预处理器指令应与它们相关的#if、#ifdef或#ifndef指令位于同一个文件中"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-20-1" enable="1" level="0" checker="code-before-headers" description="#include指令只能在预处理器指令或注释之后" expand="0"/>
+                    <rule name="A-20-5" enable="1" level="0" checker="undefine" description="不应使用#undef" expand="0"/>
+                    <rule name="A-20-10" enable="1" level="0" checker="macro-number-sign" description="不应使用#和##预处理器运算符"/>
+                </rules>
+            </section>
+            <section name="Standard libraries" enable="1" checker="library" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-21-1" enable="1" level="1" checker="define-undef-no-reserved-identifier" description="#define和# undef不应用于保留的标识符或保留的宏名 "/>
+                    <rule name="R-21-2" enable="1" level="1" checker="" description="不应声明保留的标识符或宏名"/>
+                    <rule name="R-21-3" enable="1" level="1" checker="avoid-stdlib-memory-functions" description="不应使用&lt;stdlib.h&gt;的内存分配和释放函数"/>
+                    <rule name="R-21-4" enable="1" level="1" checker="include-setjmp-usage" description="不应使用标准头文件&lt;setjmp.h&gt; " expand="0"/>
+                    <rule name="R-21-5" enable="1" level="1" checker="include-signal-usage" description="不应使用标准头文件&lt;signal.h&gt;" expand="0"/>
+                    <rule name="R-21-6" enable="1" level="1" checker="avoid-stdio-functions" description="不应使用标准库的输入/输出函数"/>
+                    <rule name="R-21-7" enable="1" level="1" checker="atof-atoi-atol" description="不应使用&lt;stdlib.h&gt;的atof、atoi、atol和atoll函数" expand="0"/>
+                    <rule name="R-21-8" enable="1" level="1" checker="abort-exit-getenv-system" description="不应使用&lt;stdlib.h&gt;的库函数abort、exit、getenv和system" expand="0"/>
+                    <rule name="R-21-9" enable="1" level="1" checker="bsearch-qsort" description="不应使用&lt;stdlib.h&gt;的库函数bsearch和qsort" expand="0"/>
+                    <rule name="R-21-10" enable="1" level="1" checker="avoid-std-time-functions" description="不应使用标准库的时间与日期函数"/>
+                    <rule name="R-21-11" enable="1" level="1" checker="include-tgmath-usage" description="不应使用标准头文件&lt;tgmath.h&gt;" expand="0"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory" expand="0">
+                    <rule name="A-21-12" enable="1" level="0" checker="avoid-exception-handling-features" description="不应使用&lt;fenv.h&gt;的异常处理特性"/>
+                </rules>
+            </section>
+            <section name="Resources" enable="1" checker="resources" expand="0">
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="M-22-2" enable="1" level="1" checker="" description="只能释放通过标准库函数分配的内存块"/>
+                    <rule name="M-22-4" enable="1" level="1" checker="file-write-readonly" description="不应试图向以只读方式打开的流写入"/>
+                    <rule name="M-22-5" enable="1" level="1" checker="file-dereferenced" description="不应解除引用指向FILE对象的指针" expand="0"/>
+                    <rule name="M-22-6" enable="1" level="1" checker="" description="在相关的流关闭后，不应使用指向FILE的指针的值"/>
+                </rules>
+                <rules name="Required" enable="1" type="required" expand="0">
+                    <rule name="R-22-1" enable="1" level="1" checker="" description="所有通过标准库函数动态获得的资源都应明确释放"/>
+                    <rule name="R-22-3" enable="1" level="1" checker="" description="在不同流上不应同时打开同一个文件进行读写操作"/>
+                    <rule name="R-22-7" enable="1" level="1" checker="" description="宏 EOF 只应与能够返回 EOF 的任何标准库函数的未修改返回值进行比较"/>
+                    <rule name="R-22-8" enable="1" level="1" checker="error-setting-function-set-error" description="在调用设置errno变量的标准库函数之前，应将 errno 的值设置为零"/>
+                    <rule name="R-22-9" enable="1" level="1" checker="error-setting-function-test-error" description="在调用设置errno变量的标准库函数之后，应测试 errno 的值是否为零"/>
+                    <rule name="R-22-10" enable="1" level="1" checker="error-setting-last-function-test-error" description="仅当要调用的最后一个函数为 errno-setting-function 时，才应测试 errno 的值"/>
+                </rules>
+            </section>
+        </package>
+    </standard>
+</standards>

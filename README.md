@@ -1,226 +1,288 @@
-# ct8114 — GJB 8114 在线静态分析服务
+# CT8114 静态分析工具 v7.2
 
-基于 **DeepSITRServer / codetidy** 引擎的 GJB 8114 代码静态分析平台，提供 Web 界面与 REST API，支持 Docker 容器化部署。
+本仓库用于 CT8114 静态分析工具 v7.2 的源码、规则配置、前端构建产物和部署文件管理。
 
----
+Docker 镜像文件 `ct8114-docker-v7.2.tar` 体积较大，不纳入普通 Git 仓库。如需直接运行工具，请使用单独提供的镜像交付包。
 
-## 版本历史
+## 一、版本说明
 
-| 版本     | 日期       | 说明                                                   |
-| -------- | ---------- | ------------------------------------------------------ |
-| **v5.1** | 2026-07-11 | 新 DCAB 集成：函数列表定位、Required/Advisory 强制级别 |
-| v5.0     | 2026-07    | 初始 DCAB 集成，codetidy 引擎替代 clang-tidy           |
-| v4.x     | 2025       | 基于 clang-tidy + GJB 插件方案                         |
+当前版本：
 
----
-
-## v5.1 新特性
-
-### 函数列表与定位
-
-每条分析报告新增 `functions` 字段，记录源文件中所有函数的名称及起止行列号：
-
-```json
-{
-  "functions": [
-    {
-      "name": "check_range",
-      "start_line": 42,
-      "start_column": 5,
-      "end_line": 58,
-      "end_column": 1
-    }
-  ]
-}
+```text
+v7.2
 ```
 
-前端支持按函数折叠/展开，点击函数名可快速定位到对应代码位置。
+默认镜像名称：
 
-### Required / Advisory 强制级别
-
-DCAB 新版规则区分两种强制级别：
-
-| force 值 | 级别                     | 前端显示    | 含义                         |
-| -------- | ------------------------ | ----------- | ---------------------------- |
-| `1`      | **Required**（强制规则） | `Error` ¹   | 必须有逻辑错误，一般要求改正 |
-| `0`      | **Advisory**（推荐规则） | `Warning` ² | 潜在问题，不强制修复         |
-
-### 支持的规则标准
-
-- **GJB 8114** — 军用软件 C 语言安全规范
-- **MISRA C:2023** — 汽车电子 C 语言标准
-- **CWE** — 通用弱点枚举
-- **CERT C** — 卡内基梅隆安全编码标准
-- **AUTOSAR C++14** — 汽车开放系统架构 C++ 标准
-- **JSF AV C++** — 联合攻击战斗机 C++ 编码标准
-- **FKFG** — 附加规则集
-
----
-
-## 项目结构
-
-```
-ct8114-docker-v5/
-├── _app_code/
-│   ├── app/
-│   │   ├── server.py            # FastAPI 主服务
-│   │   ├── dsit_parser.py       # 数据模型 & DSIT 输出解析
-│   │   ├── dcab_client.py       # DCAB HTTP 客户端
-│   │   ├── routers_dsit.py      # DSIT 报告加载路由
-│   │   ├── static/
-│   │   │   ├── index.html       # Vue.js 前端 SPA
-│   │   │   └── ct8114-enhance.js # 前端增强脚本（函数面板/级别标注）
-│   │   ├── tests/               # 测试用例
-│   │   └── start.sh             # 容器启动脚本
-│   ├── opt/
-│   │   └── dcab/                # DeepSITRServer + codetidy 二进制 & 规则配置
-│   ├── tmp/                     # 临时文件
-│   └── var/                     # 持久化数据
-├── blobs/                       # Docker 镜像层
-├── manifest.json                # Docker 镜像清单
-└── index.json                   # OCI 索引
+```text
+ct8114:v7.2
 ```
 
----
+默认访问地址：
 
-## 快速开始
-
-### 环境要求
-
-- Python 3.10+
-- FastAPI + uvicorn
-- DeepSITRServer 运行时（`_app_code/opt/dcab/`）
-
-### 本地开发运行
-
-```bash
-cd _app_code/app
-
-# 安装依赖
-pip install fastapi uvicorn python-multipart
-
-# 启动服务（默认端口 8000）
-uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+```text
+http://127.0.0.1:8003/static/index.html
 ```
 
-### Mock 模式（无需 DCAB 运行时）
+## 二、主要功能
 
-用于前端开发与功能测试：
+v7.2 版本主要支持以下功能：
 
-```bash
-cd _app_code/app
-python run_mock.py
+1. 多规则集选择分析
+
+支持以下规则集：
+
+- GJB-8114
+- GJB-5369
+- CWE-C
+- MISRA-2008
+- MISRA-2012
+
+2. 项目库管理
+
+支持上传 ZIP 工程包，保存到项目库，并对项目库中的工程发起静态分析。
+
+3. 规则集历史结果查看
+
+每个规则集保留最近一次分析结果。当前规则集已有历史报告时，前端显示：
+
+```text
+查看结果 / 重新分析
 ```
 
-Mock 模式使用内置模拟数据，可验证完整前后端流程。
+当前规则集无历史报告时，前端显示：
 
-### Docker 部署
-
-```bash
-# 导入镜像
-docker load -i ct8114-docker-v5.tar
-
-# 运行容器
-docker run -d -p 8000:8000 ct8114:v5.1
+```text
+开始分析项目
 ```
 
----
+4. 源码查看与缺陷跳转
 
-## API 接口
+支持查看项目源码文件，并从缺陷列表跳转到对应源码位置。
 
-### 即时上传分析
+5. 报告导出
 
-```
-POST /analyze?entry=main.c&keep=false
-Content-Type: multipart/form-data
+支持：
 
-files: <源文件1>, <源文件2>, ...
-```
+- 导出 JSON 原始结果
+- 打印PDF报告
 
-上传源文件即时分析，返回 DSIT 兼容 JSON 报告。
+PDF 和 JSON 均基于当前页面正在显示的分析结果生成，不会重新读取 `last_report.json`，也不会默认导出最近一次结果。
 
-### 项目管理
+## 三、仓库内容
 
-| 方法     | 路径                     | 说明           |
-| -------- | ------------------------ | -------------- |
-| `GET`    | `/projects`              | 列出可用项目   |
-| `GET`    | `/projects/{id}/files`   | 列出项目源文件 |
-| `POST`   | `/projects/{id}/analyze` | 对项目运行分析 |
-| `DELETE` | `/projects/{id}`         | 删除私有项目   |
+仓库主要目录结构如下：
 
-### DSIT 报告加载
-
-| 方法   | 路径                 | 说明                       |
-| ------ | -------------------- | -------------------------- |
-| `POST` | `/dsit/upload-local` | 加载预生成的 DSIT 输出目录 |
-| `GET`  | `/dsit/reports`      | 列出已加载报告             |
-| `GET`  | `/dsit/report/{id}`  | 获取报告详情               |
-
----
-
-## 报告 JSON 结构
-
-```json
-{
-  "report_id": "uuid",
-  "created_at": "2026-07-11T10:00:00",
-  "summary": {
-    "total_files": 3,
-    "total_bugs": 12,
-    "total_functions": 45
-  },
-  "files_stats": [
-    {
-      "file_path": "src/main.c",
-      "total_lines": 200,
-      "total_statements": 150,
-      "functions": [
-        {
-          "name": "main",
-          "start_line": 10,
-          "start_column": 1,
-          "end_line": 50,
-          "end_column": 1
-        }
-      ],
-      "bugs": [
-        {
-          "checker": "codetidy-gjb.statement.XXX",
-          "file_path": "src/main.c",
-          "line": 25,
-          "column": 10,
-          "message": "[GJB-R-1-8-2] 存在不可达分支",
-          "rule_id": "GJB-R-1-8-2",
-          "force": "1",
-          "type_code": "2",
-          "level": "Error"
-        }
-      ]
-    }
-  ]
-}
+```text
+.
+├── server.py
+├── dcab_client.py
+├── dsit_parser.py
+├── source_routes.py
+├── source_utils.py
+├── routers_dsit.py
+├── fixes_parser.py
+├── requirements.txt
+├── start.sh
+├── dockerfile
+├── docker-compose.yml
+├── OUTPUT_SPEC.md
+├── 静态分析工具用户手册.md
+├── DeepSITRServer/
+│   └── cfg/
+├── frontend/
+│   └── src/
+├── static/
+│   └── assets/
+├── tests/
+├── scripts/
+├── VERSION
+└── RELEASE_NOTES-v7.2.md
 ```
 
-### 关键字段说明
+其中：
 
-| 字段        | 类型                    | 说明                                         |
-| ----------- | ----------------------- | -------------------------------------------- |
-| `force`     | `"1"` / `"0"`           | DCAB 强制级别：1=Required，0=Advisory        |
-| `level`     | `"Error"` / `"Warning"` | 前端兼容级别：force=1→Error，force=0→Warning |
-| `type_code` | `"1"` / `"2"`           | DCAB 原始类型：1=error，2=warning            |
-| `functions` | Array                   | 文件内函数列表（名称 + 行列定位）            |
+```text
+frontend/
+```
 
----
+为前端源码。
 
-## 技术栈
+```text
+static/
+```
 
-- **后端**: Python 3.10+ / FastAPI / uvicorn
-- **前端**: Vue.js 3 / 原生 JavaScript 增强
-- **分析引擎**: DeepSITRServer + codetidy (C/C++)
-- **容器化**: Docker / OCI 格式
+为当前版本已构建完成的前端静态资源，最终镜像中直接使用该目录。
 
----
+```text
+DeepSITRServer/cfg/
+```
 
-## License
+为规则配置目录，包含 GJB-8114、GJB-5369、CWE-C、MISRA-2008、MISRA-2012 等规则配置文件。
 
-内部项目，仅供授权使用。
+```text
+tests/
+```
+
+为规则集加载、报告路径、结果保存等相关测试。
+
+## 四、直接运行方式
+
+本仓库不包含 Docker 镜像 tar 包。运行前需要先获取单独提供的镜像文件：
+
+```text
+ct8114-docker-v7.2.tar
+```
+
+加载镜像：
+
+```cmd
+docker load -i ct8114-docker-v7.2.tar
+```
+
+启动服务：
+
+```cmd
+docker compose up -d
+```
+
+查看容器状态：
+
+```cmd
+docker ps
+```
+
+访问页面：
+
+```text
+http://127.0.0.1:8003/static/index.html
+```
+
+停止服务：
+
+```cmd
+docker compose down
+```
+
+## 五、Docker Compose
+
+`docker-compose.yml` 默认使用镜像：
+
+```text
+ct8114:v7.2
+```
+
+默认端口映射：
+
+```text
+8003:8000
+```
+
+默认数据卷用于保存项目库、任务、报告和上传文件。项目库数据位于容器内：
+
+```text
+/data/uniportal
+```
+
+## 六、分析结果输出
+
+项目分析结果保存于：
+
+```text
+/data/uniportal/local-upload/{project_id}/ct8114/
+```
+
+其中：
+
+```text
+last_report.json
+meta.json
+```
+
+表示该项目最近一次分析结果及元信息。
+
+同时，v7.2 会按规则集保留该规则集的最近一次结果：
+
+```text
+last_report_GJB-8114.json
+meta_GJB-8114.json
+
+last_report_GJB-5369.json
+meta_GJB-5369.json
+
+last_report_CWE-C.json
+meta_CWE-C.json
+
+last_report_MISRA-2008.json
+meta_MISRA-2008.json
+
+last_report_MISRA-2012.json
+meta_MISRA-2012.json
+```
+
+语义说明：
+
+```text
+last_report.json / meta.json
+```
+
+表示最近一次分析结果。
+
+```text
+last_report_{RuleSet}.json / meta_{RuleSet}.json
+```
+
+表示对应规则集的最近一次分析结果。
+
+## 七、前端构建
+
+如需重新构建前端：
+
+```cmd
+cd frontend
+npm install
+npm run build
+```
+
+构建完成后，将：
+
+```text
+frontend/dist
+```
+
+同步到仓库根目录：
+
+```text
+static
+```
+
+当前仓库已经包含 v7.2 对应的 `static` 构建产物。
+
+## 八、测试说明
+
+后端测试文件位于：
+
+```text
+tests/
+```
+
+主要包括：
+
+```text
+test_rule_sets.py
+test_uniportal_report_paths.py
+```
+
+可用于验证规则集加载、规则过滤、报告路径和按规则集保存结果等逻辑。
+
+## 九、说明
+
+本仓库用于源码维护和部署文件管理，不包含 Docker 镜像 tar 包。
+
+镜像文件：
+
+```text
+ct8114-docker-v7.2.tar
+```
+
+请通过交付附件、网盘或指定共享目录获取。

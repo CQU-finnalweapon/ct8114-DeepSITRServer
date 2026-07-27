@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<standards>
+    <standard name="National Military Standard 8114" abbreviation="GJB-8114" enable="1" checker="gjb" custom="0" sort="0" expand="1" serial_format="%3-%1-%2-%4">
+        <package name="C/C++ Common Guidelines" abbreviation="C/C++" enable="1" static="0">
+            <section name="Declarations and definitions" enable="1" checker="declaration">
+                <rules name="Required" enable="1" type="required">
+                    <rule name="R-1-1-1" enable="1" static="0" level="1" repair='2' checker="macro-name-keywords" description="forbidden to change the meaning of C/C++ keywords" prompt="forbidden to change the meaning of C/C++ keywords(%0)"/>
+                    <rule name="R-1-1-2" enable="1" static="0" level="1" checker="macro-value-keywords" description="forbidden to define other identities as keywords and basic types" prompt="forbidden to define other identities as keywords or basic types(%0)"/>
+                    <rule name="R-1-1-3" enable="1" static="0" level="1" checker="typedef-duplication" description="user defined type defined by typedef is forbidden to be redefined"/>
+                    <rule name="R-1-1-4" enable="1" static="0" level="1" checker="variable-definition-keywords" description="forbidden to redefine C or C++ keywords" prompt="forbidden to redefine C or C++ keywords(%0)"/>
+                    <rule name="R-1-1-5" enable="1" static="0" level="1" checker="define-duplication" description="forbids '#define' define repeatly"/>
+                    <rule name="R-1-1-6" enable="1" static="0" level="1" checker="define-undef-inside-function" description="#define and #undef in functions must be paired for use"/>
+                    <rule name="R-1-1-7" enable="1" static="0" level="1" repair='1' checker="macro-function-like-paren" description="Macros defined in the form of functions, parameters and results are enclosed in parentheses" prompt="Macros defined in the form of functions, parameter(%0) should be enclosed in parentheses"/>
+                    <rule name="R-1-1-8" enable="1" static="0" level="1" checker="record-no-name" description="The definition of structures, unions, and enumerations must have a tag name"/>
+                    <rule name="R-1-1-9" enable="1" static="0" level="1" checker="anonymous-record" description="Structure definition must not contain any nameless structs"/>
+                    <rule name="R-1-1-10" enable="1" static="0" level="1" checker="signed-field-bit-count" description="The signed bitfield integer variable must have more than 1 bits"/>
+                    <rule name="R-1-1-11" enable="1" static="0" level="1" checker="bit-field-sign" description="The Bitfield integer variables must be clearly defined as signed or unsigned"/>
+                    <rule name="R-1-1-12" enable="1" static="0" level="1" checker="bit-field-type-width" description="位定义的变量必须是同长度的类型且定义位禁止跨越类型的长度"/>
+                    <rule name="R-1-1-13" enable="1" static="0" level="1" checker="function-augument-decl" description="函数声明中必须对参数类型进行声明，并带有变量名"/>
+                    <rule name="R-1-1-14" enable="1" static="0" level="1" checker="function-declare-definition" description="函数声明必须与函数原型一致"/>
+                    <rule name="R-1-1-15" enable="1" static="0" level="1" checker="function-declare-type" description="函数中的参数必须使用类型声明"/>
+                    <rule name="R-1-1-16" enable="1" static="0" level="1" checker="variable-extern-type" description="外部声明的变量，类型必须与定义一致"/>
+                    <rule name="R-1-1-17" enable="1" static="0" level="1" checker="extern-storage" description="禁止在函数体使用外部声明"/>
+                    <rule name="R-1-1-18" enable="1" static="0" level="1" checker="array-declaration-no-size" description="Forbidden to have no size array"/>
+                    <rule name="R-1-1-19" enable="1" static="0" level="1" checker="assign-extern-variable" description="Forbidden to initialize an extern variable"/>
+                    <rule name="R-1-1-20" enable="1" static="0" level="1" checker="compute-char-variable" description="用于数值计算的字符型变量必须明确定义是有符号还是无符号"/>
+                    <rule name="R-1-1-21" enable="1" static="0" level="1" checker="include-path" description="禁止在#include 语句中使用绝对路径"/>
+                    <rule name="R-1-1-22" enable="1" static="0" level="1" checker="include-duplication" description="禁止头文件重复包含"/>
+                    <rule name="R-1-1-23" enable="1" static="0" level="1" checker="function-no-argument" description="函数参数表为空时，必须使用void明确说明"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-1-1-1" enable="1" static="0" level="0" checker="typedef-builtin-type" description="建议使用typedef对基本变量类型重新定义"/>
+                    <rule name="A-1-1-2" enable="1" static="0" level="0" checker="macro-paren-pair" description="谨慎由于宏中括号不匹配造成使用上的误解"/>
+                    <rule name="A-1-1-3" enable="1" static="0" level="0" checker="macro-with-number-sign" description="宏定义中谨慎使用##或#"/>
+                    <rule name="A-1-1-4" enable="1" static="0" level="0" checker="variables-define-at-function-start" description="建议函数内部变量在函数体开始处统一定义"/>
+                    <rule name="A-1-1-5" enable="1" static="0" level="0" checker="record-level" description="建议结构体嵌套定义不超过3层"/>
+                    <rule name="A-1-1-6" enable="1" static="0" level="0" checker="literal-macro-const" description="建议用宏或const定义常数"/>
+                </rules>
+            </section>
+            <section name="Layout writing" enable="1" checker="layout">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-1-2-1" enable="1" static="0" level="1" checker="brace-around-loop" description="循环体必须用大括号括起来"/>
+                    <rule name="R-1-2-2" enable="1" static="0" level="1" repair='2' checker="braces-if-else-if-else" description="if、else if、else  必须用大括号括起来"/>
+                    <rule name="R-1-2-3" enable="1" static="0" level="1" checker="code-before-headers" description="禁止在头文件前有可执行代码"/>
+                    <rule name="R-1-2-4" enable="1" static="0" level="1" checker="logic-or-and-expression-need-paren" description="引起二义性理解的逻辑表达式，必须使用括号显式说明优先级顺序"/>
+                    <rule name="R-1-2-5" enable="1" static="0" level="1" checker="paren-around-operation" description="逻辑判别表达式中的运算项必须要使用括号"/>
+                    <rule name="R-1-2-6" enable="1" static="0" level="1" checker="nested-comment" description="禁止嵌套注释"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-1-2-1" enable="1" static="0" level="0" checker="file-size" description="一个文件中的语句总行不超过2000行"/>
+                    <rule name="A-1-2-2" enable="1" static="0" level="0" checker="function-size" description="一个函数中的语句总行不超过200行"/>
+                    <rule name="A-1-2-3" enable="1" static="0" level="0" checker="c-style-comment" description="C语言建议使用标准C的注释符，谨慎使用//注释"/>
+                </rules>
+            </section>
+            <section name="Pointer Uasage" enable="1" checker="pointer">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-1-3-1" enable="1" static="0" checker="pointer-level" description="禁止指针的指针超过两级"/>
+                    <rule name="R-1-3-2" enable="1" static="0" checker="function-pointer-reference" description="函数指针的使用必须以&amp;明确说明"/>
+                    <rule name="R-1-3-3" enable="1" static="0" checker="assign-argument-pointer" description="The assignment of parameter pointers is prohibited"/>
+                    <rule name="R-1-3-4" enable="1" static="0" checker="return-local-variable" description="禁止将局部变量地址作为函数返回值返回"/>
+                    <rule name="R-1-3-5" enable="1" static="1" checker="Malloc" description="禁止使用或释放未分配空间或被释放的指针"/>
+                    <rule name="R-1-3-6" enable="1" static="0" checker="assign-null-after-free" description="指针变量被释放后必须置为NULL"/>
+                    <rule name="R-1-3-7" enable="1" static="0" checker="dynamic-pointer-initial" description="动态分配的指针变量定义时如未被分配空间必须初始化为NULL"/>
+                    <rule name="R-1-3-8" enable="1" static="1" checker="DynamicPointerUse" description="动态分配的指针变量第一次使用前必须进行是否为NULL的判别"/>
+                    <rule name="R-1-3-9" enable="1" static="0" checker="empty-pointer-use-null" description="空指针必须使用NULL， 禁止使用整型数0"/>
+                    <rule name="R-1-3-10" enable="1" static="1" checker="FileCloseOnExit" description="禁止文件指针在退出时没有关闭文件"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-1-3-1" enable="1" static="0" level="0" checker="function-usage" description="谨慎使用函数指针"/>
+                    <rule name="A-1-3-2" enable="1" static="0" level="0" checker="void-usage" description="谨慎使用无类型指针"/>
+                    <rule name="A-1-3-3" enable="1" static="0" level="0" checker="arithmetic" description="谨慎对指针进行算术运算"/>
+                </rules>
+            </section>
+            <section name="Control Flow" enable="1" checker="branch">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-1-4-1" enable="1" static="0" checker="ifelse-ifelse" description="在if-else-if 语句中必须使用else分支"/>
+                    <rule name="R-1-4-2" enable="1" static="0" checker="branch-empty" description="条件判定分支如果为空，必须以单独一行的分号加注释进行明确说明"/>
+                    <rule name="R-1-4-3" enable="1" static="0" checker="switch-empty" description="禁止使用空switch语句"/>
+                    <rule name="R-1-4-4" enable="1" static="0" checker="switch-bool-variable" description="禁止对bool量使用switch语句"/>
+                    <rule name="R-1-4-5" enable="1" static="0" checker="switch-only-default" description="禁止switch语句中只包含default语句"/>
+                    <rule name="R-1-4-6" enable="1" static="0" checker="switch-default" description="除枚举类型列举完全外，switch必须要有default"/>
+                    <rule name="R-1-4-7" enable="1" static="0" checker="switch-case-end" description="switch中的case和default必须以break或return终止，共用case 必须加以明确注释"/>
+                    <rule name="R-1-4-8" enable="1" static="0" checker="switch-case-level" description="switch语句的所有分支必须具有相同的层次范围"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-1-4-1" enable="1" static="0" level="0" checker="branch-level" description="避免层数过多的分支嵌套，建议最多不超过7层"/>
+                </rules>
+            </section>
+            <section name="Jump Control" enable="1" checker="jump">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-1-5-1" enable="1" static="0" checker="avoid-goto" description="禁止从复合语句外goto到复合语句内，或由下向上goto"/>
+                    <rule name="R-1-5-2" enable="1" static="0" checker="setjmplongjmp" description="禁止使用 setjmp/longjmp"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-1-5-1" enable="1" static="0" level="0" checker="beware-goto" description="谨慎使用goto语句"/>
+                </rules>
+            </section>
+            <section name="Computing" enable="1" checker="computing">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-1-6-1" enable="1" static="0" checker="float-assign-integer" description="禁止将浮点常数赋给整数变量"/>
+                    <rule name="R-1-6-2" enable="1" static="0" checker="integer-assignment" description="禁止将越界整数赋给整型变量"/>
+                    <rule name="R-1-6-3" enable="1" static="0" checker="condition-assignment" description="禁止在逻辑表达式中使用赋值语句"/>
+                    <rule name="R-1-6-4" enable="1" static="0" checker="bitwise-operation" description="禁止在逻辑表达式进行位运算"/>
+                    <rule name="R-1-6-5" enable="1" static="0" checker="operator-increment-decrement" description="禁止在运算表达式中或函数调用中使用++或--操作符"/>
+                    <rule name="R-1-6-6" enable="1" static="0" checker="bitwise-too-many-shift" description="对变量进行位移运算禁止超出变量长度"/>
+                    <rule name="R-1-6-7" enable="1" static="0" checker="bitwise-negative-shift" description="禁止移位操作中的移位数为负数"/>
+                    <rule name="R-1-6-8" enable="1" static="1" checker="array-out-of-bound" description="Array is forbidden to be used out of bounds"/>
+                    <rule name="R-1-6-9" enable="1" static="1" checker="ArrayIndexNegative" description="数值小标必须大于等于零的整数型"/>
+                    <rule name="R-1-6-10" enable="1" static="0" checker="logical-negation-literal" description="禁止对数值做逻辑非的运算"/>
+                    <rule name="R-1-6-11" enable="1" static="0" checker="enum-field-assigment" description="禁止非枚举类变量使用枚举类型的值"/>
+                    <rule name="R-1-6-12" enable="1" static="1" checker="DividionByZero" description="除法运算中禁止被零除"/>
+                    <rule name="R-1-6-13" enable="1" static="0" checker="sizeof-assignment" description="禁止在sizeof中使用赋值"/>
+                    <rule name="R-1-6-14" enable="1" static="0" checker="read-buffer-bound" description="缓冲区读取操作禁止越界"/>
+                    <rule name="R-1-6-15" enable="1" static="0" checker="write-buffer-bound" description="缓冲区写入操作禁止越界"/>
+                    <rule name="R-1-6-16" enable="1" static="1" checker="ReleaseAfterUse" description="禁止使用已被释放了的内存空间"/>
+                    <rule name="R-1-6-17" enable="1" static="1" checker="FreeMemoryUsage" description="被free的指针必须指向最初malloc,calloc分配的地址"/>
+                    <rule name="R-1-6-18" enable="1" static="0" checker="fgets-replace-gets" description="禁止使用gets函数，应使用fgets 函数替代"/>
+                    <rule name="R-1-6-19" enable="1" static="0" checker="string-operations-bound" description="使用字符串赋值、拷贝，追加等函数时，禁止目标字符串存储空间越界"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-1-6-1" enable="1" static="0" checker="bitwise-signed-integer" description="谨慎对有符号整型量进行位运算"/>
+                    <rule name="A-1-6-2" enable="1" static="0" checker="integer-divide-integer" description="谨慎做整型量除以整型变量的除法"/>
+                    <rule name="A-1-6-3" enable="1" static="1" checker="Malloc" description="动态申请的内存空间用完后及时释放"/>
+                    <rule name="A-1-6-4" enable="1" static="0" checker="strcpy-usage" description="避免使用strcpy函数， 应使用strncpy函数替代"/>
+                    <rule name="A-1-6-5" enable="1" static="0" checker="strcat-usage" description="避免使用strcat函数， 应使用strncat函数替代"/>
+                    <rule name="A-1-6-6" enable="1" static="0" checker="avoid-comma-operator" description="谨慎使用逗号操作符"/>
+                </rules>
+            </section>
+            <section name="Functions" enable="1" checker="function">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-1-7-1" enable="1" static="0" checker="override-std-function" description="禁止覆盖标准函数库的函数"/>
+                    <rule name="R-1-7-2" enable="1" static="0" checker="parameter-argument-type" description="禁止函数的实参和形参类型不一致"/>
+                    <rule name="R-1-7-3" enable="1" static="0" checker="parameter-argument-count" description="实参和形参的个数必须一致"/>
+                    <rule name="R-1-7-4" enable="1" static="0" checker="cstyle" description="禁止使用旧形式的函数参数表定义形式"/>
+                    <rule name="R-1-7-5" enable="1" static="0" checker="parameter-type" description="函数声明和函数定义中的参数类型必须一致"/>
+                    <rule name="R-1-7-6" enable="1" static="0" checker="return-type" description="函数声明和函数定义中的返回类型必须一致"/>
+                    <rule name="R-1-7-7" enable="1" static="0" checker="finish-by-return" description="有返回值的函数必须通过返回语句返回"/>
+                    <rule name="R-1-7-8" enable="1" static="0" checker="void-return-value" description="禁止无返回值函数的返回语句带有返回值"/>
+                    <rule name="R-1-7-9" enable="1" static="0" checker="return-with-value" description="有返回值的函数必须带有返回值"/>
+                    <rule name="R-1-7-10" enable="1" static="0" checker="return-correct-type" description="函数返回值的类型必须与定义一致"/>
+                    <rule name="R-1-7-11" enable="1" static="0" checker="return-value-unused" description="具有返回值的函数，其返回值如果不被使用，调用是应有(void)说明"/>
+                    <rule name="R-1-7-12" enable="1" static="0" checker="void-redundant-void" description="无返回值的函数，调用时禁止再用(void)重复说明"/>
+                    <rule name="R-1-7-13" enable="1" static="0" checker="static-function-usage" description="静态函数必须被使用"/>
+                    <rule name="R-1-7-14" enable="1" static="0" checker="expression-with-order-related-function" description="禁止同一个表达式中调用多个顺序相关的函数"/>
+                    <rule name="R-1-7-15" enable="1" static="0" checker="variadic" description="禁止在函数参数表中使用省略号"/>
+                    <rule name="R-1-7-16" enable="1" static="0" checker="no-recursion" description="禁止使用直接或间接自调函数"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-1-7-1" enable="1" static="0" checker="too-many-argment" description="函数中避免使用过多的参数，建议不要超过10个"/>
+                    <rule name="A-1-7-2" enable="1" static="0" checker="argment-unused" description="函数中避免存在未被使用的调用参数"/>
+                    <rule name="A-1-7-3" enable="1" static="0" checker="abort-exit" description="Be careful to use 'abort' or 'exit' functions"/>
+                    <rule name="A-1-7-4" enable="1" static="0" checker="system-function-return-value" description="对系统函数的调用，建议调用后对其返回状态的有效性进行判别"/>
+                    <rule name="A-1-7-5" enable="1" static="0" checker="argument-array-length" description="函数中数组变量作为参数指针传递时，建议同时传递数组长度"/>
+                </rules>
+            </section>
+            <section name="Statement Uasage" enable="1" checker="statement">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-1-8-1" enable="1" static="1" checker="CodeUnreachable" description="禁止不可达语句"/>
+                    <rule name="R-1-8-2" enable="1" static="1" checker="CodeUnreachableBranch" description="禁止不可达分支"/>
+                    <rule name="R-1-8-3" enable="1" static="0" checker="dead-code" description="禁止使用无效语句"/>
+                    <rule name="R-1-8-4" enable="1" static="0" checker="octal-literal-comment" description="使用八进制必须明确注释"/>
+                    <rule name="R-1-8-5" enable="1" static="0" checker="value-literal-ending" description="数字类型后缀必须使用大写字母"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-1-8-1" enable="1" static="0" checker="avoid-null-stmt" description="Avoid using empty statements"/>
+                    <rule name="A-1-8-2" enable="1" static="0" checker="avoid-reduntant-variable" description="Avoid to have useless variables"/>
+                    <rule name="A-1-8-3" enable="1" static="0" checker="avoid-reduntant-function" description="Avoid to have useless functions"/>
+                    <rule name="A-1-8-4" enable="1" static="0" checker="recommend-type-suffix" description="推荐使用数字类型后缀"/>
+                </rules>
+            </section>
+            <section name="Loop Control" enable="1" checker="loop">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-1-9-1" enable="1" static="0" checker="for-condition-local" description="for 循环控制变量必须使用局部变量"/>
+                    <rule name="R-1-9-2" enable="1" static="0" checker="for-condition-integer" description="for 循环控制变量必须使用整数型变量"/>
+                    <rule name="R-1-9-3" enable="1" static="0" checker="for-condition-update" description="禁止在for 循环体内部修改循环控制变量"/>
+                    <rule name="R-1-9-4" enable="1" static="0" checker="infinite-loop" description="无限循环必须使用while(1)语句，禁止使用for(;;)等其他形式的语句"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-1-9-1" enable="1" static="0" checker="infinite-loop-usage" description="谨慎使用无限循环语句"/>
+                    <rule name="A-1-9-2" enable="1" static="0" checker="multi-break" description="谨慎在循环中使用多个break语句"/>
+                    <rule name="A-1-9-3" enable="1" static="0" checker="multi-continue" description="谨慎在循环中使用多个continue语句"/>
+                </rules>
+            </section>
+            <section name="Type Conversions" enable="1" checker="cast">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-1-10-1" enable="1" static="0" checker="float-cast-integer" description="浮点数变量赋给整型变量必须强制转换"/>
+                    <rule name="R-1-10-2" enable="1" static="0" checker="long-cast-short-integer" description="长整型变量赋给短整数变量必须强制转换"/>
+                    <rule name="R-1-10-3" enable="1" static="0" checker="double-cast-float" description="double型变量赋给float型变量必须强制转换"/>
+                    <rule name="R-1-10-4" enable="1" static="0" checker="pointer-assignment" description="指针变量的赋值类型必须与指针变量类型一致"/>
+                    <rule name="R-1-10-5" enable="1" static="0" checker="pointer-cast-other-type" description="将指针量赋予非指针变量或非指针量赋予指针变量，必须使用强制转换"/>
+                    <rule name="R-1-10-6" enable="1" static="0" checker="no-effect" description="禁止使用无实质作用的类型转换"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-1-10-1" enable="1" static="0" checker="float-cast-integer-roundoff" description="浮点型数转换成整型数应考虑是否需要四舍五入"/>
+                    <rule name="A-1-10-2" enable="1" static="0" checker="beware-double-cast-float" description="Be careful about converting double type to float type"/>
+                    <rule name="A-1-10-3" enable="1" static="0" checker="beware-long-cast-short-integer" description="谨慎将指针量赋予非指针变量或非指针量赋予指针变量"/>
+                    <rule name="A-1-10-4" enable="1" static="0" checker="beware-pointer-cast-other-type" description="建议所有全局变量在统一设计的初始化模块中进行初始化"/>
+                </rules>
+            </section>
+            <section name="Initialization" enable="1" checker="initialization">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-1-11-1" enable="1" static="1" checker="UnassignedVariable" description="变量禁止未赋值就使用"/>
+                    <rule name="R-1-11-2" enable="1" static="0" checker="variable-default-initialization" description="变量初始化禁止隐含依赖于系统的缺省值"/>
+                    <rule name="R-1-11-3" enable="1" static="0" checker="record-initialization-struct" description="结构体初始化的嵌套结构必须与定义一致"/>
+                    <rule name="R-1-11-4" enable="1" static="0" checker="enum-field-initialization" description="枚举元素定义中的初始化必须完整"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-1-11-1" enable="1" static="0" checker="variable-initialization" description="建议变量在声明的同时进行初始化"/>
+                    <rule name="A-1-11-2" enable="1" static="0" checker="variable-global-init-module" description="建议所有全局变量在统一设计的初始化模块中进行初始化"/>
+                </rules>
+            </section>
+            <section name="Compare and Judgement" enable="1" checker="compare">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-1-12-1" enable="1" static="0" checker="boolean-compare" description="禁止对逻辑量进行大于或小于的逻辑比较"/>
+                    <rule name="R-1-12-2" enable="1" static="0" checker="pointer-compare" description="禁止对指针进行大于或小于的逻辑比较"/>
+                    <rule name="R-1-12-3" enable="1" static="0" checker="floats-equal-compare" description="禁止对浮点数进行是否相等的比较"/>
+                    <rule name="R-1-12-4" enable="1" static="0" checker="unsigned-compare-zero" description="禁止对无符号数进行大于等于零或小于零的比较"/>
+                    <rule name="R-1-12-5" enable="1" static="0" checker="unsigned-signed-compare" description="禁止无符号与有符号数之间的直接比较"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-1-12-1" enable="1" static="0" checker="literal-equal-variable" description="与常量进行是否相等的判断，建议常数在左，变量在右"/>
+                </rules>
+            </section>
+            <section name="Variable Uasage" enable="1" checker="variable">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-1-13-1" enable="1" static="0" checker="global-local" description="禁止局部变量与全局变量同名"/>
+                    <rule name="R-1-13-2" enable="1" static="0" checker="global-argument-name" description="禁止函数形参与全局变量同名"/>
+                    <rule name="R-1-13-3" enable="1" static="0" checker="function-name" description="禁止变量名与函数名同名"/>
+                    <rule name="R-1-13-4" enable="1" static="0" checker="record-name" description="禁止变量名与标识同名"/>
+                    <rule name="R-1-13-5" enable="1" static="0" checker="enum-field-name" description="禁止变量名与枚举元素同名"/>
+                    <rule name="R-1-13-6" enable="1" static="0" checker="typedef-name" description="禁止变量名与typedef 自定义的类型名同名"/>
+                    <rule name="R-1-13-7" enable="1" static="0" checker="name-inside-function" description="禁止在内部块中重定义已有的变量名"/>
+                    <rule name="R-1-13-8" enable="1" static="0" checker="case-sensitive" description="禁止仅依赖大小写区分的变量"/>
+                    <rule name="R-1-13-9" enable="1" static="0" checker="name-one-letter-L" description="禁止仅依赖小写字母&quot;l&quot; 与 数字&quot;1&quot;区分的变量"/>
+                    <rule name="R-1-13-10" enable="1" static="0" checker="name-zero-letter-O" description="禁止仅依赖大写字母&quot;O&quot; 与 数字&quot;0&quot;区分的变量"/>
+                    <rule name="R-1-13-11" enable="1" static="0" checker="name-letter-L-or-O" description="禁止单独使用小写字母&quot;l&quot;或大写字母&quot;O&quot;作为变量名"/>
+                    <rule name="R-1-13-12" enable="1" static="0" checker="variable-volatile" description="程序外部可改写的变量，必须使用volatile类型说明"/>
+                    <rule name="R-1-13-13" enable="1" static="0" checker="expression-has-more-volatiles" description="禁止在表达式中出现多个同一volatile类型变量的运算"/>
+                    <rule name="R-1-13-14" enable="1" static="0" checker="null-cast-zero" description="禁止将NULL 作为整型数 0 使用"/>
+                    <rule name="R-1-13-15" enable="1" static="0" checker="unsigned-assign-negative" description="禁止给无符号类型变量赋负值"/>
+                    <rule name="R-1-13-16" enable="1" static="0" checker="string-array-ending" description="用于表示字符串的数组必须以&apos;\0&apos;结束"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-1-13-1" enable="1" static="0" checker="name-prefix" description="推荐使用带类型前缀的变量命名"/>
+                    <rule name="A-1-13-2" enable="1" static="0" checker="register-variable" description="谨慎使用寄存器变量"/>
+                </rules>
+            </section>
+        </package>
+        <package name="C++ Specific Guidelines" abbreviation="C++" enable="1">
+            <section name="Class and Object" enable="1" checker="object">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-2-1-1" enable="1" static="0" checker="copy-constructor-assign-operator" description="含有动态分配成员的类，必须编写拷贝构造函数，并重载赋值操作符"/>
+                    <rule name="R-2-1-2" enable="1" static="0" checker="class-dynamic-cast" description="虚拟基类指针转换为派生类指针必须使用dynamic_cast"/>
+                    <rule name="R-2-1-3" enable="1" static="0" checker="diamond-struct-classes" description="菱形层次结构的派生设计，对基类派生必须使用virtual说明"/>
+                    <rule name="R-2-1-4" enable="1" static="0" checker="abstract-class-copy-operator" description="Copy operator overloading in an abstract class must be protected or private"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-2-1-1" enable="1" static="0" checker="beware-virtual-inherit" description="谨慎使用派生类由虚拟基类派生"/>
+                    <rule name="A-2-1-2" enable="1" static="0" checker="beware-inlines" description="谨慎使用内联函数"/>
+                </rules>
+            </section>
+            <section name="Constructor" enable="1" checker="constructor">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-2-2-1" enable="1" static="0" checker="variables-in-constructor" description="构造函数中禁止使用全局变量"/>
+                    <rule name="R-2-2-2" enable="1" static="0" checker="default-constructor" description="类中必须明确定义缺省构造函数"/>
+                    <rule name="R-2-2-3" enable="1" static="0" checker="explicit-constructor" description="单参数构造函数必须使用explicit 声明"/>
+                    <rule name="R-2-2-4" enable="1" static="0" checker="init-all-fields" description="类中所有成员变量必须在构造函数中初始化"/>
+                    <rule name="R-2-2-5" enable="1" static="0" checker="base-constructor-ini" description="Derived class constructors must define the direct base class constructors in the initialization list"/>
+                </rules>
+            </section>
+            <section name="Destructor" enable="1" checker="destructor">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-2-3-1" enable="1" static="0" checker="polymorphic-destructor" description="具有虚拟成员函数的类，析构函数必须是虚拟的"/>
+                    <rule name="R-2-3-2" enable="1" static="0" checker="throw-in-destructor" description="析构函数中禁止存在不是由自身捕获处理的异常"/>
+                </rules>
+            </section>
+            <section name="Virtual Function" enable="1" checker="vmethod">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-2-4-1" enable="1" static="0" checker="inherited-method-default-value" description="基类虚拟函数的参数缺省值在派生类重写函数中禁止被改变"/>
+                    <rule name="R-2-4-2" enable="1" static="0" checker="override-method-virtual" description="派生类对基类虚拟函数重写的声明必须使用virtual 显示说明"/>
+                    <rule name="R-2-4-3" enable="1" static="0" checker="override-by-pure-virtual" description="禁止非纯虚函数被纯虚拟函数重写"/>
+                </rules>
+            </section>
+            <section name="Type Conversions" enable="1" checker="convert">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-2-5-1" enable="1" static="0" checker="class-force-cast" description="禁止将不相关的指针强制转换为对象指针类型"/>
+                    <rule name="R-2-5-2" enable="1" static="0" checker="remove-const-volatile" description="指针或引用的类型转换中禁止移除 const 或 volatile 属性"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-2-5-1" enable="1" static="0" checker="avoid-cstyle-cast" description="Suggested to use C++ type conversion operators and avoid C type conversion forms"/>
+                </rules>
+            </section>
+            <section name="Free Memory" enable="1" checker="memory">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-2-6-1" enable="1" static="0" checker="delete-by-new" description="使用new分配的内存空间，用完后必须使用delete释放"/>
+                    <rule name="R-2-6-2" enable="1" static="0" checker="delete-array-by-new-array" description="必须使用delete [] 释放 new[] 分配的内存空间"/>
+                    <rule name="R-2-6-3" enable="1" static="1" checker="DeleteSameAsNew" description="被delete的指针必须指向最初new分配的地址"/>
+                </rules>
+            </section>
+            <section name="Function Definition and Usage" enable="1" checker="method">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-2-7-1" enable="1" static="0" checker="fix-size-parm" description="函数中固定长度数组变量的传递必须使用引用方式"/>
+                    <rule name="R-2-7-2" enable="1" static="0" checker="const-method-return" description="定义为 const 的成员函数禁止返回非const的指针或引用"/>
+                    <rule name="R-2-7-3" enable="1" static="0" checker="return-member-data" description="禁止可导致非资源性对象数据被外部修改的成员函数返回"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-2-7-1" enable="1" static="0" checker="define-method-inside-class" description="类中函数的实现代码避免在类定义的内部定义"/>
+                    <rule name="A-2-7-2" enable="1" static="0" checker="pointer-reference-const" description="函数中的指数或引用参数如果不是修改建议使用const说明"/>
+                </rules>
+            </section>
+            <section name="Exception Handling" enable="1" checker="exception">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-2-8-1" enable="1" static="0" checker="catch-inherit-before-base" description="捕获的顺序必须按由派生类到基类的顺序排序"/>
+                    <rule name="R-2-8-2" enable="1" static="0" checker="throw-has-catch" description="每个指定的异常抛出必须有与之匹配的捕获"/>
+                    <rule name="R-2-8-3" enable="1" static="0" checker="catch-by-reference" description="异常抛出的对象必须使用引用方式捕获"/>
+                    <rule name="R-2-8-4" enable="1" static="0" checker="catch-default" description="缺省捕获必须放在所有指定捕获之后"/>
+                    <rule name="R-2-8-5" enable="1" static="0" checker="throw-null" description="禁止显示直接抛出NULL"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-2-8-1" enable="1" static="0" checker="has-catch-default" description="建议在所有指定捕获之后使用缺省捕获防范遗漏的异常"/>
+                    <rule name="A-2-8-2" enable="1" static="0" checker="throw-pointer-type" description="谨慎指针类型进行抛出捕获"/>
+                </rules>
+            </section>
+            <section name="Others" enable="1" checker="other">
+                <rules name="Require" enable="1" type="required">
+                    <rule name="R-2-9-1" enable="1" static="0" checker="template-in-same-file" description="模板的声明、定义与实现必须在同一个文件中"/>
+                </rules>
+                <rules name="Advisory" enable="1" type="advisory">
+                    <rule name="A-2-9-1" enable="1" static="0" checker="template-use-typename" description="建议模板参数列表中的类型参数使用typename关键字说明"/>
+                    <rule name="A-2-9-2" enable="1" static="0" checker="const-qualified-position" description="建议除常数指针外，const说明均在裂隙说明的最外层"/>
+                    <rule name="A-2-9-3" enable="1" static="0" checker="avoid-overloaded-operators" description="It is not recommended to overload &quot;&amp;&amp;&quot;, &quot;||&quot;, &quot; ,&quot;"/>
+                    <rule name="A-2-9-4" enable="1" static="0" checker="include-header-extension" description="建议不使用以.h为后缀的头文件"/>
+                </rules>
+            </section>
+        </package>
+    </standard>
+</standards>

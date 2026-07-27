@@ -1,0 +1,551 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<standards>
+    <standard name="MISRA(汽车产业软件可靠性协会) 2008" enable="0" abbreviation="MISRA-2008" simple_name="MISRA 2008" checker="misra08" custom="0" expand="0" serial_format="%3-%2-%4">
+        <package name="C准则" enable="1" expand="0">
+            <section name="不必要构造" enable="1" checker="unnecessary" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-0-1-1" enable="1" level="1" checker="" description="项目不应包含不可达的代码。"/>
+                    <rule name="R-0-1-2" enable="1" level="1" checker="" description="项目不应包含不可行的路径。"/>
+                    <rule name="R-0-1-3" enable="1" level="1" checker="avoid-reduntant-variable" description="项目不应包含未使用的变量。" expand="0"/>
+                    <rule name="R-0-1-4" enable="1" level="1" checker="" description="项目不应包含仅使用一次的非volatile POD变量。"/>
+                    <rule name="R-0-1-5" enable="1" level="1" checker="" description="项目不应包含未使用的类型声明。"/>
+                    <rule name="R-0-1-6" enable="1" level="1" checker="" description="项目不应包含被赋予以后绝不会使用的值的非volatile变量的实例。"/>
+                    <rule name="R-0-1-7" enable="1" level="1" checker="function-return-value-unused" description="应始终使用由具有不是重载运算符的非空返回类型的函数返回的值。" expand="0"/>
+                    <rule name="R-0-1-8" enable="1" level="1" checker="" description="具有空返回类型的所有函数应具有外部副作用。"/>
+                    <rule name="R-0-1-9" enable="1" level="1" checker="dead-code" description="不应有无用代码。" expand="0"/>
+                    <rule name="R-0-1-10" enable="1" level="1" checker="" description="每个定义的函数应至少被调用一次。"/>
+                    <rule name="R-0-1-11" enable="1" level="1" checker="function-argument-unused" description="在非虚函数中不应有未使用的参数（已命名或未命名的）。" expand="0"/>
+                    <rule name="R-0-1-12" enable="1" level="1" checker="virtual-function-argument-unused" description="在虚函数和所有覆盖虚函数的函数的参数集中，不应有未使用的参数（已命名或未命名的）。" expand="0"/>
+                </rules>
+            </section>
+            <section name="存储" enable="1" checker="storage" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-0-2-1" enable="1" level="1" checker="" description="不应将对象分配给重叠对象。"/>
+                </rules>
+            </section>
+            <section name="运行故障" enable="1" checker="failures" expand="0">
+                <rules name="强制标准" enable="1" type="required" expand="0">
+                    <rule name="M-0-3-1" enable="1" level="2" checker="" description="应使用以下措施中的至少一种来确保最大限度地减少运行时错误：（a）静态分析工具/技术；（b）动态分析工具/技术；（c）对检查进行显式编码以处理运行时错误。"/>
+                </rules>
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-0-3-2" enable="1" level="1" checker="" description="若函数产生错误信息，则应测试该错误信息。"/>
+                </rules>
+            </section>
+            <section name="运算" enable="1" checker="arithmetic" expand="0">
+                <rules name="文档标准" enable="1" type="advisory" expand="0">
+                    <rule name="D-0-4-1" enable="1" level="0" checker="" description="应记录比例整数或定点运算的使用。"/>
+                    <rule name="D-0-4-2" enable="1" level="0" checker="" description="应记录浮点运算的使用。"/>
+                    <rule name="D-0-4-3" enable="1" level="0" checker="" description="浮点实现应符合既定的浮点标准。"/>
+                </rules>
+            </section>
+            <section name="语言" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-1-0-1" enable="1" level="1" checker="" description="所有代码应符合ISO/IEC 14882:2003&quot;C++标准，包含技术勘误1&quot;的规定。"/>
+                </rules>
+                <rules name="文档标准" enable="1" type="advisory" expand="0">
+                    <rule name="D-1-0-2" enable="1" level="0" checker="" description="只有在多个编译器有定义好的公用接口的情况下才能使用它们。"/>
+                    <rule name="D-1-0-3" enable="1" level="0" checker="" description="应确定并记录所选择的编译器中的整数除法的实现。"/>
+                </rules>
+            </section>
+            <section name="字符集" enable="1" checker="statement" expand="0">
+                <rules name="文档标准" enable="1" type="advisory" expand="0">
+                    <rule name="D-2-2-1" enable="1" level="0" checker="avoid-digraphs" description="应记录字符集和相应的编码。" expand="0"/>
+                </rules>
+            </section>
+            <section name="三字符序列" enable="1" checker="statement" expand="0">
+                <rules name="要求标准" enable="1" type="required">
+                    <rule name="R-2-3-1" enable="1" level="1" checker="string-trigraphs" description="不应使用三字符组。"/>
+                </rules>
+            </section>
+            <section name="替换标记" enable="1" checker="digraphs" expand="0">
+                <rules name="推荐标准" enable="1" type="advisory" expand="0">
+                    <rule name="A-2-5-1" enable="1" level="0" checker="string-trigraphs" description="不应使用双字符组。" expand="0"/>
+                </rules>
+            </section>
+            <section name="注释" enable="1" checker="statement" expand="0">
+                <rules name="要求标准" enable="1" type="required">
+                    <rule name="R-2-7-1" enable="1" level="1" checker="" description="不应在C风格的注释中使用字符序列/*。"/>
+                    <rule name="R-2-7-2" enable="1" level="1" checker="" description="不应使用C风格的注释&quot;注释掉&quot;代码段。"/>
+                </rules>
+                <rules name="推荐标准" enable="1" type="advisory">
+                    <rule name="A-2-7-3" enable="1" level="0" description="不应使用C++注释&quot;注释掉&quot;代码段。"/>
+                </rules>
+            </section>
+            <section name="标识符" enable="1" checker="identifiers" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-2-10-1" enable="1" level="1" checker="variable-name-unambiguous" description="不同的标识符应在印刷上明确无误。" expand="0"/>
+                    <rule name="R-2-10-2" enable="1" level="1" checker="" description="在内层作用域中声明的标识符不应隐藏在外层作用域中声明的标识符。"/>
+                    <rule name="R-2-10-3" enable="1" level="1" checker="typedef-duplication" description="typedef名称（包括限定符，如果有）应是唯一的标识符。" expand="0"/>
+                    <rule name="R-2-10-4" enable="1" level="1" checker="record-name-unique" description="class、union或enum名称（包括限定符，如果有）应为唯一的标识符。" expand="0"/>
+                    <rule name="R-2-10-6" enable="1" level="1" checker="" description="指代类型的标识符不应同时指代同一作用域内的对象或函数。"/>
+                </rules>
+                <rules name="推荐标准" enable="1" type="advisory" expand="0">
+                    <rule name="A-2-10-5" enable="1" level="0" checker="" description="不应重复使用具有静态存储期的非成员对象或函数的标识符名称。"/>
+                </rules>
+            </section>
+            <section name="字面值" enable="1" checker="literal" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-2-13-1" enable="1" level="1" checker="escape-sequence" description="只能使用在ISO/IEC 14882:2003中定义的转义序列。" expand="0"/>
+                    <rule name="R-2-13-2" enable="1" level="1" checker="octal-constant" description="不应使用八进制常量（除了零之外）和八进制转义序列（除了&quot;\0&quot;之外）。" expand="0"/>
+                    <rule name="R-2-13-3" enable="1" level="1" checker="octal-hex-literal-ending" description="对所有无符号类型的八进制或十六进制整数文字应加&quot;U&quot;后缀。" expand="0"/>
+                    <rule name="R-2-13-4" enable="1" level="1" checker="value-literal-ending" description="文字的后缀应为大写。" expand="0"/>
+                    <rule name="R-2-13-5" enable="1" level="1" checker="string-concatenate" description="不应将窄字符串文字和宽字符串文字连接到一起。" expand="0"/>
+                </rules>
+            </section>
+            <section name="声明和定义" enable="1" checker="basic" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-3-1-1" enable="1" level="1" checker="" description="应在不违反一次定义规则的前提下能够在多个编译单元中包含任何头文件。"/>
+                    <rule name="R-3-1-2" enable="1" level="1" checker="function-inside-block-scope" description="不应在块作用域内声明函数。" expand="0"/>
+                    <rule name="R-3-1-3" enable="1" level="1" checker="array-size-declare-initialize" description="在声明数组时，数组的大小应显式声明，或者通过初始化隐式定义。" expand="0"/>
+                </rules>
+            </section>
+            <section name="唯一定义规则" enable="1" checker="basic" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-3-2-1" enable="1" level="1" checker="" description="对象或函数的所有声明都应具有兼容的类型。"/>
+                    <rule name="R-3-2-2" enable="1" level="1" checker="" description="不应违反一次定义规则。"/>
+                    <rule name="R-3-2-3" enable="1" level="1" checker="" description="在多个编译单元中使用的类型、对象或函数应在一个且仅在一个文件中声明。"/>
+                    <rule name="R-3-2-4" enable="1" level="1" checker="" description="具有外部链接的标识符应仅有一个定义。"/>
+                </rules>
+            </section>
+            <section name="声明区域和范围" enable="1" checker="declaration" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-3-3-1" enable="1" level="1" checker="" description="具有外部链接的对象或函数应在头文件中声明。"/>
+                    <rule name="R-3-3-2" enable="1" level="1" checker="function-interal-qualify-static" description="若函数有内部链接，则所有的重新声明均应包括静态存储类说明符。" expand="0"/>
+                </rules>
+            </section>
+            <section name="名称查询" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-3-4-1" enable="1" level="1" checker="" description="声明为对象或类型的标识符应在最大限度地降低其可见性的块中定义。"/>
+                </rules>
+            </section>
+            <section name="类型" enable="1" checker="type" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-3-9-1" enable="1" level="1" checker="" description="用于对象、函数返回类型或函数参数的类型应在所有声明和重新声明中都是相同的。"/>
+                    <rule name="R-3-9-3" enable="1" level="1" checker="" description="不应使用浮点值的基础位表示形式。"/>
+                </rules>
+                <rules name="推荐标准" enable="1" type="advisory" expand="0">
+                    <rule name="A-3-9-2" enable="1" level="0" checker="typedef-builtin-type" description="应使用指示大小和符号的类型定义来代替基本数字类型。" expand="0"/>
+                </rules>
+            </section>
+            <section name="整型提升" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-4-5-1" enable="1" level="1" checker="" description="除了赋值运算符=、逻辑运算符&amp;&amp;、||、!，等号运算符==和!=、一元&amp;运算符和条件运算符之外，不应使用布尔类型的表达式作为内建运算符的操作数。"/>
+                    <rule name="R-4-5-2" enable="1" level="1" checker="" description="除了下标运算符[ ]、赋值运算符=、等号运算符==和!=、一元&amp;运算符和关系运算符&lt;、&lt; =、&gt;、&gt; =之外，不应使用枚举类型的表达式作为内建运算符的操作数。"/>
+                    <rule name="R-4-5-3" enable="1" level="1" checker="" description="除了赋值运算符=、等号运算符==和！=、以及一元&amp;运算符之外，不应使用（普通）字符和wchar_t型的表达式作为内建运算符的操作数。"/>
+                </rules>
+            </section>
+            <section name="指针转换" enable="1" checker="pointer" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-4-10-1" enable="1" level="1" checker="NULL-cast-zero" description="NULL不应用作整数值。" expand="0"/>
+                    <rule name="R-4-10-2" enable="1" level="1" checker="empty-pointer-use-null" description="文字零（0）不应用作空指针常量。" expand="0"/>
+                </rules>
+            </section>
+            <section name="表达式" enable="1" checker="expression" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-5-0-1" enable="1" level="1" checker="" description="在标准所允许的任何求值顺序下，表达式的值应相同。"/>
+                    <rule name="R-5-0-3" enable="1" level="1" checker="" description="cvalue表达式不应隐式转换为不同的基础类型。"/>
+                    <rule name="R-5-0-4" enable="1" level="1" checker="implicit-integer-cast-signed" description="隐式整数转换不应改变基础类型的符号。" expand="0"/>
+                    <rule name="R-5-0-5" enable="1" level="1" checker="" description="不应有隐式浮点-整数转换。"/>
+                    <rule name="R-5-0-6" enable="1" level="1" checker="" description="隐式整数或浮点转换不应减小基础类型的大小。"/>
+                    <rule name="R-5-0-7" enable="1" level="1" checker="" description="不应有cvalue表达式的显式浮点-整数转换。"/>
+                    <rule name="R-5-0-8" enable="1" level="1" checker="" description="显式整数或浮点转换不应增大cvalue表达式的基础类型的大小。"/>
+                    <rule name="R-5-0-9" enable="1" level="1" checker="" description="显式整数转换不应改变cvalue表达式的基础类型的符号。"/>
+                    <rule name="R-5-0-10" enable="1" level="1" checker="" description="若对基础类型为无符号字符或无符号短整型的操作数应用按位运算符~和&lt;&lt;，则结果应立即转换为操作数的基础类型。"/>
+                    <rule name="R-5-0-11" enable="1" level="1" checker="" description="普通字符类型只能用于字符值的存储和使用。"/>
+                    <rule name="R-5-0-12" enable="1" level="1" checker="" description="有符号字符和无符号字符类型只能用于数值的存储和使用。"/>
+                    <rule name="R-5-0-13" enable="1" level="1" checker="" description="if语句的条件和iteration语句的条件应是布尔型。"/>
+                    <rule name="R-5-0-14" enable="1" level="1" checker="conditional-operator-first-operand" description="条件运算符的第一个操作数应是布尔型。" expand="0"/>
+                    <rule name="R-5-0-15" enable="1" level="1" checker="" description="数组索引应是指针运算的唯一形式。"/>
+                    <rule name="R-5-0-16" enable="1" level="1" checker="" description="指针操作数和使用该操作数进行指针运算产生的任何指针都应寻址同一数组的元素。"/>
+                    <rule name="R-5-0-17" enable="1" level="1" checker="pointer-subtraction-same-array" description="指针之间的减法只能应用于寻址同一数组的元素的指针。" expand="0"/>
+                    <rule name="R-5-0-18" enable="1" level="1" checker="" description="不应将&gt;、&gt;=、&lt;、&lt;=应用于指针型对象，除非它们指向相同的数组。"/>
+                    <rule name="R-5-0-19" enable="1" level="1" checker="pointer-level" description="对象声明应包含不超过两级的指针间接寻址。" expand="0"/>
+                    <rule name="R-5-0-20" enable="1" level="1" checker="bitwise-operand-variable-type" description="二进制按位运算符的非常量操作数应具有相同的基础类型。" expand="0"/>
+                    <rule name="R-5-0-21" enable="1" level="1" checker="" description="按位运算符只能应用于无符号基础类型的操作数。"/>
+                </rules>
+                <rules name="推荐标准" enable="1" type="advisory" expand="0">
+                    <rule name="A-5-0-2" enable="1" level="0" description="应对表达式中的C++操作符的优先规则限定有限的依赖性。"/>
+                </rules>
+            </section>
+            <section name="后缀表达式" enable="1" checker="postfix" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-5-2-1" enable="1" level="1" checker="" description="逻辑&amp;&amp;或||的每个操作数均应是后缀表达式。"/>
+                    <rule name="R-5-2-2" enable="1" level="1" checker="" description="指向虚拟基类的指针只能通过dynamic_cast转换为指向派生类的指针。"/>
+                    <rule name="R-5-2-4" enable="1" level="1" checker="" description="不应使用c风格的转换（除了空转换）和函数符号转换（除了显式构造函数调用）。"/>
+                    <rule name="R-5-2-5" enable="1" level="1" checker="remove-const-volatile" description="强制转换不应从指针或引用类型移除任何const或volatile限定符。" expand="0"/>
+                    <rule name="R-5-2-6" enable="1" level="1" checker="function-pointer-cast-pointer" description="强制转换不应将指向函数的指针转换为任何其他指针类型，包括指向函数类型的指针。" expand="0"/>
+                    <rule name="R-5-2-7" enable="1" level="1" checker="pointer-cast-other-pointer" description="指针型对象不应直接或间接地转换为不相关的指针类型。" expand="0"/>
+                    <rule name="R-5-2-8" enable="1" level="1" checker="integer-void-pointer-cast-pointer" description="整数类型的对象或指向空类型的指针不应转换为指针类型的对象。" expand="0"/>
+                    <rule name="R-5-2-11" enable="1" level="1" checker="avoid-overloaded-operators" description="不应重载逗号运算符、&amp;&amp;运算符和||运算符。" expand="0"/>
+                    <rule name="R-5-2-12" enable="1" level="1" checker="" description="作为函数参数传递的数组类型的标识符不应衰减为指针。"/>
+                </rules>
+                <rules name="推荐标准" enable="1" type="advisory" expand="0">
+                    <rule name="A-5-2-3" enable="1" level="0" checker="" description="不应对多态类型执行从基类到派生类的转换。"/>
+                    <rule name="A-5-2-9" enable="1" level="0" checker="pointer-cast-integer" description="强制转换不应将指针类型转换为整数类型。" expand="0"/>
+                    <rule name="A-5-2-10" enable="1" level="0" checker="operator-increment-decrement" description="递增（++）和递减（--）运算符不应与表达式中的其他运算符混合使用。" expand="0"/>
+                </rules>
+            </section>
+            <section name="一元表达式" enable="1" checker="unary" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-5-3-1" enable="1" level="1" checker="logic-operator-bool-type" description="!运算符、逻辑&amp;&amp;或逻辑||运算符的每个操作数应为布尔型。" expand="0"/>
+                    <rule name="R-5-3-2" enable="1" level="1" checker="minus-operand-type" description="不应对基础类型为无符号整数的表达式应用一元减运算符。" expand="0"/>
+                    <rule name="R-5-3-3" enable="1" level="1" checker="avoid-and-operator" description="不应重载一元&amp;运算符。" expand="0"/>
+                    <rule name="R-5-3-4" enable="1" level="1" checker="" description="对sizeof运算符的操作数的计算不应包含副作用。"/>
+                </rules>
+            </section>
+            <section name="移位操作符" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="require" expand="0">
+                    <rule name="R-5-8-1" enable="1" level="1" checker="" description="移位运算符的右操作数应比左操作数的基础类型的位宽小0到1。"/>
+                </rules>
+            </section>
+            <section name="逻辑与运算符" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-5-14-1" enable="1" level="1" checker="" description="逻辑&amp;&amp;或||运算符的右操作数不应包含副作用。"/>
+                </rules>
+            </section>
+            <section name="赋值运算符" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-5-17-1" enable="1" level="1" checker="" description="应保留二进制运算符与其赋值运算符形式之间的语义等价性。"/>
+                </rules>
+            </section>
+            <section name="逗号运算符" enable="1" checker="commas" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-5-18-1" enable="1" level="1" checker="" description="不应使用逗号运算符。"/>
+                </rules>
+            </section>
+            <section name="常量表达式" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-5-19-1" enable="1" level="1" checker="" description="常量无符号整数表达式的计算不应导致回绕。"/>
+                </rules>
+            </section>
+            <section name="表达式语句" enable="1" checker="statement" expand="0">
+                <rules name="要求标准" enable="1" type="required">
+                    <rule name="R-6-2-1" enable="1" level="1" checker="assignment-in-sub-expresion" description="在子表达式中不应使用赋值运算符。"/>
+                    <rule name="R-6-2-2" enable="1" level="1" checker="floats-equal-compare" description="不应直接或间接对浮点表达式进行相等或不等测试。"/>
+                    <rule name="R-6-2-3" enable="1" level="1" checker="" description="在预处理之前，空语句只能单独出现在一行中；其后面可有注释，语句是空格字符。"/>
+                </rules>
+            </section>
+            <section name="复合语句" enable="1" checker="statement" expand="0">
+                <rules name="要求标准" enable="1" type="required">
+                    <rule name="R-6-3-1" enable="1" level="1" checker="brace-around-loop" description="构成switch、while、do ... while或for语句的主体的语句应为复合语句。"/>
+                </rules>
+            </section>
+            <section name="选择语句" enable="1" checker="statement" expand="0">
+                <rules name="要求标准" enable="1" type="required">
+                    <rule name="R-6-4-1" enable="1" level="1" checker="braces-if-else-if-else" description="if（条件）构造后面应跟有复合语句。else关键字后面应跟有复合语句或另一个if语句。"/>
+                    <rule name="R-6-4-2" enable="1" level="1" checker="" description="所有if … else if构造应以else子句终止。"/>
+                    <rule name="R-6-4-3" enable="1" level="1" checker="" description="switch语句应该是结构良好的switch语句。"/>
+                    <rule name="R-6-4-4" enable="1" level="1" checker="" description="只有在最紧密封闭的复合语句是分支语句的主体时，才能使用switch标签。"/>
+                    <rule name="R-6-4-5" enable="1" level="1" checker="" description="每个非空switch子句应以无条件throw或break语句终止。"/>
+                    <rule name="R-6-4-6" enable="1" level="1" checker="" description="switch语句的最后一个子句应是default子句。"/>
+                    <rule name="R-6-4-7" enable="1" level="1" checker="" description="switch语句的条件不应为布尔型。"/>
+                    <rule name="R-6-4-8" enable="1" level="1" checker="" description="每个switch语句应至少有一个case子句。"/>
+                </rules>
+            </section>
+            <section name="迭代语句" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-6-5-1" enable="1" level="1" checker="" description="for循环应包含一个循环计数器，该循环计数器不应为浮点型。"/>
+                    <rule name="R-6-5-2" enable="1" level="1" checker="" description="若循环计数器不被--或++修改，则在条件内，循环计数器应只能用作&lt;=、&lt;、&gt;或&gt;=的操作数。"/>
+                    <rule name="R-6-5-3" enable="1" level="1" checker="" description="不应在条件或语句内修改循环计数器。"/>
+                    <rule name="R-6-5-4" enable="1" level="1" checker="" description="应通过以下方式之一修改循环计数器：--、++、-=n或+= n；其中n在循环期间保持不变。"/>
+                    <rule name="R-6-5-5" enable="1" level="1" checker="" description="不应在条件或表达式中修改除了循环计数器之外的循环控制变量。"/>
+                    <rule name="R-6-5-6" enable="1" level="1" checker="" description="除了在语句中修改的循环计数器之外，循环控制变量的类型应为布尔型。"/>
+                </rules>
+            </section>
+            <section name="跳转语句" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-6-6-1" enable="1" level="1" checker="" description="goto语句引用的任何标签都应在同一个块中声明，或者在包含goto语句的块中声明。"/>
+                    <rule name="R-6-6-2" enable="1" level="1" checker="" description="goto语句应跳转到在同一函数体中稍后声明的标签。"/>
+                    <rule name="R-6-6-3" enable="1" level="1" checker="" description="continue语句只能在结构良好的for循环中使用。"/>
+                    <rule name="R-6-6-4" enable="1" level="1" checker="" description="对于任何迭代语句，用于循环终止的break或goto语句不应多于一个。"/>
+                    <rule name="R-6-6-5" enable="1" level="1" checker="" description="函数应在其末尾有一个出口点。"/>
+                </rules>
+            </section>
+            <section name="说明符" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-7-1-1" enable="1" level="1" checker="" description="不被修改的变量应视为常量。"/>
+                    <rule name="R-7-1-2" enable="1" level="1" checker="" description="若相应的对象不被修改，则函数中的指针或引用参数应声明为指向常量的指针或对常量的引用。"/>
+                </rules>
+            </section>
+            <section name="枚举声明" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-7-2-1" enable="1" level="1" checker="" description="具有枚举基础类型的表达式只能具有与枚举的枚举数相对应的值。"/>
+                </rules>
+            </section>
+            <section name="命名空间" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-7-3-1" enable="1" level="1" checker="" description="全局命名空间应仅包含main、namespace声明和外部&quot;C&quot;声明。"/>
+                    <rule name="R-7-3-2" enable="1" level="1" checker="" description="标识符main不应用于除了全局函数main以外的函数。"/>
+                    <rule name="R-7-3-3" enable="1" level="1" checker="" description="头文件中不应有未命名的命名空间。"/>
+                    <rule name="R-7-3-4" enable="1" level="1" checker="" description="不应使用using指令。"/>
+                    <rule name="R-7-3-5" enable="1" level="1" checker="" description="同一命名空间中的标识符的多次声明不应跨越该标识符的using声明。"/>
+                    <rule name="R-7-3-6" enable="1" level="1" checker="" description="在头文件中不应使用using指令和using声明（不包括using声明的类作用域或函数作用域）。"/>
+                </rules>
+            </section>
+            <section name="asm声明" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-7-4-1" enable="1" level="1" checker="" description="应记录汇编程序的所有使用。"/>
+                    <rule name="R-7-4-2" enable="1" level="1" checker="" description="只能使用asm声明引入汇编指令。"/>
+                    <rule name="R-7-4-3" enable="1" level="1" checker="" description="应封装并隔离汇编语言。"/>
+                </rules>
+            </section>
+            <section name="连接规范" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-7-5-1" enable="1" level="1" checker="" description="函数不应返回在函数中定义的自动变量（包括参数）的引用或指针。"/>
+                    <rule name="R-7-5-2" enable="1" level="1" checker="" description="不应将具有自动存储特性的对象的地址分配给在该对象不再存在后可能会持续存在的另一个对象中。"/>
+                    <rule name="R-7-5-3" enable="1" level="1" checker="" description="函数不应返回通过引用或常量引用传递的参数的引用或指针。"/>
+                </rules>
+                <rules name="推荐标准" enable="1" type="advisory">
+                    <rule name="A-7-5-4" enable="1" level="0" description="函数不应直接或间接地调用自身。"/>
+                </rules>
+            </section>
+            <section name="声明符" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-8-0-1" enable="1" level="1" checker="" description="初始化声明符列表或成员声明符列表应分别由单个初始化声明符或成员声明符组成。"/>
+                </rules>
+            </section>
+            <section name="声明符含义" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-8-3-1" enable="1" level="1" checker="" description="覆盖虚函数中的参数应使用与其覆盖的函数相同的默认参数，否则不应指定任何默认参数。"/>
+                </rules>
+            </section>
+            <section name="函数定义" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-8-4-1" enable="1" level="1" checker="" description="不应使用省略号来定义函数。"/>
+                    <rule name="R-8-4-2" enable="1" level="1" checker="" description="函数的重新声明中的参数标识符应与声明中的标识符相同。"/>
+                    <rule name="R-8-4-3" enable="1" level="1" checker="" description="具有非空返回类型的函数的所有退出路径都应有一个带有表达式的显式返回语句。"/>
+                    <rule name="R-8-4-4" enable="1" level="1" checker="" description="函数标识符应用于调用函数，或者应在其前面有&amp;。"/>
+                </rules>
+            </section>
+            <section name="声明与初始化" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-8-5-1" enable="1" level="1" checker="" description="所有变量在使用前都应有一个已定义的值。"/>
+                    <rule name="R-8-5-2" enable="1" level="1" checker="" description="在数组和结构的非零初始化中，应使用大括号来指示和匹配结构。"/>
+                    <rule name="R-8-5-3" enable="1" level="1" checker="" description="在枚举成员列表中，除非所有项都被显式初始化，否则不应使用=构造来显式地初始化除了第一个成员之外的成员。"/>
+                </rules>
+            </section>
+            <section name="成员函数" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-9-3-1" enable="1" level="1" checker="" description="常量成员函数不应返回非常量指针或对类数据的引用。"/>
+                    <rule name="R-9-3-2" enable="1" level="1" checker="" description="成员函数不应向类数据返回非常量句柄。"/>
+                    <rule name="R-9-3-3" enable="1" level="1" checker="" description="若成员函数可以是静态的，则应使其成为静态的，反之若成员函数可以是常量，则应使其成为常量。"/>
+                </rules>
+            </section>
+            <section name="联合" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-9-5-1" enable="1" level="1" checker="" description="不应使用联合。"/>
+                </rules>
+            </section>
+            <section name="位域" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-9-6-2" enable="1" level="1" checker="" description="位字段应为布尔型或者显式的无符号整型或有符号整型。"/>
+                    <rule name="R-9-6-3" enable="1" level="1" checker="" description="位字段不应为枚举型。"/>
+                    <rule name="R-9-6-4" enable="1" level="1" checker="" description="有符号整数类型的命名位字段的长度应超过一位。"/>
+                </rules>
+                <rules name="文档标准" enable="1" type="advisory" expand="0">
+                    <rule name="D-9-6-1" enable="1" level="0" checker="" description="在需要代表位字段的位的绝对位置时，应记录位字段的行为和封装。"/>
+                </rules>
+            </section>
+            <section name="多重基类" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-10-1-2" enable="1" level="1" checker="" description="只有在菱形层次结构中使用基类时，才能将该基类声明为虚的。"/>
+                    <rule name="R-10-1-3" enable="1" level="1" checker="" description="可访问的基类在同一个层次中不能同时是虚的和非虚的。"/>
+                </rules>
+                <rules name="推荐标准" enable="1" type="advisory">
+                    <rule name="A-10-1-1" enable="1" level="0" description="不应从虚基类派生类。"/>
+                </rules>
+            </section>
+            <section name="成员名称查询" enable="1" checker="language" expand="0">
+                <rules name="推荐标准" enable="1" type="advisory">
+                    <rule name="A-10-2-1" enable="1" level="0" description="多重继承层次结构中的所有可访问的实体名称都应是唯一的。"/>
+                </rules>
+            </section>
+            <section name="虚函数" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-10-3-1" enable="1" level="1" checker="" description="在继承层次结构的每条路径上，每个虚函数的定义不应超过一个。"/>
+                    <rule name="R-10-3-2" enable="1" level="1" checker="" description="应使用virtual关键字声明每个覆盖虚函数。"/>
+                    <rule name="R-10-3-3" enable="1" level="1" checker="" description="若虚函数本身声明为纯虚函数，则该虚函数只能被纯虚函数覆盖。"/>
+                </rules>
+            </section>
+            <section name="成员访问控制" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-11-0-1" enable="1" level="1" checker="" description="非POD类类型的成员数据应是私有的。"/>
+                </rules>
+            </section>
+            <section name="构造函数" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-12-1-1" enable="1" level="1" checker="" description="不应从对象的构造函数或析构函数主体使用对象的动态类型。"/>
+                    <rule name="R-12-1-3" enable="1" level="1" checker="" description="所有可使用基本类型的单个参数调用的构造函数均应声明为显式的。"/>
+                </rules>
+                <rules name="推荐标准" enable="1" type="advisory">
+                    <rule name="A-12-1-2" enable="1" level="0" description="类的所有构造函数应显式调用其所有直接基类和所有虚基类的构造函数。"/>
+                </rules>
+            </section>
+            <section name="复制类对象" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-12-8-1" enable="1" level="1" checker="" description="复制构造函数只能初始化其基类和其所属类的非静态成员。"/>
+                    <rule name="R-12-8-2" enable="1" level="1" checker="" description="复制赋值操作符应在抽象类中声明为受保护的或私有的。"/>
+                </rules>
+            </section>
+            <section name="模板声明" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-14-5-1" enable="1" level="1" checker="" description="非成员泛型函数只能在不是相关联的命名空间的命名空间中声明。"/>
+                    <rule name="R-14-5-2" enable="1" level="1" checker="" description="当模板构造函数的一个参数为泛型参数时，应声明一个复制构造函数。"/>
+                    <rule name="R-14-5-3" enable="1" level="1" checker="" description="在模板赋值运算符的参数为泛型参数时，应声明复制赋值运算符。"/>
+                </rules>
+            </section>
+            <section name="名称解析" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-14-6-1" enable="1" level="1" checker="" description="在具有待决基类的类模板中，可以在该待决基类中找到的任何名称都应使用限定符id或this-&gt;指代。"/>
+                    <rule name="R-14-6-2" enable="1" level="1" checker="" description="通过重载解析选择的函数应解析为先前在编译单元中声明的函数。 "/>
+                </rules>
+            </section>
+            <section name="模板实例化和专门化" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-14-7-1" enable="1" level="1" checker="" description="所有类模板、函数模板、类模板成员函数和类模板静态成员应至少实例化一次。"/>
+                    <rule name="R-14-7-2" enable="1" level="1" checker="" description="对于任何给定的模板特化，带有在特化中使用的模板参数的模板的显式实例化不应使程序的结构不良。"/>
+                    <rule name="R-14-7-3" enable="1" level="1" checker="" description="模板的所有偏特化和显式特化都应在与其主模板声明相同的文件中声明。"/>
+                </rules>
+            </section>
+            <section name="函数模板专门化" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-14-8-1" enable="1" level="1" checker="" description="重载的函数模板不应显式特化。"/>
+                </rules>
+                <rules name="推荐标准" enable="1" type="advisory">
+                    <rule name="A-14-8-2" enable="1" level="0" description="函数调用的可行函数集应不包含函数特化或只包含函数特化。"/>
+                </rules>
+            </section>
+            <section name="异常处理" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-15-0-3" enable="1" level="1" checker="" description="不应使用goto或switch语句将控制权转移到try或catch块中。"/>
+                </rules>
+                <rules name="推荐标准" enable="1" type="advisory">
+                    <rule name="A-15-0-2" enable="1" level="0" description="异常对象不应具有指针类型。"/>
+                </rules>
+                <rules name="文档标准" enable="1" type="advisory" expand="0">
+                    <rule name="D-15-0-1" enable="1" level="0" checker="" description="异常只能用于错误处理。"/>
+                </rules>
+            </section>
+            <section name="引发异常" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-15-1-1" enable="1" level="1" checker="" description="throw语句的赋值表达式本身不应导致抛出异常。"/>
+                    <rule name="R-15-1-2" enable="1" level="1" checker="" description="不应显式地抛出NULL。"/>
+                    <rule name="R-15-1-3" enable="1" level="1" checker="" description="空抛出（throw;）只能在catch处理程序的复合语句中使用。"/>
+                </rules>
+            </section>
+            <section name="处理异常" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-15-3-1" enable="1" level="1" checker="" description="只能在程序启动后和终止前引发异常。"/>
+                    <rule name="R-15-3-3" enable="1" level="1" checker="" description="类构造函数或析构函数的function-try-block实现的处理程序不应引用该类或其基类的非静态成员。"/>
+                    <rule name="R-15-3-4" enable="1" level="1" checker="" description="代码中显式抛出的每个异常在所有可能通向该点的调用路径中都应有兼容类型的处理程序。"/>
+                    <rule name="R-15-3-5" enable="1" level="1" checker="" description="应始终通过引用捕获类的类型异常。"/>
+                    <rule name="R-15-3-6" enable="1" level="1" checker="" description="若在一个try-catch语句或function-try-block中为派生类及其部分或全部基类提供了多个处理程序，则处理程序应按照从基类派生最多的顺序排序。"/>
+                    <rule name="R-15-3-7" enable="1" level="1" checker="" description="若在一个try-catch语句或function-try-block中提供了多个处理程序，则任何省略号（catch-all）处理程序都应出现在最后。"/>
+                </rules>
+                <rules name="推荐标准" enable="1" type="advisory">
+                    <rule name="A-15-3-2" enable="1" level="0" description="应至少有一个异常处理程序来捕获所有未处理的异常。"/>
+                </rules>
+            </section>
+            <section name="异常规范" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-15-4-1" enable="1" level="1" checker="" description="若函数是用异常说明声明的，则该函数的所有声明（在其他编译单元中）都应使用同一组类型标识来声明。"/>
+                </rules>
+            </section>
+            <section name="特殊函数异常处理" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-15-5-1" enable="1" level="1" checker="" description="类析构函数不应异常退出。"/>
+                    <rule name="R-15-5-2" enable="1" level="1" checker="" description="在函数的声明包含异常说明时，该函数只能抛出指定类型的异常。"/>
+                    <rule name="R-15-5-3" enable="1" level="1" checker="" description="不应隐式地调用terminate()函数。"/>
+                </rules>
+            </section>
+            <section name="预处理指令" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-16-0-1" enable="1" level="1" checker="" description="文件中的#include指令只能在其他预处理器指令或注释之后。"/>
+                    <rule name="R-16-0-2" enable="1" level="1" checker="" description="宏在全局命名空间中只能是#define或#undef的。"/>
+                    <rule name="R-16-0-3" enable="1" level="1" checker="" description="不应使用#undef。"/>
+                    <rule name="R-16-0-4" enable="1" level="1" checker="" description="不应定义类似函数的宏。"/>
+                    <rule name="R-16-0-5" enable="1" level="1" checker="" description="类似函数的宏参数不应包含类似于预处理指令的标记。"/>
+                    <rule name="R-16-0-6" enable="1" level="1" checker="" description="在类似函数的宏定义中，参数的每个实例都应用括号括起来，除非它被用作#或##的操作数。"/>
+                    <rule name="R-16-0-7" enable="1" level="1" checker="" description="未定义的宏标识符不应在#if或#elif预处理器指令内使用，除非它作为已定义运算符的操作数。"/>
+                    <rule name="R-16-0-8" enable="1" level="1" checker="" description="若#标记作为一行中的第一个标记出现，则它后面应紧跟一个预处理标记。"/>
+                </rules>
+            </section>
+            <section name="条件包含" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-16-1-1" enable="1" level="1" checker="" description="定义的预处理器操作符只能以两种标准形式之一使用。"/>
+                    <rule name="R-16-1-2" enable="1" level="1" checker="" description="所有#else、#elif和#endif预处理器指令应与它们相关的#if或#ifdef指令位于同一个文件中。"/>
+                </rules>
+            </section>
+            <section name="源文件包含" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-16-2-1" enable="1" level="1" checker="" description="预处理器只能用于文件包含和包含保护符。"/>
+                    <rule name="R-16-2-2" enable="1" level="1" checker="" description="C++宏只能用于包含保护符、类型限定符或存储类说明符。"/>
+                    <rule name="R-16-2-3" enable="1" level="1" checker="" description="应提供包含保护符。"/>
+                    <rule name="R-16-2-4" enable="1" level="1" checker="" description="在头文件名称中不应出现&apos;、&quot;、/*或//字符。"/>
+                    <rule name="R-16-2-6" enable="1" level="1" checker="" description="#include指令后面应跟有&lt;文件名&gt;或&quot;文件名&quot;序列。"/>
+                </rules>
+                <rules name="推荐标准" enable="1" type="advisory">
+                    <rule name="A-16-2-5" enable="1" level="0" description="在头文件名称中不应出现\字符。"/>
+                </rules>
+            </section>
+            <section name="宏替换" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-16-3-1" enable="1" level="1" checker="" description="在一个宏定义中最多只能出现一个#或##运算符。"/>
+                </rules>
+                <rules name="推荐标准" enable="1" type="advisory">
+                    <rule name="A-16-3-2" enable="1" level="0" description="不应使用#和##运算符。"/>
+                </rules>
+            </section>
+            <section name="程序指令" enable="1" checker="language" expand="0">
+                <rules name="文档标准" enable="1" type="advisory" expand="0">
+                    <rule name="D-16-6-1" enable="1" level="0" checker="" description="应记录#pragma指令的所有使用。"/>
+                </rules>
+            </section>
+            <section name="库引用" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-17-0-1" enable="1" level="1" checker="" description="不应定义、重新定义或不定义标准库中的保留标识符、宏和函数。"/>
+                    <rule name="R-17-0-2" enable="1" level="1" checker="" description="不应重复使用标准库宏和对象的名称。"/>
+                    <rule name="R-17-0-3" enable="1" level="1" checker="" description="不应覆盖标准库函数的名称。"/>
+                    <rule name="R-17-0-5" enable="1" level="1" checker="" description="不应使用setjmp宏和longjmp函数。"/>
+                </rules>
+                <rules name="文档标准" enable="1" type="advisory" expand="0">
+                    <rule name="D-17-0-4" enable="1" level="0" checker="" description="所有库代码应符合MISRA C++的规定。"/>
+                </rules>
+            </section>
+            <section name="语言支持库" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-18-0-1" enable="1" level="1" checker="" description="不应使用C库。"/>
+                    <rule name="R-18-0-2" enable="1" level="1" checker="" description="不应使用&lt;cstdlib&gt;库中的库函数atof、atoi和atol。"/>
+                    <rule name="R-18-0-3" enable="1" level="1" checker="" description="不应使用&lt;cstdlib&gt;库中的库函数abort、exit、getenv和system。"/>
+                    <rule name="R-18-0-4" enable="1" level="1" checker="" description="不应使用&lt;ctime&gt;库的时间处理函数。"/>
+                    <rule name="R-18-0-5" enable="1" level="1" checker="" description="不应使用&lt;cstring&gt;库的无界函数。"/>
+                </rules>
+            </section>
+            <section name="语言支持库实现属性" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-18-2-1" enable="1" level="1" checker="" description="不应使用offsetof宏。"/>
+                </rules>
+            </section>
+            <section name="语言支持库动态内存管理" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-18-4-1" enable="1" level="1" checker="" description="不应使用动态堆内存分配。"/>
+                </rules>
+            </section>
+            <section name="语言支持库其他运行时支持" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-18-7-1" enable="1" level="1" checker="" description="不应使用&lt;csignal&gt;的信号处理设施。"/>
+                </rules>
+            </section>
+            <section name="语言支持库错误号" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-19-3-1" enable="1" level="1" checker="" description="不应使用错误指示符errno。"/>
+                </rules>
+            </section>
+            <section name="输入/输出库" enable="1" checker="language" expand="0">
+                <rules name="要求标准" enable="1" type="required" expand="0">
+                    <rule name="R-27-0-1" enable="1" level="1" checker="" description="不应使用&lt;cstdio&gt;流输入/输出库。"/>
+                </rules>
+            </section>
+        </package>
+    </standard>
+</standards>
